@@ -3,238 +3,154 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arc Escrow</title>
+  <title>ESCROW</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
   <style>
-    :root {
-      --bg: #050505;
-      --surface: #0c0c0c;
-      --border: #1a1a1a;
-      --border-hover: #2a2a2a;
-      --text: #e8e8e8;
-      --text-dim: #555;
-      --accent: #00e599;
-      --accent-dim: #00e59920;
-      --red: #ff4d4d;
-      --red-dim: #ff4d4d15;
-      --blue: #4d9fff;
-      --blue-dim: #4d9fff15;
-    }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
-
-    .noise {
-      position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.03;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    }
-
-    .container {
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 40px 20px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 48px;
-    }
-
-    .logo {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .logo-icon {
-      width: 28px; height: 28px;
-      border: 2px solid var(--accent);
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px;
-    }
-
-    .logo-text {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-    }
-
-    .tagline {
-      font-size: 11px;
-      color: var(--text-dim);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-
-    .section {
-      margin-bottom: 12px;
-    }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-
-    .section-header::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      background: #fff;
+      color: #000;
       padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
     }
 
-    .wallet-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    h1 {
+      font-size: 48px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -2px;
+      border-bottom: 4px solid #000;
+      padding-bottom: 10px;
+      margin-bottom: 4px;
     }
 
-    .wallet-addr {
-      font-size: 13px;
-      color: var(--accent);
+    .sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: #888;
+      margin-bottom: 40px;
     }
 
-    .wallet-bal {
-      font-size: 12px;
-      color: var(--text-dim);
+    .box {
+      border: 3px solid #000;
+      padding: 16px;
+      margin-bottom: 16px;
     }
 
-    .dot {
-      width: 6px; height: 6px;
-      background: var(--accent);
-      border-radius: 50%;
+    .box-title {
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 12px;
+      background: #000;
+      color: #fff;
       display: inline-block;
-      margin-right: 6px;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+      padding: 2px 8px;
     }
 
     label {
       display: block;
       font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 1.5px;
+      font-weight: 900;
       text-transform: uppercase;
-      margin-bottom: 6px;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+      margin-top: 10px;
     }
+
+    label:first-child { margin-top: 0; }
 
     input {
       width: 100%;
-      padding: 10px 14px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text);
+      padding: 8px;
+      border: 3px solid #000;
+      background: #fff;
+      color: #000;
       font-family: inherit;
-      font-size: 13px;
-      margin-bottom: 14px;
-      transition: border-color 0.2s;
-    }
-
-    input:focus {
+      font-size: 14px;
       outline: none;
-      border-color: var(--accent);
     }
 
-    input::placeholder { color: #333; }
-
-    .row { display: flex; gap: 10px; }
-    .row > * { flex: 1; }
+    input:focus { background: #000; color: #fff; }
 
     button {
-      width: 100%;
-      padding: 11px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
+      padding: 10px 20px;
+      border: 3px solid #000;
+      background: #000;
+      color: #fff;
       font-family: inherit;
       font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 1px;
+      font-weight: 900;
       text-transform: uppercase;
+      letter-spacing: 2px;
       cursor: pointer;
-      transition: all 0.15s;
+      margin-top: 12px;
     }
 
-    .btn-primary {
-      background: var(--accent);
-      color: #000;
-      border-color: var(--accent);
-    }
-    .btn-primary:hover { opacity: 0.85; }
+    button:hover { background: #fff; color: #000; }
 
     .btn-outline {
-      background: transparent;
-      color: var(--text);
+      background: #fff;
+      color: #000;
     }
-    .btn-outline:hover { border-color: var(--text-dim); }
 
-    .btn-action {
-      background: transparent;
-      color: var(--text);
-      padding: 9px 16px;
-      width: auto;
-      font-size: 11px;
-    }
-    .btn-action:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-action.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: var(--accent-dim);
-    }
+    .btn-outline:hover { background: #000; color: #fff; }
 
     .tabs {
       display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 0;
+      margin-bottom: 12px;
     }
 
-    .toast {
-      margin-top: 12px;
-      padding: 10px 14px;
-      border-radius: 6px;
+    .tab {
+      padding: 6px 12px;
+      border: 3px solid #000;
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      background: #fff;
+      color: #000;
+      margin-right: -3px;
+    }
+
+    .tab:hover { background: #eee; }
+    .tab.active { background: #000; color: #fff; }
+
+    .msg {
+      margin-top: 10px;
+      padding: 8px;
+      border: 3px solid #000;
       font-size: 12px;
+      font-weight: 700;
       display: none;
     }
 
-    .toast.show { display: block; }
-    .toast.ok { background: var(--accent-dim); border: 1px solid #00e59940; color: var(--accent); }
-    .toast.err { background: var(--red-dim); border: 1px solid #ff4d4d40; color: var(--red); }
-    .toast.info { background: var(--blue-dim); border: 1px solid #4d9fff40; color: var(--blue); }
+    .msg.show { display: block; }
+    .msg.ok { background: #000; color: #0f0; }
+    .msg.err { background: #000; color: #f00; }
+    .msg.info { background: #000; color: #ff0; }
+
+    .wallet-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .wallet-addr { font-weight: 900; }
+    .wallet-bal { color: #888; }
 
     .deal-view {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 20px;
-      margin-top: 12px;
       display: none;
+      margin-top: 16px;
     }
 
     .deal-view.show { display: block; }
@@ -242,131 +158,119 @@
     .deal-row {
       display: flex;
       justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 6px 0;
+      border-bottom: 1px solid #000;
       font-size: 12px;
     }
 
     .deal-row:last-child { border: none; }
-    .deal-label { color: var(--text-dim); }
-    .deal-value { text-align: right; word-break: break-all; }
+    .deal-k { color: #888; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
 
     .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
+      font-weight: 900;
       font-size: 10px;
-      font-weight: 600;
       letter-spacing: 1px;
+      padding: 2px 6px;
+      border: 2px solid;
     }
 
-    .badge-empty { background: #222; color: #666; }
-    .badge-funded { background: var(--blue-dim); color: var(--blue); }
-    .badge-done { background: var(--accent-dim); color: var(--accent); }
-    .badge-refund { background: var(--red-dim); color: var(--red); }
+    .b-empty { border-color: #888; color: #888; }
+    .b-funded { border-color: #00f; color: #00f; }
+    .b-done { border-color: #0a0; color: #0a0; }
+    .b-refund { border-color: #f00; color: #f00; }
 
     .hidden { display: none !important; }
 
-    .connect-card { text-align: center; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-    .network-tag {
-      display: inline-block;
-      font-size: 10px;
-      color: var(--text-dim);
-      border: 1px solid var(--border);
-      padding: 2px 8px;
-      border-radius: 4px;
-      margin-top: 8px;
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      margin-bottom: 16px;
     }
+
+    .stat {
+      border: 3px solid #000;
+      padding: 12px;
+      text-align: center;
+      margin-right: -3px;
+    }
+
+    .stat-val { font-size: 24px; font-weight: 900; }
+    .stat-label { font-size: 8px; text-transform: uppercase; letter-spacing: 2px; color: #888; margin-top: 4px; }
   </style>
 </head>
 <body>
-  <div class="noise"></div>
-  <div class="container">
 
-    <div class="header">
-      <div class="logo">
-        <div class="logo-icon">⬡</div>
-        <div class="logo-text">Arc Escrow</div>
-      </div>
-      <div class="tagline">trustless • instant • $0.01</div>
-    </div>
+  <h1>ESCROW</h1>
+  <div class="sub">trustless usdc on arc</div>
 
-    <!-- Connect -->
-    <div class="section" id="connectSection">
-      <div class="section-header">wallet</div>
-      <div class="card connect-card">
-        <button class="btn-primary" onclick="connect()">Connect Wallet</button>
-        <div class="network-tag">Arc Testnet • Chain 5042002</div>
-        <div class="toast" id="connectToast"></div>
-      </div>
-    </div>
-
-    <!-- Connected State -->
-    <div id="connectedState" class="hidden">
-
-      <!-- Wallet Info -->
-      <div class="section">
-        <div class="section-header"><span class="dot"></span>connected</div>
-        <div class="card">
-          <div class="wallet-bar">
-            <span class="wallet-addr" id="addrDisplay"></span>
-            <span class="wallet-bal" id="balDisplay"></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Create -->
-      <div class="section">
-        <div class="section-header">create escrow</div>
-        <div class="card">
-          <label>Freelancer address</label>
-          <input id="inpFreelancer" placeholder="0x...">
-          <div class="row">
-            <div>
-              <label>Amount (USDC)</label>
-              <input id="inpAmount" type="number" placeholder="10" step="0.01" min="0.01">
-            </div>
-            <div>
-              <label>Description</label>
-              <input id="inpDesc" placeholder="Landing page">
-            </div>
-          </div>
-          <button class="btn-primary" onclick="create()">Create Deal</button>
-          <div class="toast" id="createToast"></div>
-        </div>
-      </div>
-
-      <!-- Manage -->
-      <div class="section">
-        <div class="section-header">manage deal</div>
-        <div class="card">
-          <label>Deal ID</label>
-          <input id="inpDealId" type="number" placeholder="0" min="0">
-          <div class="tabs">
-            <button class="btn-action active" data-action="fund" onclick="setTab(this)">Fund</button>
-            <button class="btn-action" data-action="approve" onclick="setTab(this)">Release</button>
-            <button class="btn-action" data-action="refund" onclick="setTab(this)">Refund</button>
-            <button class="btn-action" data-action="view" onclick="setTab(this)">View</button>
-          </div>
-          <button class="btn-primary" id="actionBtn" onclick="runAction()">Fund Deal</button>
-          <div class="toast" id="actionToast"></div>
-        </div>
-      </div>
-
-      <!-- Deal View -->
-      <div class="deal-view" id="dealView">
-        <div class="section-header">deal details</div>
-        <div id="dealContent"></div>
-      </div>
-
+  <!-- Connect -->
+  <div id="secConnect">
+    <div class="box">
+      <div class="box-title">Connect</div>
+      <button onclick="connect()" style="width:100%">CONNECT WALLET →</button>
+      <div class="msg" id="mConnect"></div>
     </div>
   </div>
 
+  <div id="secMain" class="hidden">
+
+    <!-- Wallet -->
+    <div class="box">
+      <div class="wallet-info">
+        <span class="wallet-addr" id="wAddr"></span>
+        <span class="wallet-bal" id="wBal"></span>
+      </div>
+    </div>
+
+    <!-- Create -->
+    <div class="box">
+      <div class="box-title">New Deal</div>
+      <label>Freelancer</label>
+      <input id="iFreelancer" placeholder="0x...">
+      <div class="grid">
+        <div>
+          <label>Amount USDC</label>
+          <input id="iAmount" type="number" placeholder="10" min="0.01" step="0.01">
+        </div>
+        <div>
+          <label>Description</label>
+          <input id="iDesc" placeholder="landing page">
+        </div>
+      </div>
+      <button onclick="create()" style="width:100%">CREATE DEAL →</button>
+      <div class="msg" id="mCreate"></div>
+    </div>
+
+    <!-- Manage -->
+    <div class="box">
+      <div class="box-title">Manage</div>
+      <label>Deal ID</label>
+      <input id="iDealId" type="number" placeholder="0">
+      <div class="tabs">
+        <div class="tab active" data-a="fund" onclick="pickTab(this)">FUND</div>
+        <div class="tab" data-a="approve" onclick="pickTab(this)">RELEASE</div>
+        <div class="tab" data-a="refund" onclick="pickTab(this)">REFUND</div>
+        <div class="tab" data-a="view" onclick="pickTab(this)">VIEW</div>
+      </div>
+      <button id="btnAct" onclick="runAct()" style="width:100%">FUND DEAL →</button>
+      <div class="msg" id="mAct"></div>
+    </div>
+
+    <!-- Deal Info -->
+    <div class="box deal-view" id="dealView">
+      <div class="box-title">Deal</div>
+      <div id="dealBody"></div>
+    </div>
+
+  </div>
+
   <script>
-    const ESCROW = "0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B";
+    const ADDR = "0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B";
     const USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
-    const CHAIN = { id: 5042002, hex: "0x4CE4A2" };
+    const CID = { id: 5042002, hex: "0x4CE4A2" };
 
     const ABI = [
       "function createDeal(address,uint256,string) external",
@@ -380,129 +284,110 @@
     const ERC20 = [
       "function approve(address,uint256) returns (bool)",
       "function allowance(address,address) view returns (uint256)",
-      "function balanceOf(address) view returns (uint256)",
-      "function decimals() view returns (uint8)"
+      "function balanceOf(address) view returns (uint256)"
     ];
 
-    let provider, signer, contract, token, action = "fund";
+    let prov, sig, ctr, tok, act = "fund";
 
-    function toast(id, msg, type) {
-      const el = document.getElementById(id);
-      el.className = `toast show ${type}`;
-      el.textContent = msg;
+    function msg(id, t, c) {
+      const e = document.getElementById(id);
+      e.className = `msg show ${c}`;
+      e.textContent = t;
     }
 
-    function setTab(el) {
-      action = el.dataset.action;
-      document.querySelectorAll(".btn-action").forEach(b => b.classList.remove("active"));
+    function pickTab(el) {
+      act = el.dataset.a;
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
       el.classList.add("active");
-      const labels = { fund: "Fund Deal", approve: "Approve & Release", refund: "Refund", view: "View Deal" };
-      document.getElementById("actionBtn").textContent = labels[action];
+      const l = { fund: "FUND DEAL →", approve: "RELEASE →", refund: "REFUND →", view: "VIEW →" };
+      document.getElementById("btnAct").textContent = l[act];
     }
 
     async function connect() {
-      if (!window.ethereum) return toast("connectToast", "No wallet detected", "err");
+      if (!window.ethereum) return msg("mConnect", "NO WALLET", "err");
       try {
-        provider = new ethers.BrowserProvider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = await provider.getSigner();
-
+        prov = new ethers.BrowserProvider(window.ethereum);
+        await prov.send("eth_requestAccounts", []);
+        sig = await prov.getSigner();
         try {
-          await window.ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: CHAIN.hex }]
-          });
+          await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CID.hex }] });
         } catch (e) {
-          if (e.code === 4902) {
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [{
-                chainId: CHAIN.hex,
-                chainName: "Arc Testnet",
-                rpcUrls: ["https://rpc.testnet.arc.network"],
-                nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
-                blockExplorerUrls: ["https://testnet.arcscan.app"]
-              }]
-            });
-          }
+          if (e.code === 4902) await window.ethereum.request({
+            method: "wallet_addEthereumChain", params: [{
+              chainId: CID.hex, chainName: "Arc Testnet",
+              rpcUrls: ["https://rpc.testnet.arc.network"],
+              nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+              blockExplorerUrls: ["https://testnet.arcscan.app"]
+            }]
+          });
         }
-
-        token = new ethers.Contract(USDC, ERC20, signer);
-        contract = new ethers.Contract(ESCROW, ABI, signer);
-
-        const addr = await signer.getAddress();
-        const bal = await provider.getBalance(addr);
-
-        document.getElementById("connectSection").classList.add("hidden");
-        document.getElementById("connectedState").classList.remove("hidden");
-        document.getElementById("addrDisplay").textContent = `${addr.slice(0,6)}…${addr.slice(-4)}`;
-        document.getElementById("balDisplay").textContent = `${parseFloat(ethers.formatEther(bal)).toFixed(2)} USDC`;
-      } catch (e) {
-        toast("connectToast", e.message, "err");
-      }
+        tok = new ethers.Contract(USDC, ERC20, sig);
+        ctr = new ethers.Contract(ADDR, ABI, sig);
+        const a = await sig.getAddress();
+        const b = await prov.getBalance(a);
+        document.getElementById("secConnect").classList.add("hidden");
+        document.getElementById("secMain").classList.remove("hidden");
+        document.getElementById("wAddr").textContent = a.slice(0,6) + "…" + a.slice(-4);
+        document.getElementById("wBal").textContent = parseFloat(ethers.formatEther(b)).toFixed(2) + " USDC";
+      } catch (e) { msg("mConnect", e.message, "err"); }
     }
 
     async function create() {
-      const f = document.getElementById("inpFreelancer").value;
-      const a = document.getElementById("inpAmount").value;
-      const d = document.getElementById("inpDesc").value;
-      if (!f || !a || !d) return toast("createToast", "Fill all fields", "err");
+      const f = document.getElementById("iFreelancer").value;
+      const a = document.getElementById("iAmount").value;
+      const d = document.getElementById("iDesc").value;
+      if (!f || !a || !d) return msg("mCreate", "FILL ALL FIELDS", "err");
       try {
-        toast("createToast", "Creating…", "info");
-        const wei = ethers.parseUnits(a, 6);
-        const tx = await contract.createDeal(f, wei, d);
+        msg("mCreate", "CREATING...", "info");
+        const tx = await ctr.createDeal(f, ethers.parseUnits(a, 6), d);
         const r = await tx.wait();
         const ev = r.logs.find(l => l.fragment?.name === "DealCreated");
         const id = ev ? ev.args[0].toString() : "?";
-        toast("createToast", `Deal #${id} created`, "ok");
-        document.getElementById("inpDealId").value = id;
-      } catch (e) {
-        toast("createToast", e.reason || e.message, "err");
-      }
+        msg("mCreate", "DEAL #" + id + " CREATED", "ok");
+        document.getElementById("iDealId").value = id;
+      } catch (e) { msg("mCreate", e.reason || e.message, "err"); }
     }
 
-    async function runAction() {
-      const id = document.getElementById("inpDealId").value;
-      if (id === "") return toast("actionToast", "Enter deal ID", "err");
+    async function runAct() {
+      const id = document.getElementById("iDealId").value;
+      if (id === "") return msg("mAct", "ENTER DEAL ID", "err");
       try {
-        if (action === "fund") {
-          toast("actionToast", "Checking allowance…", "info");
-          const deal = await contract.getDeal(id);
-          const alw = await token.allowance(await signer.getAddress(), ESCROW);
+        if (act === "fund") {
+          msg("mAct", "CHECKING...", "info");
+          const deal = await ctr.getDeal(id);
+          const alw = await tok.allowance(await sig.getAddress(), ADDR);
           if (alw < deal[2]) {
-            toast("actionToast", "Approving USDC…", "info");
-            await (await token.approve(ESCROW, deal[2])).wait();
+            msg("mAct", "APPROVING...", "info");
+            await (await tok.approve(ADDR, deal[2])).wait();
           }
-          toast("actionToast", "Funding…", "info");
-          await (await contract.fundDeal(id)).wait();
-          toast("actionToast", `Deal #${id} funded ✓`, "ok");
-        } else if (action === "approve") {
-          toast("actionToast", "Releasing…", "info");
-          await (await contract.approveDeal(id)).wait();
-          toast("actionToast", `Deal #${id} released ✓`, "ok");
-        } else if (action === "refund") {
-          toast("actionToast", "Refunding…", "info");
-          await (await contract.refundDeal(id)).wait();
-          toast("actionToast", `Deal #${id} refunded ✓`, "ok");
+          msg("mAct", "FUNDING...", "info");
+          await (await ctr.fundDeal(id)).wait();
+          msg("mAct", "DEAL #" + id + " FUNDED", "ok");
+        } else if (act === "approve") {
+          msg("mAct", "RELEASING...", "info");
+          await (await ctr.approveDeal(id)).wait();
+          msg("mAct", "DEAL #" + id + " RELEASED", "ok");
+        } else if (act === "refund") {
+          msg("mAct", "REFUNDING...", "info");
+          await (await ctr.refundDeal(id)).wait();
+          msg("mAct", "DEAL #" + id + " REFUNDED", "ok");
         } else {
-          const deal = await contract.getDeal(id);
+          const deal = await ctr.getDeal(id);
           const [c, f, amt, st, desc] = deal;
-          const names = ["EMPTY", "FUNDED", "COMPLETED", "REFUNDED"];
-          const cls = ["badge-empty", "badge-funded", "badge-done", "badge-refund"];
+          const nn = ["EMPTY", "FUNDED", "DONE", "REFUNDED"];
+          const nc = ["b-empty", "b-funded", "b-done", "b-refund"];
           document.getElementById("dealView").classList.add("show");
-          document.getElementById("dealContent").innerHTML = `
-            <div class="deal-row"><span class="deal-label">ID</span><span class="deal-value">#${id}</span></div>
-            <div class="deal-row"><span class="deal-label">Status</span><span class="deal-value"><span class="badge ${cls[st]}">${names[st]}</span></span></div>
-            <div class="deal-row"><span class="deal-label">Description</span><span class="deal-value">${desc}</span></div>
-            <div class="deal-row"><span class="deal-label">Amount</span><span class="deal-value">${ethers.formatUnits(amt, 6)} USDC</span></div>
-            <div class="deal-row"><span class="deal-label">Client</span><span class="deal-value" style="font-size:10px">${c}</span></div>
-            <div class="deal-row"><span class="deal-label">Freelancer</span><span class="deal-value" style="font-size:10px">${f}</span></div>
+          document.getElementById("dealBody").innerHTML = `
+            <div class="deal-row"><span class="deal-k">ID</span><span>#${id}</span></div>
+            <div class="deal-row"><span class="deal-k">STATUS</span><span class="badge ${nc[st]}">${nn[st]}</span></div>
+            <div class="deal-row"><span class="deal-k">DESC</span><span>${desc}</span></div>
+            <div class="deal-row"><span class="deal-k">AMOUNT</span><span>${ethers.formatUnits(amt, 6)} USDC</span></div>
+            <div class="deal-row"><span class="deal-k">CLIENT</span><span style="font-size:10px">${c}</span></div>
+            <div class="deal-row"><span class="deal-k">WORKER</span><span style="font-size:10px">${f}</span></div>
           `;
-          toast("actionToast", "Loaded ✓", "ok");
+          msg("mAct", "LOADED", "ok");
         }
-      } catch (e) {
-        toast("actionToast", e.reason || e.message, "err");
-      }
+      } catch (e) { msg("mAct", e.reason || e.message, "err"); }
     }
   </script>
 </body>
