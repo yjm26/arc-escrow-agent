@@ -129,9 +129,8 @@ contract BondRoomV3 is ReentrancyGuard {
         require(bytes(_item).length <= 200, "item too long");
         require(activeRooms[msg.sender] < MAX_ACTIVE_ROOMS, "too many active rooms");
 
-        // Collect fees — single transferFrom for cleaner approval
-        uint256 totalFee = CREATION_FEE + DELIVERY_FEE;
-        require(usdc.transferFrom(msg.sender, treasury, totalFee), "fees failed");
+        // Collect creation fee — 1x transferFrom
+        require(usdc.transferFrom(msg.sender, treasury, CREATION_FEE), "create fee failed");
 
         uint256 id = totalRooms++;
         uint256 _tax = (_price * TAX_BPS) / BPS_DENOM;
