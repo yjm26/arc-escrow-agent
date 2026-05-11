@@ -8,7 +8,7 @@ module.exports = {
     arcTestnet: {
       url: process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      chainId: 9001,
+      chainId: 5042002,
     },
   },
 };

@@ -3,173 +3,423 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arc Escrow — Trustless USDC Escrow</title>
+  <title>Arc Escrow</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
   <style>
+    :root {
+      --bg: #050505;
+      --surface: #0c0c0c;
+      --border: #1a1a1a;
+      --border-hover: #2a2a2a;
+      --text: #e8e8e8;
+      --text-dim: #555;
+      --accent: #00e599;
+      --accent-dim: #00e59920;
+      --red: #ff4d4d;
+      --red-dim: #ff4d4d15;
+      --blue: #4d9fff;
+      --blue-dim: #4d9fff15;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    h1 { text-align: center; margin: 30px 0 10px; font-size: 28px; color: #fff; }
-    .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
-    .card { background: #141414; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
-    .card h2 { font-size: 16px; color: #aaa; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
-    label { display: block; margin-bottom: 6px; color: #999; font-size: 13px; }
-    input, select { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; margin-bottom: 12px; }
-    input:focus, select:focus { outline: none; border-color: #4a9eff; }
-    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .btn-primary { background: #4a9eff; color: #fff; }
-    .btn-primary:hover { background: #3a8eef; }
-    .btn-success { background: #22c55e; color: #fff; }
-    .btn-success:hover { background: #16a34a; }
-    .btn-danger { background: #ef4444; color: #fff; }
-    .btn-danger:hover { background: #dc2626; }
-    .btn-secondary { background: #333; color: #fff; }
-    .btn-secondary:hover { background: #444; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .status { padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; display: none; }
-    .status.success { display: block; background: #052e16; border: 1px solid #166534; color: #4ade80; }
-    .status.error { display: block; background: #2e0505; border: 1px solid #651616; color: #f87171; }
-    .status.info { display: block; background: #051a2e; border: 1px solid #163d65; color: #60a5fa; }
-    .wallet-info { text-align: center; padding: 12px; background: #1a1a1a; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
-    .wallet-info .address { color: #4a9eff; font-family: monospace; }
-    .wallet-info .balance { color: #22c55e; margin-top: 4px; }
-    .deal-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
-    .deal-card .deal-id { color: #4a9eff; font-weight: bold; }
-    .deal-card .deal-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-    .status-empty { background: #333; color: #aaa; }
-    .status-funded { background: #1e3a5f; color: #60a5fa; }
-    .status-completed { background: #052e16; color: #4ade80; }
-    .status-refunded { background: #2e0505; color: #f87171; }
-    .deal-card .deal-details { margin-top: 8px; font-size: 13px; color: #888; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-    .tab { padding: 8px 16px; border-radius: 8px; background: #1a1a1a; border: 1px solid #333; color: #888; cursor: pointer; font-size: 13px; }
-    .tab.active { background: #4a9eff; color: #fff; border-color: #4a9eff; }
-    .hidden { display: none; }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .noise {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .tagline {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .section {
+      margin-bottom: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .section-header::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .wallet-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .wallet-addr {
+      font-size: 13px;
+      color: var(--accent);
+    }
+
+    .wallet-bal {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    label {
+      display: block;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input::placeholder { color: #333; }
+
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+
+    button {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+    }
+    .btn-outline:hover { border-color: var(--text-dim); }
+
+    .btn-action {
+      background: transparent;
+      color: var(--text);
+      padding: 9px 16px;
+      width: auto;
+      font-size: 11px;
+    }
+    .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-action.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .toast {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: none;
+    }
+
+    .toast.show { display: block; }
+    .toast.ok { background: var(--accent-dim); border: 1px solid #00e59940; color: var(--accent); }
+    .toast.err { background: var(--red-dim); border: 1px solid #ff4d4d40; color: var(--red); }
+    .toast.info { background: var(--blue-dim); border: 1px solid #4d9fff40; color: var(--blue); }
+
+    .deal-view {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .deal-view.show { display: block; }
+
+    .deal-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .deal-row:last-child { border: none; }
+    .deal-label { color: var(--text-dim); }
+    .deal-value { text-align: right; word-break: break-all; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .badge-empty { background: #222; color: #666; }
+    .badge-funded { background: var(--blue-dim); color: var(--blue); }
+    .badge-done { background: var(--accent-dim); color: var(--accent); }
+    .badge-refund { background: var(--red-dim); color: var(--red); }
+
+    .hidden { display: none !important; }
+
+    .connect-card { text-align: center; }
+
+    .network-tag {
+      display: inline-block;
+      font-size: 10px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
+  <div class="noise"></div>
   <div class="container">
-    <h1>🔒 Arc Escrow</h1>
-    <p class="subtitle">Trustless USDC escrow on Arc Network</p>
 
-    <!-- Wallet Connection -->
-    <div class="card">
-      <h2>Wallet</h2>
-      <button id="connectBtn" class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
-      <div id="walletInfo" class="wallet-info hidden">
-        <div class="address" id="walletAddress"></div>
-        <div class="balance" id="walletBalance"></div>
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">⬡</div>
+        <div class="logo-text">Arc Escrow</div>
       </div>
-      <div id="connectStatus" class="status"></div>
+      <div class="tagline">trustless • instant • $0.01</div>
     </div>
 
-    <!-- Create Deal -->
-    <div class="card">
-      <h2>Create Escrow</h2>
-      <label>Freelancer Address</label>
-      <input type="text" id="freelancerAddr" placeholder="0x...">
-      <label>Amount (USDC)</label>
-      <input type="number" id="dealAmount" placeholder="10" step="0.01" min="0.01">
-      <label>Description</label>
-      <input type="text" id="dealDesc" placeholder="Build a landing page">
-      <button class="btn btn-primary" onclick="createDeal()">Create Deal</button>
-      <div id="createStatus" class="status"></div>
-    </div>
-
-    <!-- Actions -->
-    <div class="card">
-      <h2>Manage Deal</h2>
-      <label>Deal ID</label>
-      <input type="number" id="dealIdInput" placeholder="0" min="0">
-      <div class="tabs">
-        <div class="tab active" onclick="setAction('fund')">Fund</div>
-        <div class="tab" onclick="setAction('approve')">Approve</div>
-        <div class="tab" onclick="setAction('refund')">Refund</div>
-        <div class="tab" onclick="setAction('view')">View</div>
+    <!-- Connect -->
+    <div class="section" id="connectSection">
+      <div class="section-header">wallet</div>
+      <div class="card connect-card">
+        <button class="btn-primary" onclick="connect()">Connect Wallet</button>
+        <div class="network-tag">Arc Testnet • Chain 5042002</div>
+        <div class="toast" id="connectToast"></div>
       </div>
-      <button id="actionBtn" class="btn btn-success" onclick="executeAction()">Fund Deal</button>
-      <div id="actionStatus" class="status"></div>
     </div>
 
-    <!-- Deal Info -->
-    <div class="card hidden" id="dealInfoCard">
-      <h2>Deal Details</h2>
-      <div id="dealInfoContent"></div>
+    <!-- Connected State -->
+    <div id="connectedState" class="hidden">
+
+      <!-- Wallet Info -->
+      <div class="section">
+        <div class="section-header"><span class="dot"></span>connected</div>
+        <div class="card">
+          <div class="wallet-bar">
+            <span class="wallet-addr" id="addrDisplay"></span>
+            <span class="wallet-bal" id="balDisplay"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create -->
+      <div class="section">
+        <div class="section-header">create escrow</div>
+        <div class="card">
+          <label>Freelancer address</label>
+          <input id="inpFreelancer" placeholder="0x...">
+          <div class="row">
+            <div>
+              <label>Amount (USDC)</label>
+              <input id="inpAmount" type="number" placeholder="10" step="0.01" min="0.01">
+            </div>
+            <div>
+              <label>Description</label>
+              <input id="inpDesc" placeholder="Landing page">
+            </div>
+          </div>
+          <button class="btn-primary" onclick="create()">Create Deal</button>
+          <div class="toast" id="createToast"></div>
+        </div>
+      </div>
+
+      <!-- Manage -->
+      <div class="section">
+        <div class="section-header">manage deal</div>
+        <div class="card">
+          <label>Deal ID</label>
+          <input id="inpDealId" type="number" placeholder="0" min="0">
+          <div class="tabs">
+            <button class="btn-action active" data-action="fund" onclick="setTab(this)">Fund</button>
+            <button class="btn-action" data-action="approve" onclick="setTab(this)">Release</button>
+            <button class="btn-action" data-action="refund" onclick="setTab(this)">Refund</button>
+            <button class="btn-action" data-action="view" onclick="setTab(this)">View</button>
+          </div>
+          <button class="btn-primary" id="actionBtn" onclick="runAction()">Fund Deal</button>
+          <div class="toast" id="actionToast"></div>
+        </div>
+      </div>
+
+      <!-- Deal View -->
+      <div class="deal-view" id="dealView">
+        <div class="section-header">deal details</div>
+        <div id="dealContent"></div>
+      </div>
+
     </div>
   </div>
 
   <script>
-    // === CONFIG ===
-    // Replace with your deployed contract address
-    const ESCROW_ADDRESS = "REPLACE_AFTER_DEPLOY";
-    const USDC_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
-    const ARC_CHAIN_ID = 9001;
-    const ARC_RPC = "https://rpc.testnet.arc.network";
+    const ESCROW = "0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B";
+    const USDC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+    const CHAIN = { id: 5042002, hex: "0x4CE4A2" };
 
-    const ESCROW_ABI = [
-      "function createDeal(address _freelancer, uint256 _amount, string _description) external",
-      "function fundDeal(uint256 _dealId) external",
-      "function approveDeal(uint256 _dealId) external",
-      "function refundDeal(uint256 _dealId) external",
-      "function getDeal(uint256 _dealId) external view returns (address client, address freelancer, uint256 amount, uint8 status, string description)",
-      "function totalDeals() external view returns (uint256)",
-      "event DealCreated(uint256 indexed dealId, address indexed client, address indexed freelancer, uint256 amount, string description)",
-      "event DealFunded(uint256 indexed dealId)",
-      "event DealCompleted(uint256 indexed dealId, uint256 amount)",
-      "event DealRefunded(uint256 indexed dealId, uint256 amount)"
+    const ABI = [
+      "function createDeal(address,uint256,string) external",
+      "function fundDeal(uint256) external",
+      "function approveDeal(uint256) external",
+      "function refundDeal(uint256) external",
+      "function getDeal(uint256) external view returns (address,address,uint256,uint8,string)",
+      "function totalDeals() external view returns (uint256)"
     ];
 
-    const ERC20_ABI = [
-      "function approve(address spender, uint256 amount) external returns (bool)",
-      "function allowance(address owner, address spender) external view returns (uint256)",
-      "function balanceOf(address account) external view returns (uint256)",
-      "function decimals() external view returns (uint8)"
+    const ERC20 = [
+      "function approve(address,uint256) returns (bool)",
+      "function allowance(address,address) view returns (uint256)",
+      "function balanceOf(address) view returns (uint256)",
+      "function decimals() view returns (uint8)"
     ];
 
-    let provider, signer, escrow, usdc, currentAction = "fund";
+    let provider, signer, contract, token, action = "fund";
 
-    function showStatus(id, msg, type) {
+    function toast(id, msg, type) {
       const el = document.getElementById(id);
-      el.className = `status ${type}`;
+      el.className = `toast show ${type}`;
       el.textContent = msg;
     }
 
-    function setAction(action) {
-      currentAction = action;
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      event.target.classList.add("active");
-      const btn = document.getElementById("actionBtn");
+    function setTab(el) {
+      action = el.dataset.action;
+      document.querySelectorAll(".btn-action").forEach(b => b.classList.remove("active"));
+      el.classList.add("active");
       const labels = { fund: "Fund Deal", approve: "Approve & Release", refund: "Refund", view: "View Deal" };
-      const classes = { fund: "btn-success", approve: "btn-primary", refund: "btn-danger", view: "btn-secondary" };
-      btn.textContent = labels[action];
-      btn.className = `btn ${classes[action]}`;
+      document.getElementById("actionBtn").textContent = labels[action];
     }
 
-    async function connectWallet() {
-      if (!window.ethereum) {
-        showStatus("connectStatus", "Install MetaMask or another wallet", "error");
-        return;
-      }
+    async function connect() {
+      if (!window.ethereum) return toast("connectToast", "No wallet detected", "err");
       try {
         provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         signer = await provider.getSigner();
-        const address = await signer.getAddress();
 
-        // Try to switch to Arc Testnet
         try {
           await window.ethereum.request({
             method: "wallet_switchEthereumChain",
-            params: [{ chainId: `0x${ARC_CHAIN_ID.toString(16)}` }]
+            params: [{ chainId: CHAIN.hex }]
           });
-        } catch (switchError) {
-          if (switchError.code === 4902) {
+        } catch (e) {
+          if (e.code === 4902) {
             await window.ethereum.request({
               method: "wallet_addEthereumChain",
               params: [{
-                chainId: `0x${ARC_CHAIN_ID.toString(16)}`,
+                chainId: CHAIN.hex,
                 chainName: "Arc Testnet",
-                rpcUrls: [ARC_RPC],
+                rpcUrls: ["https://rpc.testnet.arc.network"],
                 nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
                 blockExplorerUrls: ["https://testnet.arcscan.app"]
               }]
@@ -177,106 +427,81 @@
           }
         }
 
-        usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
-        escrow = new ethers.Contract(ESCROW_ADDRESS, ESCROW_ABI, signer);
+        token = new ethers.Contract(USDC, ERC20, signer);
+        contract = new ethers.Contract(ESCROW, ABI, signer);
 
-        const balance = await usdc.balanceOf(address);
-        const decimals = await usdc.decimals();
+        const addr = await signer.getAddress();
+        const bal = await provider.getBalance(addr);
 
-        document.getElementById("connectBtn").classList.add("hidden");
-        document.getElementById("walletInfo").classList.remove("hidden");
-        document.getElementById("walletAddress").textContent = `${address.slice(0,6)}...${address.slice(-4)}`;
-        document.getElementById("walletBalance").textContent = `USDC: ${ethers.formatUnits(balance, decimals)}`;
-        showStatus("connectStatus", "Connected to Arc Testnet ✓", "success");
-      } catch (err) {
-        showStatus("connectStatus", err.message, "error");
+        document.getElementById("connectSection").classList.add("hidden");
+        document.getElementById("connectedState").classList.remove("hidden");
+        document.getElementById("addrDisplay").textContent = `${addr.slice(0,6)}…${addr.slice(-4)}`;
+        document.getElementById("balDisplay").textContent = `${parseFloat(ethers.formatEther(bal)).toFixed(2)} USDC`;
+      } catch (e) {
+        toast("connectToast", e.message, "err");
       }
     }
 
-    async function createDeal() {
-      if (!signer) return showStatus("createStatus", "Connect wallet first", "error");
-      const freelancer = document.getElementById("freelancerAddr").value;
-      const amount = document.getElementById("dealAmount").value;
-      const desc = document.getElementById("dealDesc").value;
-
-      if (!freelancer || !amount || !desc) return showStatus("createStatus", "Fill all fields", "error");
-
+    async function create() {
+      const f = document.getElementById("inpFreelancer").value;
+      const a = document.getElementById("inpAmount").value;
+      const d = document.getElementById("inpDesc").value;
+      if (!f || !a || !d) return toast("createToast", "Fill all fields", "err");
       try {
-        showStatus("createStatus", "Creating deal...", "info");
-        const decimals = await usdc.decimals();
-        const amountWei = ethers.parseUnits(amount, decimals);
-        const tx = await escrow.createDeal(freelancer, amountWei, desc);
-        const receipt = await tx.wait();
-
-        const event = receipt.logs.find(l => l.fragment?.name === "DealCreated");
-        const dealId = event ? event.args[0].toString() : "?";
-
-        showStatus("createStatus", `Deal #${dealId} created! Now fund it.`, "success");
-        document.getElementById("dealIdInput").value = dealId;
-      } catch (err) {
-        showStatus("createStatus", err.reason || err.message, "error");
+        toast("createToast", "Creating…", "info");
+        const wei = ethers.parseUnits(a, 6);
+        const tx = await contract.createDeal(f, wei, d);
+        const r = await tx.wait();
+        const ev = r.logs.find(l => l.fragment?.name === "DealCreated");
+        const id = ev ? ev.args[0].toString() : "?";
+        toast("createToast", `Deal #${id} created`, "ok");
+        document.getElementById("inpDealId").value = id;
+      } catch (e) {
+        toast("createToast", e.reason || e.message, "err");
       }
     }
 
-    async function executeAction() {
-      if (!signer) return showStatus("actionStatus", "Connect wallet first", "error");
-      const dealId = document.getElementById("dealIdInput").value;
-      if (dealId === "") return showStatus("actionStatus", "Enter deal ID", "error");
-
+    async function runAction() {
+      const id = document.getElementById("inpDealId").value;
+      if (id === "") return toast("actionToast", "Enter deal ID", "err");
       try {
-        if (currentAction === "fund") {
-          // Check & approve USDC allowance first
-          showStatus("actionStatus", "Checking USDC allowance...", "info");
-          const deal = await escrow.getDeal(dealId);
-          const allowance = await usdc.allowance(await signer.getAddress(), ESCROW_ADDRESS);
-          if (allowance < deal[2]) {
-            showStatus("actionStatus", "Approving USDC spend...", "info");
-            const approveTx = await usdc.approve(ESCROW_ADDRESS, deal[2]);
-            await approveTx.wait();
+        if (action === "fund") {
+          toast("actionToast", "Checking allowance…", "info");
+          const deal = await contract.getDeal(id);
+          const alw = await token.allowance(await signer.getAddress(), ESCROW);
+          if (alw < deal[2]) {
+            toast("actionToast", "Approving USDC…", "info");
+            await (await token.approve(ESCROW, deal[2])).wait();
           }
-          showStatus("actionStatus", "Funding deal...", "info");
-          const tx = await escrow.fundDeal(dealId);
-          await tx.wait();
-          showStatus("actionStatus", `Deal #${dealId} funded! ✓`, "success");
-
-        } else if (currentAction === "approve") {
-          showStatus("actionStatus", "Approving & releasing USDC...", "info");
-          const tx = await escrow.approveDeal(dealId);
-          await tx.wait();
-          showStatus("actionStatus", `Deal #${dealId} completed! USDC released ✓`, "success");
-
-        } else if (currentAction === "refund") {
-          showStatus("actionStatus", "Processing refund...", "info");
-          const tx = await escrow.refundDeal(dealId);
-          await tx.wait();
-          showStatus("actionStatus", `Deal #${dealId} refunded! ✓`, "success");
-
-        } else if (currentAction === "view") {
-          const deal = await escrow.getDeal(dealId);
-          const [client, freelancer, amount, status, description] = deal;
-          const decimals = await usdc.decimals();
-          const statusNames = ["Empty", "Funded", "Completed", "Refunded"];
-          const statusClasses = ["status-empty", "status-funded", "status-completed", "status-refunded"];
-
-          document.getElementById("dealInfoCard").classList.remove("hidden");
-          document.getElementById("dealInfoContent").innerHTML = `
-            <div class="deal-card">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span class="deal-id">Deal #${dealId}</span>
-                <span class="deal-status ${statusClasses[status]}">${statusNames[status]}</span>
-              </div>
-              <div class="deal-details">
-                <div><strong>Description:</strong> ${description}</div>
-                <div><strong>Amount:</strong> ${ethers.formatUnits(amount, decimals)} USDC</div>
-                <div><strong>Client:</strong> ${client}</div>
-                <div><strong>Freelancer:</strong> ${freelancer}</div>
-              </div>
-            </div>
+          toast("actionToast", "Funding…", "info");
+          await (await contract.fundDeal(id)).wait();
+          toast("actionToast", `Deal #${id} funded ✓`, "ok");
+        } else if (action === "approve") {
+          toast("actionToast", "Releasing…", "info");
+          await (await contract.approveDeal(id)).wait();
+          toast("actionToast", `Deal #${id} released ✓`, "ok");
+        } else if (action === "refund") {
+          toast("actionToast", "Refunding…", "info");
+          await (await contract.refundDeal(id)).wait();
+          toast("actionToast", `Deal #${id} refunded ✓`, "ok");
+        } else {
+          const deal = await contract.getDeal(id);
+          const [c, f, amt, st, desc] = deal;
+          const names = ["EMPTY", "FUNDED", "COMPLETED", "REFUNDED"];
+          const cls = ["badge-empty", "badge-funded", "badge-done", "badge-refund"];
+          document.getElementById("dealView").classList.add("show");
+          document.getElementById("dealContent").innerHTML = `
+            <div class="deal-row"><span class="deal-label">ID</span><span class="deal-value">#${id}</span></div>
+            <div class="deal-row"><span class="deal-label">Status</span><span class="deal-value"><span class="badge ${cls[st]}">${names[st]}</span></span></div>
+            <div class="deal-row"><span class="deal-label">Description</span><span class="deal-value">${desc}</span></div>
+            <div class="deal-row"><span class="deal-label">Amount</span><span class="deal-value">${ethers.formatUnits(amt, 6)} USDC</span></div>
+            <div class="deal-row"><span class="deal-label">Client</span><span class="deal-value" style="font-size:10px">${c}</span></div>
+            <div class="deal-row"><span class="deal-label">Freelancer</span><span class="deal-value" style="font-size:10px">${f}</span></div>
           `;
-          showStatus("actionStatus", "Deal loaded ✓", "success");
+          toast("actionToast", "Loaded ✓", "ok");
         }
-      } catch (err) {
-        showStatus("actionStatus", err.reason || err.message, "error");
+      } catch (e) {
+        toast("actionToast", e.reason || e.message, "err");
       }
     }
   </script>
