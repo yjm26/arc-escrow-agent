@@ -26,16 +26,16 @@ contract BondRoomV2 {
     uint256 public constant TAX_BPS = 100;
     uint256 public constant BPS_DENOM = 10_000;
 
-    // Defaults (in seconds)
-    uint256 public constant DEFAULT_SELLER_TIMEOUT   = 3 days;
-    uint256 public constant DEFAULT_AUTO_RELEASE     = 1 days;
-    uint256 public constant DISPUTE_WINDOW           = 12 hours;
+    // Defaults (in seconds) — all under 24h for crypto speed
+    uint256 public constant DEFAULT_SELLER_TIMEOUT   = 6 hours;
+    uint256 public constant DEFAULT_AUTO_RELEASE     = 4 hours;
 
     // Min/max bounds
-    uint256 public constant MIN_SELLER_TIMEOUT = 1 hours;
-    uint256 public constant MAX_SELLER_TIMEOUT = 30 days;
-    uint256 public constant MIN_AUTO_RELEASE   = 1 hours;
-    uint256 public constant MAX_AUTO_RELEASE   = 7 days;
+    uint256 public constant MIN_SELLER_TIMEOUT = 30 minutes;
+    uint256 public constant MAX_SELLER_TIMEOUT = 24 hours;
+    uint256 public constant MIN_AUTO_RELEASE   = 30 minutes;
+    uint256 public constant MAX_AUTO_RELEASE   = 12 hours;
+    uint256 public constant DISPUTE_WINDOW      = 2 hours;
 
     uint256 public totalRooms;
     mapping(uint256 => Room) public rooms;
