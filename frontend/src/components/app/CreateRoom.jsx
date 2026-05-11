@@ -8,8 +8,9 @@ export default function CreateRoom({ room, token, signerAddress }) {
   const [status, setStatus] = useState(null)
   const [roomId, setRoomId] = useState(null)
 
-  const TAX_BPS = 100 // 1%
-  const tax = price ? (parseFloat(price) * TAX_BPS / 10000).toFixed(2) : '0'
+  const CREATION_FEE = 0.1
+  const DELIVERY_FEE = 0.1
+  const tax = price ? (parseFloat(price) * 0.01).toFixed(2) : '0'
   const total = price ? (parseFloat(price) + parseFloat(tax)).toFixed(2) : '0'
 
   async function handleCreate() {
@@ -56,15 +57,8 @@ export default function CreateRoom({ room, token, signerAddress }) {
           <div className="bg-stripe-surface border border-stripe-border rounded p-3 mb-4 font-mono text-[12px] text-stripe-body break-all">
             {window.location.origin}/room/{roomId}
           </div>
-          <button onClick={copyLink} className="btn-primary w-full py-3 mb-3">
-            Copy Invite Link
-          </button>
-          <a
-            href={`/room/${roomId}`}
-            className="btn-ghost w-full block text-center py-3"
-          >
-            View Room →
-          </a>
+          <button onClick={copyLink} className="btn-primary w-full py-3 mb-3">Copy Invite Link</button>
+          <a href={`/room/${roomId}`} className="btn-ghost w-full block text-center py-3">View Room →</a>
         </div>
       </div>
     )
@@ -72,26 +66,14 @@ export default function CreateRoom({ room, token, signerAddress }) {
 
   return (
     <div className="card-3d p-6">
-      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body mb-5">
-        New Room
-      </div>
+      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body mb-5">New Room</div>
 
       {/* Role selector */}
       <div className="mb-4">
         <label className="text-[13px] text-stripe-body mb-2 block">I am the…</label>
         <div className="flex gap-2">
-          <button
-            onClick={() => setIsSeller(true)}
-            className={`tab-btn flex-1 ${isSeller ? 'active' : ''}`}
-          >
-            Seller
-          </button>
-          <button
-            onClick={() => setIsSeller(false)}
-            className={`tab-btn flex-1 ${!isSeller ? 'active' : ''}`}
-          >
-            Buyer
-          </button>
+          <button onClick={() => setIsSeller(true)} className={`tab-btn flex-1 ${isSeller ? 'active' : ''}`}>Seller</button>
+          <button onClick={() => setIsSeller(false)} className={`tab-btn flex-1 ${!isSeller ? 'active' : ''}`}>Buyer</button>
         </div>
       </div>
 
@@ -124,23 +106,29 @@ export default function CreateRoom({ room, token, signerAddress }) {
             <span className="text-stripe-navy font-mono" style={{ fontFeatureSettings: '"tnum"' }}>{tax} USDC</span>
           </div>
           <div className="flex justify-between text-[14px] py-1.5 font-medium">
-            <span className="text-stripe-navy">Total</span>
+            <span className="text-stripe-navy">Buyer pays</span>
             <span className="text-stripe-navy font-mono" style={{ fontFeatureSettings: '"tnum"' }}>{total} USDC</span>
+          </div>
+          <div className="mt-2 pt-2 border-t border-stripe-border">
+            <div className="flex justify-between text-[11px] py-1 text-stripe-body">
+              <span>Creation fee (you)</span>
+              <span className="font-mono">−{CREATION_FEE} USDC</span>
+            </div>
+            <div className="flex justify-between text-[11px] py-1 text-stripe-body">
+              <span>Delivery fee (buyer)</span>
+              <span className="font-mono">−{DELIVERY_FEE} USDC</span>
+            </div>
           </div>
         </div>
       )}
 
-      <button onClick={handleCreate} className="btn-primary w-full py-3">
-        Create Room
-      </button>
+      <button onClick={handleCreate} className="btn-primary w-full py-3">Create Room</button>
 
       {status && (
         <div className={`mt-3 px-4 py-2.5 rounded text-[13px] font-medium border ${
-          status.type === 'ok'
-            ? 'bg-green-50 text-green-700 border-green-100'
-            : status.type === 'err'
-            ? 'bg-red-50 text-red-600 border-red-100'
-            : 'bg-blue-50 text-blue-700 border-blue-100'
+          status.type === 'ok' ? 'bg-green-50 text-green-700 border-green-100'
+          : status.type === 'err' ? 'bg-red-50 text-red-600 border-red-100'
+          : 'bg-blue-50 text-blue-700 border-blue-100'
         }`}>
           {status.msg}
         </div>

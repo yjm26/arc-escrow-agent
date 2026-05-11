@@ -22,6 +22,8 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
         price: r.price,
         tax: r.tax,
         total: r.total,
+        sellerTimeout: r.sellerTimeout,
+        autoReleaseDelay: r.autoReleaseDelay,
         status: r.status,
       })
     } catch (e) {
@@ -32,6 +34,8 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
   }
 
   useEffect(() => { loadRoom() }, [roomId])
+
+  // ─── Actions ─────────────────────────────────
 
   async function handleJoin() {
     try {
@@ -60,11 +64,44 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
     }
   }
 
+  async function handleDeliver() {
+    try {
+      setStatus({ type: 'info', msg: 'Marking as delivered…' })
+      await (await room.markDelivered(roomId)).wait()
+      setStatus({ type: 'ok', msg: 'Marked delivered!' })
+      await loadRoom()
+    } catch (e) {
+      setStatus({ type: 'err', msg: e.reason || e.message })
+    }
+  }
+
   async function handleRelease() {
     try {
       setStatus({ type: 'info', msg: 'Releasing…' })
       await (await room.releaseRoom(roomId)).wait()
       setStatus({ type: 'ok', msg: 'Released to seller!' })
+      await loadRoom()
+    } catch (e) {
+      setStatus({ type: 'err', msg: e.reason || e.message })
+    }
+  }
+
+  async function handleAutoRelease() {
+    try {
+      setStatus({ type: 'info', msg: 'Auto-releasing…' })
+      await (await room.autoRelease(roomId)).wait()
+      setStatus({ type: 'ok', msg: 'Auto-released!' })
+      await loadRoom()
+    } catch (e) {
+      setStatus({ type: 'err', msg: e.reason || e.message })
+    }
+  }
+
+  async function handleDispute() {
+    try {
+      setStatus({ type: 'info', msg: 'Opening dispute…' })
+      await (await room.dispute(roomId)).wait()
+      setStatus({ type: 'ok', msg: 'Disputed! Seller has 24h to accept.' })
       await loadRoom()
     } catch (e) {
       setStatus({ type: 'err', msg: e.reason || e.message })
@@ -81,6 +118,19 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
       setStatus({ type: 'err', msg: e.reason || e.message })
     }
   }
+
+  async function handleAcceptDispute() {
+    try {
+      setStatus({ type: 'info', msg: 'Accepting dispute…' })
+      await (await room.sellerAcceptDispute(roomId)).wait()
+      setStatus({ type: 'ok', msg: 'Dispute accepted, refunded.' })
+      await loadRoom()
+    } catch (e) {
+      setStatus({ type: 'err', msg: e.reason || e.message })
+    }
+  }
+
+  // ─── Render ─────────────────────────────────
 
   if (loading) {
     return (
@@ -102,9 +152,12 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
   const isMaker = data.maker.toLowerCase() === signerAddress.toLowerCase()
   const isCounter = data.counter.toLowerCase() === signerAddress.toLowerCase()
   const isSeller = data.makerIsSeller
-    ? (data.maker.toLowerCase() === signerAddress.toLowerCase())
-    : (data.counter.toLowerCase() === signerAddress.toLowerCase())
-  const isBuyer = !isSeller && (isMaker || isCounter)
+    ? isMaker
+    : isCounter
+  const isBuyer = data.makerIsSeller
+    ? isCounter
+    : isMaker
+  const counterJoined = data.counter !== '0x0000000000000000000000000000000000000000'
   const priceUSDC = ethers.formatUnits(data.price, 6)
   const taxUSDC = ethers.formatUnits(data.tax, 6)
   const totalUSDC = ethers.formatUnits(data.total, 6)
@@ -112,6 +165,13 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
   function copyLink() {
     navigator.clipboard.writeText(window.location.href)
     setStatus({ type: 'ok', msg: 'Link copied!' })
+  }
+
+  function formatSeconds(s) {
+    const n = Number(s)
+    if (n >= 3600) return `${Math.ceil(n / 3600)}h`
+    if (n >= 60) return `${Math.ceil(n / 60)}m`
+    return `${n}s`
   }
 
   return (
@@ -131,76 +191,90 @@ export default function RoomView({ roomId, room, token, signerAddress }) {
       <div className="bg-stripe-surface border border-stripe-border rounded p-4 mb-5" style={{ boxShadow: '0 2px 6px rgba(50,50,93,0.06)' }}>
         <PriceRow label="Item price" value={`${priceUSDC} USDC`} />
         <PriceRow label="Tax (1%)" value={`${taxUSDC} USDC`} />
-        <PriceRow label="Total" value={`${totalUSDC} USDC`} bold />
+        <PriceRow label="Total to fund" value={`${totalUSDC} USDC`} bold />
       </div>
+
+      {/* Timer info */}
+      {statusName === 'FUNDED' && (
+        <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-5 text-[13px] text-amber-800">
+          Seller has {formatSeconds(data.sellerTimeout)} to deliver. After that, buyer can refund.
+        </div>
+      )}
+      {statusName === 'DELIVERED' && (
+        <div className="bg-purple-50 border border-purple-200 rounded p-3 mb-5 text-[13px] text-purple-800">
+          Buyer has {formatSeconds(data.autoReleaseDelay)} to confirm. After that, auto-release kicks in.
+          <br/>Dispute window: 2h.
+        </div>
+      )}
 
       {/* Parties */}
       <div className="bg-stripe-surface border border-stripe-border rounded p-4 mb-5">
         <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body mb-3">Parties</div>
-        <PartyRow
-          label="Maker"
-          address={data.maker}
-          role={data.makerIsSeller ? 'Seller' : 'Buyer'}
-          isYou={isMaker}
-        />
-        {data.counter !== '0x0000000000000000000000000000000000000000' ? (
-          <PartyRow
-            label="Counter"
-            address={data.counter}
-            role={data.makerIsSeller ? 'Buyer' : 'Seller'}
-            isYou={isCounter}
-          />
+        <PartyRow label="Maker" address={data.maker} role={data.makerIsSeller ? 'Seller' : 'Buyer'} isYou={isMaker} />
+        {counterJoined ? (
+          <PartyRow label="Counter" address={data.counter} role={data.makerIsSeller ? 'Buyer' : 'Seller'} isYou={isCounter} />
         ) : (
           <div className="text-[13px] text-stripe-body py-2">Waiting for counter party…</div>
         )}
+        <div className="text-[13px] text-stripe-body py-2">
+          You are: <span className="font-medium text-stripe-navy">{isSeller ? 'Seller' : 'Buyer'}</span>
+        </div>
       </div>
 
       {/* Actions */}
       <div className="flex flex-col gap-3 mb-4">
-        {/* Waiting → join */}
-        {statusName === 'WAITING' && !isMaker && data.counter === '0x0000000000000000000000000000000000000000' && (
-          <button onClick={handleJoin} className="btn-primary w-full py-3">
-            Join Room
-          </button>
+        {/* WAITING: counter joins */}
+        {statusName === 'WAITING' && !isMaker && !counterJoined && (
+          <button onClick={handleJoin} className="btn-primary w-full py-3">Join Room</button>
         )}
 
-        {/* Waiting + joined → fund (buyer only) */}
-        {statusName === 'WAITING' && isBuyer && data.counter !== '0x0000000000000000000000000000000000000000' && (
-          <button onClick={handleFund} className="btn-primary w-full py-3">
-            Fund {totalUSDC} USDC
-          </button>
+        {/* WAITING + joined: buyer funds */}
+        {statusName === 'WAITING' && isBuyer && counterJoined && (
+          <button onClick={handleFund} className="btn-primary w-full py-3">Fund {totalUSDC} USDC</button>
         )}
 
-        {/* Funded → release (seller) or refund (buyer) */}
-        {statusName === 'FUNDED' && (
+        {/* FUNDED: seller delivers */}
+        {statusName === 'FUNDED' && isSeller && (
+          <button onClick={handleDeliver} className="btn-primary w-full py-3">Mark Delivered</button>
+        )}
+
+        {/* FUNDED: buyer refunds after timeout */}
+        {statusName === 'FUNDED' && isBuyer && (
+          <button onClick={handleRefund} className="btn-ghost w-full py-3">Refund (after {formatSeconds(data.sellerTimeout)})</button>
+        )}
+
+        {/* DELIVERED: buyer confirms */}
+        {statusName === 'DELIVERED' && isBuyer && (
           <>
-            {isSeller && (
-              <button onClick={handleRelease} className="btn-primary w-full py-3">
-                Release to Seller
-              </button>
-            )}
-            {isBuyer && (
-              <button onClick={handleRefund} className="btn-ghost w-full py-3">
-                Refund
-              </button>
-            )}
+            <button onClick={handleRelease} className="btn-primary w-full py-3">Confirm & Release</button>
+            <button onClick={handleDispute} className="btn-ghost w-full py-3">Dispute</button>
           </>
+        )}
+
+        {/* DELIVERED: anyone can auto-release */}
+        {statusName === 'DELIVERED' && (
+          <button onClick={handleAutoRelease} className="btn-ghost w-full py-3 text-[13px]">
+            Auto-Release (after {formatSeconds(data.autoReleaseDelay)})
+          </button>
+        )}
+
+        {/* DISPUTED: seller accepts or buyer refunds after 24h */}
+        {statusName === 'DISPUTED' && isSeller && (
+          <button onClick={handleAcceptDispute} className="btn-primary w-full py-3">Accept Dispute & Refund</button>
+        )}
+        {statusName === 'DISPUTED' && isBuyer && (
+          <button onClick={handleRefund} className="btn-ghost w-full py-3">Refund (after 24h if seller ignores)</button>
         )}
       </div>
 
       {/* Copy link */}
-      <button onClick={copyLink} className="btn-ghost w-full py-2.5 text-[13px]">
-        Copy Invite Link
-      </button>
+      <button onClick={copyLink} className="btn-ghost w-full py-2.5 text-[13px]">Copy Invite Link</button>
 
-      {/* Status messages */}
       {status && (
         <div className={`mt-3 px-4 py-2.5 rounded text-[13px] font-medium border ${
-          status.type === 'ok'
-            ? 'bg-green-50 text-green-700 border-green-100'
-            : status.type === 'err'
-            ? 'bg-red-50 text-red-600 border-red-100'
-            : 'bg-blue-50 text-blue-700 border-blue-100'
+          status.type === 'ok' ? 'bg-green-50 text-green-700 border-green-100'
+          : status.type === 'err' ? 'bg-red-50 text-red-600 border-red-100'
+          : 'bg-blue-50 text-blue-700 border-blue-100'
         }`}>
           {status.msg}
         </div>
