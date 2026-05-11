@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arc Escrow — Trustless USDC Escrow</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.9.0/dist/ethers.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; margin: 30px 0 10px; font-size: 28px; color: #fff; }
+    .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
+    .card { background: #141414; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+    .card h2 { font-size: 16px; color: #aaa; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; }
+    label { display: block; margin-bottom: 6px; color: #999; font-size: 13px; }
+    input, select { width: 100%; padding: 10px 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 14px; margin-bottom: 12px; }
+    input:focus, select:focus { outline: none; border-color: #4a9eff; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #4a9eff; color: #fff; }
+    .btn-primary:hover { background: #3a8eef; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-success:hover { background: #16a34a; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-secondary { background: #333; color: #fff; }
+    .btn-secondary:hover { background: #444; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; display: none; }
+    .status.success { display: block; background: #052e16; border: 1px solid #166534; color: #4ade80; }
+    .status.error { display: block; background: #2e0505; border: 1px solid #651616; color: #f87171; }
+    .status.info { display: block; background: #051a2e; border: 1px solid #163d65; color: #60a5fa; }
+    .wallet-info { text-align: center; padding: 12px; background: #1a1a1a; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+    .wallet-info .address { color: #4a9eff; font-family: monospace; }
+    .wallet-info .balance { color: #22c55e; margin-top: 4px; }
+    .deal-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    .deal-card .deal-id { color: #4a9eff; font-weight: bold; }
+    .deal-card .deal-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .status-empty { background: #333; color: #aaa; }
+    .status-funded { background: #1e3a5f; color: #60a5fa; }
+    .status-completed { background: #052e16; color: #4ade80; }
+    .status-refunded { background: #2e0505; color: #f87171; }
+    .deal-card .deal-details { margin-top: 8px; font-size: 13px; color: #888; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { padding: 8px 16px; border-radius: 8px; background: #1a1a1a; border: 1px solid #333; color: #888; cursor: pointer; font-size: 13px; }
+    .tab.active { background: #4a9eff; color: #fff; border-color: #4a9eff; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Arc Escrow</h1>
+    <p class="subtitle">Trustless USDC escrow on Arc Network</p>
+
+    <!-- Wallet Connection -->
+    <div class="card">
+      <h2>Wallet</h2>
+      <button id="connectBtn" class="btn btn-primary" onclick="connectWallet()">Connect Wallet</button>
+      <div id="walletInfo" class="wallet-info hidden">
+        <div class="address" id="walletAddress"></div>
+        <div class="balance" id="walletBalance"></div>
+      </div>
+      <div id="connectStatus" class="status"></div>
+    </div>
+
+    <!-- Create Deal -->
+    <div class="card">
+      <h2>Create Escrow</h2>
+      <label>Freelancer Address</label>
+      <input type="text" id="freelancerAddr" placeholder="0x...">
+      <label>Amount (USDC)</label>
+      <input type="number" id="dealAmount" placeholder="10" step="0.01" min="0.01">
+      <label>Description</label>
+      <input type="text" id="dealDesc" placeholder="Build a landing page">
+      <button class="btn btn-primary" onclick="createDeal()">Create Deal</button>
+      <div id="createStatus" class="status"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <h2>Manage Deal</h2>
+      <label>Deal ID</label>
+      <input type="number" id="dealIdInput" placeholder="0" min="0">
+      <div class="tabs">
+        <div class="tab active" onclick="setAction('fund')">Fund</div>
+        <div class="tab" onclick="setAction('approve')">Approve</div>
+        <div class="tab" onclick="setAction('refund')">Refund</div>
+        <div class="tab" onclick="setAction('view')">View</div>
+      </div>
+      <button id="actionBtn" class="btn btn-success" onclick="executeAction()">Fund Deal</button>
+      <div id="actionStatus" class="status"></div>
+    </div>
+
+    <!-- Deal Info -->
+    <div class="card hidden" id="dealInfoCard">
+      <h2>Deal Details</h2>
+      <div id="dealInfoContent"></div>
+    </div>
+  </div>
+
+  <script>
+    // === CONFIG ===
+    // Replace with your deployed contract address
+    const ESCROW_ADDRESS = "REPLACE_AFTER_DEPLOY";
+    const USDC_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+    const ARC_CHAIN_ID = 9001;
+    const ARC_RPC = "https://rpc.testnet.arc.network";
+
+    const ESCROW_ABI = [
+      "function createDeal(address _freelancer, uint256 _amount, string _description) external",
+      "function fundDeal(uint256 _dealId) external",
+      "function approveDeal(uint256 _dealId) external",
+      "function refundDeal(uint256 _dealId) external",
+      "function getDeal(uint256 _dealId) external view returns (address client, address freelancer, uint256 amount, uint8 status, string description)",
+      "function totalDeals() external view returns (uint256)",
+      "event DealCreated(uint256 indexed dealId, address indexed client, address indexed freelancer, uint256 amount, string description)",
+      "event DealFunded(uint256 indexed dealId)",
+      "event DealCompleted(uint256 indexed dealId, uint256 amount)",
+      "event DealRefunded(uint256 indexed dealId, uint256 amount)"
+    ];
+
+    const ERC20_ABI = [
+      "function approve(address spender, uint256 amount) external returns (bool)",
+      "function allowance(address owner, address spender) external view returns (uint256)",
+      "function balanceOf(address account) external view returns (uint256)",
+      "function decimals() external view returns (uint8)"
+    ];
+
+    let provider, signer, escrow, usdc, currentAction = "fund";
+
+    function showStatus(id, msg, type) {
+      const el = document.getElementById(id);
+      el.className = `status ${type}`;
+      el.textContent = msg;
+    }
+
+    function setAction(action) {
+      currentAction = action;
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      event.target.classList.add("active");
+      const btn = document.getElementById("actionBtn");
+      const labels = { fund: "Fund Deal", approve: "Approve & Release", refund: "Refund", view: "View Deal" };
+      const classes = { fund: "btn-success", approve: "btn-primary", refund: "btn-danger", view: "btn-secondary" };
+      btn.textContent = labels[action];
+      btn.className = `btn ${classes[action]}`;
+    }
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        showStatus("connectStatus", "Install MetaMask or another wallet", "error");
+        return;
+      }
+      try {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        const address = await signer.getAddress();
+
+        // Try to switch to Arc Testnet
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: `0x${ARC_CHAIN_ID.toString(16)}` }]
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: `0x${ARC_CHAIN_ID.toString(16)}`,
+                chainName: "Arc Testnet",
+                rpcUrls: [ARC_RPC],
+                nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+                blockExplorerUrls: ["https://testnet.arcscan.app"]
+              }]
+            });
+          }
+        }
+
+        usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
+        escrow = new ethers.Contract(ESCROW_ADDRESS, ESCROW_ABI, signer);
+
+        const balance = await usdc.balanceOf(address);
+        const decimals = await usdc.decimals();
+
+        document.getElementById("connectBtn").classList.add("hidden");
+        document.getElementById("walletInfo").classList.remove("hidden");
+        document.getElementById("walletAddress").textContent = `${address.slice(0,6)}...${address.slice(-4)}`;
+        document.getElementById("walletBalance").textContent = `USDC: ${ethers.formatUnits(balance, decimals)}`;
+        showStatus("connectStatus", "Connected to Arc Testnet ✓", "success");
+      } catch (err) {
+        showStatus("connectStatus", err.message, "error");
+      }
+    }
+
+    async function createDeal() {
+      if (!signer) return showStatus("createStatus", "Connect wallet first", "error");
+      const freelancer = document.getElementById("freelancerAddr").value;
+      const amount = document.getElementById("dealAmount").value;
+      const desc = document.getElementById("dealDesc").value;
+
+      if (!freelancer || !amount || !desc) return showStatus("createStatus", "Fill all fields", "error");
+
+      try {
+        showStatus("createStatus", "Creating deal...", "info");
+        const decimals = await usdc.decimals();
+        const amountWei = ethers.parseUnits(amount, decimals);
+        const tx = await escrow.createDeal(freelancer, amountWei, desc);
+        const receipt = await tx.wait();
+
+        const event = receipt.logs.find(l => l.fragment?.name === "DealCreated");
+        const dealId = event ? event.args[0].toString() : "?";
+
+        showStatus("createStatus", `Deal #${dealId} created! Now fund it.`, "success");
+        document.getElementById("dealIdInput").value = dealId;
+      } catch (err) {
+        showStatus("createStatus", err.reason || err.message, "error");
+      }
+    }
+
+    async function executeAction() {
+      if (!signer) return showStatus("actionStatus", "Connect wallet first", "error");
+      const dealId = document.getElementById("dealIdInput").value;
+      if (dealId === "") return showStatus("actionStatus", "Enter deal ID", "error");
+
+      try {
+        if (currentAction === "fund") {
+          // Check & approve USDC allowance first
+          showStatus("actionStatus", "Checking USDC allowance...", "info");
+          const deal = await escrow.getDeal(dealId);
+          const allowance = await usdc.allowance(await signer.getAddress(), ESCROW_ADDRESS);
+          if (allowance < deal[2]) {
+            showStatus("actionStatus", "Approving USDC spend...", "info");
+            const approveTx = await usdc.approve(ESCROW_ADDRESS, deal[2]);
+            await approveTx.wait();
+          }
+          showStatus("actionStatus", "Funding deal...", "info");
+          const tx = await escrow.fundDeal(dealId);
+          await tx.wait();
+          showStatus("actionStatus", `Deal #${dealId} funded! ✓`, "success");
+
+        } else if (currentAction === "approve") {
+          showStatus("actionStatus", "Approving & releasing USDC...", "info");
+          const tx = await escrow.approveDeal(dealId);
+          await tx.wait();
+          showStatus("actionStatus", `Deal #${dealId} completed! USDC released ✓`, "success");
+
+        } else if (currentAction === "refund") {
+          showStatus("actionStatus", "Processing refund...", "info");
+          const tx = await escrow.refundDeal(dealId);
+          await tx.wait();
+          showStatus("actionStatus", `Deal #${dealId} refunded! ✓`, "success");
+
+        } else if (currentAction === "view") {
+          const deal = await escrow.getDeal(dealId);
+          const [client, freelancer, amount, status, description] = deal;
+          const decimals = await usdc.decimals();
+          const statusNames = ["Empty", "Funded", "Completed", "Refunded"];
+          const statusClasses = ["status-empty", "status-funded", "status-completed", "status-refunded"];
+
+          document.getElementById("dealInfoCard").classList.remove("hidden");
+          document.getElementById("dealInfoContent").innerHTML = `
+            <div class="deal-card">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="deal-id">Deal #${dealId}</span>
+                <span class="deal-status ${statusClasses[status]}">${statusNames[status]}</span>
+              </div>
+              <div class="deal-details">
+                <div><strong>Description:</strong> ${description}</div>
+                <div><strong>Amount:</strong> ${ethers.formatUnits(amount, decimals)} USDC</div>
+                <div><strong>Client:</strong> ${client}</div>
+                <div><strong>Freelancer:</strong> ${freelancer}</div>
+              </div>
+            </div>
+          `;
+          showStatus("actionStatus", "Deal loaded ✓", "success");
+        }
+      } catch (err) {
+        showStatus("actionStatus", err.reason || err.message, "error");
+      }
+    }
+  </script>
+</body>
+</html>
