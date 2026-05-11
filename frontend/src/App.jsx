@@ -1,18 +1,86 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Features from './components/Features'
 import HowItWorks from './components/HowItWorks'
 import ConnectWallet from './components/app/ConnectWallet'
-import CreateDeal from './components/app/CreateDeal'
-import ManageDeal from './components/app/ManageDeal'
-import { connectWallet, formatAddress, formatBalance } from './lib/wallet'
+import CreateRoom from './components/app/CreateRoom'
+import RoomView from './components/app/RoomView'
+import { connectWallet } from './lib/wallet'
+
+function HomePage({ wallet, connecting, connectError, handleConnect, scrollToApp }) {
+  return (
+    <>
+      <Hero onOpenApp={scrollToApp} />
+      <Features />
+      <HowItWorks />
+
+      {/* App Section */}
+      <section id="app" className="py-32 px-6">
+        <div className="max-w-[560px] mx-auto">
+          <div className="font-mono text-[11px] uppercase tracking-[3px] text-stripe-body mb-4">
+            App
+          </div>
+          <h2
+            className="text-[32px] font-light text-stripe-navy mb-3"
+            style={{ letterSpacing: '-0.64px', fontFeatureSettings: '"ss01"' }}
+          >
+            Create a room.
+          </h2>
+          <p className="text-[15px] font-light text-stripe-body mb-10 leading-[1.5]">
+            Set up an escrow room in seconds. Share the link. Done.
+          </p>
+
+          {!wallet ? (
+            <ConnectWallet onConnect={handleConnect} loading={connecting} error={connectError} />
+          ) : (
+            <CreateRoom room={wallet.room} token={wallet.token} signerAddress={wallet.address} />
+          )}
+        </div>
+      </section>
+    </>
+  )
+}
+
+function RoomPage({ wallet, connecting, connectError, handleConnect }) {
+  const { id } = useParams()
+
+  return (
+    <section className="pt-28 pb-32 px-6 min-h-screen">
+      <div className="max-w-[560px] mx-auto">
+        <div className="font-mono text-[11px] uppercase tracking-[3px] text-stripe-body mb-4">
+          Room #{id}
+        </div>
+        <h2
+          className="text-[32px] font-light text-stripe-navy mb-3"
+          style={{ letterSpacing: '-0.64px', fontFeatureSettings: '"ss01"' }}
+        >
+          Escrow Room
+        </h2>
+        <p className="text-[15px] font-light text-stripe-body mb-10 leading-[1.5]">
+          You've been invited to an escrow deal.
+        </p>
+
+        {!wallet ? (
+          <ConnectWallet onConnect={handleConnect} loading={connecting} error={connectError} />
+        ) : (
+          <RoomView
+            roomId={id}
+            room={wallet.room}
+            token={wallet.token}
+            signerAddress={wallet.address}
+          />
+        )}
+      </div>
+    </section>
+  )
+}
 
 export default function App() {
   const [wallet, setWallet] = useState(null)
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState(null)
-  const [lastDealId, setLastDealId] = useState(null)
 
   const handleConnect = useCallback(async () => {
     setConnecting(true)
@@ -31,61 +99,34 @@ export default function App() {
     document.getElementById('app')?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const handleDealCreated = (id) => {
-    setLastDealId(id)
-  }
-
   return (
-    <>
+    <BrowserRouter>
       <Navbar onLaunch={scrollToApp} wallet={wallet} onConnect={handleConnect} />
-      <Hero onOpenApp={scrollToApp} />
-      <Features />
-      <HowItWorks />
-
-      {/* App Section */}
-      <section id="app" className="py-32 px-6">
-        <div className="max-w-[560px] mx-auto">
-          <div className="font-mono text-[11px] uppercase tracking-[3px] text-stripe-body mb-4">
-            App
-          </div>
-          <h2
-            className="text-[32px] font-light text-stripe-navy mb-3"
-            style={{ letterSpacing: '-0.64px', fontFeatureSettings: '"ss01"' }}
-          >
-            Start an escrow.
-          </h2>
-          <p className="text-[15px] font-light text-stripe-body mb-10 leading-[1.5]">
-            Connect your wallet to create, fund, and manage trustless deals on Arc.
-          </p>
-
-          {!wallet ? (
-            <ConnectWallet onConnect={handleConnect} loading={connecting} error={connectError} />
-          ) : (
-            <div className="flex flex-col gap-6">
-              {/* Wallet Bar */}
-              <div
-                className="flex justify-between items-center px-5 py-4 bg-white border border-stripe-border rounded-lg"
-                style={{ boxShadow: '0 4px 12px rgba(50,50,93,0.1), 0 16px 32px rgba(50,50,93,0.06)' }}
-              >
-                <span className="text-stripe-purple text-[13px] font-medium font-mono">
-                  {formatAddress(wallet.address)}
-                </span>
-                <span className="text-stripe-body text-[13px]" style={{ fontFeatureSettings: '"tnum"' }}>
-                  {formatBalance(wallet.balance)} USDC
-                </span>
-              </div>
-
-              <CreateDeal escrow={wallet.escrow} onCreated={handleDealCreated} />
-
-              <ManageDeal
-                escrow={wallet.escrow}
-                token={wallet.token}
-                signerAddress={wallet.address}
-              />
-            </div>
-          )}
-        </div>
-      </section>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <HomePage
+              wallet={wallet}
+              connecting={connecting}
+              connectError={connectError}
+              handleConnect={handleConnect}
+              scrollToApp={scrollToApp}
+            />
+          }
+        />
+        <Route
+          path="/room/:id"
+          element={
+            <RoomPage
+              wallet={wallet}
+              connecting={connecting}
+              connectError={connectError}
+              handleConnect={handleConnect}
+            />
+          }
+        />
+      </Routes>
 
       {/* Footer */}
       <footer className="py-16 text-center border-t border-stripe-border">
@@ -96,12 +137,9 @@ export default function App() {
           <span className="text-[13px] font-medium text-stripe-navy">BOND</span>
         </div>
         <div className="text-[12px] font-light text-stripe-body">
-          on Arc Testnet ·{' '}
-          <a href="https://testnet.arcscan.app/address/0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B" target="_blank" rel="noopener" className="text-stripe-navy hover:underline">Contract</a>
-          {' · '}
-          <a href="https://github.com/yjm26/arc-escrow-agent" target="_blank" rel="noopener" className="text-stripe-navy hover:underline">GitHub</a>
+          on Arc Testnet
         </div>
       </footer>
-    </>
+    </BrowserRouter>
   )
 }

@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { ARC_TESTNET, ESCROW_ADDRESS, USDC_ADDRESS, ESCROW_ABI, ERC20_ABI } from './contract'
+import { ARC_TESTNET, BONDROOM_ADDRESS, USDC_ADDRESS, BONDROOM_ABI, ERC20_ABI } from './contract'
 
 export async function connectWallet() {
   if (!window.ethereum) throw new Error('No wallet detected')
@@ -31,10 +31,10 @@ export async function connectWallet() {
 
   const address = await signer.getAddress()
   const balance = await provider.getBalance(address)
-  const escrow = new ethers.Contract(ESCROW_ADDRESS, ESCROW_ABI, signer)
+  const room = new ethers.Contract(BONDROOM_ADDRESS, BONDROOM_ABI, signer)
   const token = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer)
 
-  return { provider, signer, address, balance, escrow, token }
+  return { provider, signer, address, balance, room, token }
 }
 
 export function formatAddress(addr) {
@@ -43,4 +43,8 @@ export function formatAddress(addr) {
 
 export function formatBalance(bal) {
   return parseFloat(ethers.formatEther(bal)).toFixed(2)
+}
+
+export function formatUSDC(amount) {
+  return ethers.formatUnits(amount, 6)
 }
