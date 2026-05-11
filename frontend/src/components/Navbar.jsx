@@ -1,8 +1,8 @@
 import { ESCROW_ADDRESS } from '../lib/contract'
 
-export default function Navbar({ onLaunch }) {
+export default function Navbar({ onLaunch, wallet, onConnect }) {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-white/90 backdrop-blur-xl border-b border-stripe-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-white/95 backdrop-blur-xl border-b border-stripe-border">
       <div className="flex items-center gap-2.5">
         <div className="w-7 h-7 bg-stripe-navy rounded flex items-center justify-center">
           <span className="text-white text-xs font-bold font-mono">B</span>
@@ -29,9 +29,23 @@ export default function Navbar({ onLaunch }) {
         >
           GitHub
         </a>
-        <button onClick={onLaunch} className="btn-primary ml-1">
-          Launch App
-        </button>
+
+        {/* Connect Wallet di kanan */}
+        {wallet ? (
+          <div
+            className="flex items-center gap-2 px-4 py-2 bg-stripe-surface border border-stripe-border rounded text-[13px] font-mono"
+            style={{ boxShadow: '0 2px 8px rgba(50,50,93,0.12)' }}
+          >
+            <span className="w-2 h-2 bg-stripe-success rounded-full" />
+            <span className="text-stripe-purple font-medium">
+              {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
+            </span>
+          </div>
+        ) : (
+          <button onClick={onConnect} className="btn-primary ml-1">
+            Connect Wallet
+          </button>
+        )}
       </div>
     </nav>
   )

@@ -37,13 +37,13 @@ export default function App() {
 
   return (
     <>
-      <Navbar onLaunch={scrollToApp} />
+      <Navbar onLaunch={scrollToApp} wallet={wallet} onConnect={handleConnect} />
       <Hero onOpenApp={scrollToApp} />
       <Features />
       <HowItWorks />
 
       {/* App Section */}
-      <section id="app" className="py-24 px-6">
+      <section id="app" className="py-32 px-6">
         <div className="max-w-[560px] mx-auto">
           <div className="font-mono text-[11px] uppercase tracking-[3px] text-stripe-body mb-4">
             App
@@ -61,11 +61,11 @@ export default function App() {
           {!wallet ? (
             <ConnectWallet onConnect={handleConnect} loading={connecting} error={connectError} />
           ) : (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-6">
               {/* Wallet Bar */}
               <div
-                className="flex justify-between items-center px-5 py-3.5 bg-white border border-stripe-border rounded"
-                style={{ boxShadow: 'rgba(50,50,93,0.15) 0px 10px 25px -10px, rgba(0,0,0,0.06) 0px 6px 12px -6px' }}
+                className="flex justify-between items-center px-5 py-4 bg-white border border-stripe-border rounded-lg"
+                style={{ boxShadow: '0 4px 12px rgba(50,50,93,0.1), 0 16px 32px rgba(50,50,93,0.06)' }}
               >
                 <span className="text-stripe-purple text-[13px] font-medium font-mono">
                   {formatAddress(wallet.address)}
@@ -88,8 +88,8 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 text-center border-t border-stripe-border">
-        <div className="flex items-center justify-center gap-2 mb-3">
+      <footer className="py-16 text-center border-t border-stripe-border">
+        <div className="flex items-center justify-center gap-2.5 mb-3">
           <div className="w-5 h-5 bg-stripe-navy rounded flex items-center justify-center">
             <span className="text-white text-[8px] font-bold font-mono">B</span>
           </div>
@@ -97,23 +97,9 @@ export default function App() {
         </div>
         <div className="text-[12px] font-light text-stripe-body">
           on Arc Testnet ·{' '}
-          <a
-            href="https://testnet.arcscan.app/address/0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B"
-            target="_blank"
-            rel="noopener"
-            className="text-stripe-purple hover:underline"
-          >
-            Contract
-          </a>
+          <a href="https://testnet.arcscan.app/address/0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B" target="_blank" rel="noopener" className="text-stripe-navy hover:underline">Contract</a>
           {' · '}
-          <a
-            href="https://github.com/yjm26/arc-escrow-agent"
-            target="_blank"
-            rel="noopener"
-            className="text-stripe-purple hover:underline"
-          >
-            GitHub
-          </a>
+          <a href="https://github.com/yjm26/arc-escrow-agent" target="_blank" rel="noopener" className="text-stripe-navy hover:underline">GitHub</a>
         </div>
       </footer>
     </>

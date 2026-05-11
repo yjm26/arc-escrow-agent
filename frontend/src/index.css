@@ -10,7 +10,7 @@
   }
 
   body {
-    @apply font-sans text-stripe-navy bg-stripe-bg;
+    @apply font-sans text-stripe-navy bg-white;
   }
 
   ::selection {
@@ -18,79 +18,88 @@
     color: #061b31;
   }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #e5edf5;
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #b9b9f9;
-  }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #e5edf5; border-radius: 3px; }
 }
 
 @layer components {
-  /* Stripe-style input */
   .stripe-input {
     @apply w-full px-4 py-3 bg-white border border-stripe-border rounded text-[15px] text-stripe-navy placeholder:text-stripe-body outline-none transition-all;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
   }
   .stripe-input:focus {
-    @apply border-stripe-purple ring-1 ring-stripe-purple;
+    @apply border-stripe-purple;
+    box-shadow: 0 0 0 3px rgba(83,58,253,0.1), inset 0 1px 2px rgba(0,0,0,0.04);
   }
 
-  /* Stripe primary button */
   .btn-primary {
-    @apply bg-stripe-purple text-white px-6 py-2.5 rounded text-[15px] font-medium transition-all;
+    @apply bg-stripe-navy text-white px-6 py-2.5 rounded text-[15px] font-medium transition-all;
+    box-shadow: 0 2px 8px rgba(6,27,49,0.3), 0 1px 3px rgba(6,27,49,0.2);
   }
   .btn-primary:hover {
-    @apply bg-stripe-purple-hover -translate-y-px;
-    box-shadow: rgba(50,50,93,0.25) 0px 10px 20px -10px, rgba(0,0,0,0.1) 0px 6px 12px -6px;
+    @apply -translate-y-px;
+    box-shadow: 0 4px 16px rgba(6,27,49,0.35), 0 2px 6px rgba(6,27,49,0.25);
   }
   .btn-primary:disabled {
     @apply opacity-50 cursor-not-allowed;
   }
 
-  /* Stripe ghost button */
   .btn-ghost {
-    @apply bg-transparent text-stripe-purple border border-stripe-border-purple px-6 py-2.5 rounded text-[15px] font-medium transition-all;
+    @apply bg-transparent text-stripe-navy border border-stripe-border px-6 py-2.5 rounded text-[15px] font-medium transition-all;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   .btn-ghost:hover {
-    @apply bg-stripe-purple/5;
+    @apply border-stripe-navy -translate-y-px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
   }
 
-  /* Stripe card */
-  .stripe-card {
-    @apply bg-white border border-stripe-border rounded p-6;
-    box-shadow: rgba(50,50,93,0.25) 0px 30px 45px -30px, rgba(0,0,0,0.1) 0px 18px 36px -18px;
+  /* 3D floating card */
+  .card-3d {
+    @apply bg-white border border-stripe-border rounded-lg;
+    box-shadow:
+      0 2px 4px rgba(50,50,93,0.08),
+      0 8px 16px rgba(50,50,93,0.1),
+      0 20px 40px rgba(50,50,93,0.08);
+    transition: all 0.3s ease;
   }
-  .stripe-card:hover {
-    box-shadow: rgba(50,50,93,0.3) 0px 40px 55px -30px, rgba(0,0,0,0.12) 0px 22px 40px -18px;
+  .card-3d:hover {
+    @apply -translate-y-1;
+    box-shadow:
+      0 4px 8px rgba(50,50,93,0.1),
+      0 12px 24px rgba(50,50,93,0.14),
+      0 30px 60px rgba(50,50,93,0.1);
   }
 
-  /* Success badge */
+  /* Heavy shadow card for hero preview */
+  .card-heavy {
+    @apply bg-white border border-stripe-border rounded-lg;
+    box-shadow:
+      0 4px 8px rgba(50,50,93,0.12),
+      0 16px 32px rgba(50,50,93,0.16),
+      0 40px 80px rgba(50,50,93,0.12);
+  }
+
   .badge-success {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium;
-    background: rgba(21,190,83,0.2);
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium;
+    background: rgba(21,190,83,0.15);
     color: #108c3d;
-    border: 1px solid rgba(21,190,83,0.4);
+    border: 1px solid rgba(21,190,83,0.3);
   }
 
-  /* Tab button */
   .tab-btn {
-    @apply px-4 py-1.5 rounded text-xs font-medium transition-all;
+    @apply px-4 py-2 rounded text-[13px] font-medium transition-all;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
   .tab-btn.active {
-    @apply bg-stripe-purple text-white;
+    @apply bg-stripe-navy text-white;
+    box-shadow: 0 2px 8px rgba(6,27,49,0.3);
   }
   .tab-btn:not(.active) {
     @apply bg-white text-stripe-body border border-stripe-border;
   }
   .tab-btn:not(.active):hover {
-    @apply border-stripe-purple text-stripe-purple;
+    @apply border-stripe-navy text-stripe-navy -translate-y-px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
   }
 }

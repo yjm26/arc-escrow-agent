@@ -46,7 +46,7 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="py-24 px-10 bg-stripe-brand-dark">
+    <section id="how" className="py-32 px-10 bg-stripe-brand-dark">
       <div className="max-w-[960px] mx-auto">
         <div className="font-mono text-[11px] uppercase tracking-[3px] text-white/40 mb-4">
           How it works
@@ -59,26 +59,23 @@ export default function HowItWorks() {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {STEPS.map((s, i) => (
+          {STEPS.map((s) => (
             <div
               key={s.num}
-              className="bg-white/[0.07] border border-white/[0.1] rounded-lg p-6 transition-all hover:bg-white/[0.1] hover:-translate-y-1"
-              style={{ boxShadow: 'rgba(0,0,0,0.3) 0px 20px 40px -15px' }}
+              className="bg-white/[0.07] border border-white/[0.12] rounded-lg p-6 transition-all hover:bg-white/[0.1] hover:-translate-y-1"
+              style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.2), 0 16px 40px rgba(0,0,0,0.15)' }}
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded bg-white/[0.1] border border-white/[0.15] flex items-center justify-center text-white/70">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded bg-white/[0.12] border border-white/[0.15] flex items-center justify-center text-white/70" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
                   {s.icon}
                 </div>
-                <span
-                  className="font-mono text-[11px] text-white/30 tracking-wider"
-                  style={{ fontFeatureSettings: '"tnum"' }}
-                >
+                <span className="font-mono text-[11px] text-white/30 tracking-wider" style={{ fontFeatureSettings: '"tnum"' }}>
                   {s.num}
                 </span>
               </div>
               <h4
                 className="text-[18px] font-light text-white mb-2"
-                style={{ letterSpacing: '-0.22px', fontFeatureSettings: '"ss01"' }}
+                style={{ letterSpacing: '-0.22px' }}
               >
                 {s.title}
               </h4>

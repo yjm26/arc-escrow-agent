@@ -29,10 +29,7 @@ export default function CreateDeal({ escrow, onCreated }) {
   }
 
   return (
-    <div
-      className="bg-white border border-stripe-border rounded-lg p-6"
-      style={{ boxShadow: 'rgba(50,50,93,0.15) 0px 10px 25px -10px, rgba(0,0,0,0.06) 0px 6px 12px -6px' }}
-    >
+    <div className="card-3d p-6">
       <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body mb-5">
         New Deal
       </div>
@@ -73,7 +70,7 @@ export default function CreateDeal({ escrow, onCreated }) {
             : status.type === 'err'
             ? 'bg-red-50 text-red-600 border-red-100'
             : 'bg-blue-50 text-blue-700 border-blue-100'
-        }`}>
+        }`} style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
           {status.msg}
         </div>
       )}
