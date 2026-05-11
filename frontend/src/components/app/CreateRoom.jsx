@@ -7,14 +7,9 @@ export default function CreateRoom({ room, token, signerAddress }) {
   const [isSeller, setIsSeller] = useState(true)
   const [status, setStatus] = useState(null)
   const [roomId, setRoomId] = useState(null)
-  const [step, setStep] = useState(0) // 0=idle, 1=approving, 2=creating
 
-  const CREATION_FEE = 0.1
-  const DELIVERY_FEE = 0.1
   const tax = price ? (parseFloat(price) * 0.01).toFixed(2) : '0'
   const total = price ? (parseFloat(price) + parseFloat(tax)).toFixed(2) : '0'
-
-  const ROOM_ADDR = room.target || room.address
 
   async function handleCreate() {
     if (!item || !price || parseFloat(price) <= 0) {
@@ -23,61 +18,17 @@ export default function CreateRoom({ room, token, signerAddress }) {
     }
 
     try {
-      // ─── Step 1: Check USDC balance ───
-      setStatus({ type: 'info', msg: 'Checking USDC balance…' })
-      setStep(0)
-      const feeWei = ethers.parseUnits(String(CREATION_FEE), 6) // 0.1 only
-      const balance = await token.balanceOf(signerAddress)
-      console.log('USDC balance:', ethers.formatUnits(balance, 6))
-
-      if (balance < feeWei) {
-        setStatus({ type: 'err', msg: `Need ${CREATION_FEE} USDC for creation fee. Balance: ${ethers.formatUnits(balance, 6)} USDC` })
-        return
-      }
-
-      // ─── Step 2: Approve USDC ───
-      setStep(1)
-      const allowance = await token.allowance(signerAddress, ROOM_ADDR)
-      console.log('Current allowance:', ethers.formatUnits(allowance, 6))
-
-      if (allowance < feeWei) {
-        setStatus({ type: 'info', msg: 'Step 1/2: Approve USDC in wallet…' })
-        console.log('Sending approve tx to:', ROOM_ADDR, 'amount:', feeWei.toString())
-        const approveTx = await token.approve(ROOM_ADDR, feeWei)
-        console.log('Approve tx hash:', approveTx.hash)
-        setStatus({ type: 'info', msg: 'Waiting for approval confirmation…' })
-        const approveReceipt = await approveTx.wait()
-        console.log('Approve confirmed, block:', approveReceipt.blockNumber)
-
-        // Small delay to let state update
-        await new Promise(r => setTimeout(r, 1000))
-      } else {
-        console.log('Allowance sufficient, skipping approve')
-      }
-
-      // ─── Step 3: Verify allowance ───
-      const newAllowance = await token.allowance(signerAddress, ROOM_ADDR)
-      console.log('New allowance:', ethers.formatUnits(newAllowance, 6))
-      if (newAllowance < feeWei) {
-        setStatus({ type: 'err', msg: 'Approval failed — allowance still too low. Try again.' })
-        setStep(0)
-        return
-      }
-
-      // ─── Step 4: Create Room ───
-      setStep(2)
-      setStatus({ type: 'info', msg: 'Step 2/2: Create room in wallet…' })
+      setStatus({ type: 'info', msg: 'Creating room… (free!)' })
       const priceWei = ethers.parseUnits(price, 6)
       console.log('Calling createRoom:', item, priceWei.toString(), isSeller)
-      const createTx = await room.createRoom(item, priceWei, isSeller)
-      console.log('Create tx hash:', createTx.hash)
-      setStatus({ type: 'info', msg: 'Waiting for room creation…' })
-      const createReceipt = await createTx.wait()
-      console.log('Create confirmed, block:', createReceipt.blockNumber)
+      const tx = await room.createRoom(item, priceWei, isSeller)
+      console.log('Create tx hash:', tx.hash)
+      setStatus({ type: 'info', msg: 'Waiting for confirmation…' })
+      const receipt = await tx.wait()
+      console.log('Confirmed, block:', receipt.blockNumber)
 
-      // Parse event
       let id = '?'
-      for (const log of createReceipt.logs) {
+      for (const log of receipt.logs) {
         try {
           const parsed = room.interface.parseLog(log)
           if (parsed?.name === 'RoomCreated') {
@@ -88,16 +39,13 @@ export default function CreateRoom({ room, token, signerAddress }) {
       }
 
       setRoomId(id)
-      setStatus({ type: 'ok', msg: `Room #${id} created!` })
-      setStep(0)
+      setStatus({ type: 'ok', msg: `Room #${id} created! (free)` })
       setItem('')
       setPrice('')
 
     } catch (e) {
       console.error('Create room error:', e)
-      const msg = e.reason || e.shortMessage || e.message || 'Unknown error'
-      setStatus({ type: 'err', msg: `Error: ${msg}` })
-      setStep(0)
+      setStatus({ type: 'err', msg: e.reason || e.shortMessage || e.message || 'Unknown error' })
     }
   }
 
@@ -178,32 +126,18 @@ export default function CreateRoom({ room, token, signerAddress }) {
           </div>
           <div className="mt-2 pt-2 border-t border-stripe-border">
             <div className="flex justify-between text-[11px] py-1 text-stripe-body">
-              <span>Creation fee (you)</span>
-              <span className="font-mono">−{CREATION_FEE} USDC</span>
+              <span>Join fee (counter)</span>
+              <span className="font-mono text-green-600">0.1 USDC (refunded on success)</span>
             </div>
-            <div className="flex justify-between text-[11px] py-1 text-stripe-body">
-              <span>Delivery fee (buyer)</span>
-              <span className="font-mono">−{DELIVERY_FEE} USDC</span>
+            <div className="flex justify-between text-[11px] py-1 text-green-600">
+              <span>Create room</span>
+              <span className="font-medium">FREE ✓</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Step indicator */}
-      {step > 0 && (
-        <div className="flex gap-2 mb-4">
-          <div className={`flex-1 text-center py-2 rounded text-[12px] font-medium ${step === 1 ? 'bg-stripe-navy text-white' : 'bg-green-50 text-green-700'}`}>
-            {step > 1 ? '✓' : '1/2'} Approve
-          </div>
-          <div className={`flex-1 text-center py-2 rounded text-[12px] font-medium ${step === 2 ? 'bg-stripe-navy text-white' : step > 2 ? 'bg-green-50 text-green-700' : 'bg-stripe-surface text-stripe-body border border-stripe-border'}`}>
-            {step > 2 ? '✓' : '2/2'} Create
-          </div>
-        </div>
-      )}
-
-      <button onClick={handleCreate} disabled={step > 0} className="btn-primary w-full py-3 disabled:opacity-50">
-        {step > 0 ? 'Processing…' : 'Create Room'}
-      </button>
+      <button onClick={handleCreate} className="btn-primary w-full py-3">Create Room</button>
 
       {status && (
         <div className={`mt-3 px-4 py-2.5 rounded text-[13px] font-medium border ${

@@ -1,5 +1,5 @@
-// BondRoomV3 deployed on Arc Testnet
-export const BONDROOM_ADDRESS = '0x5C41105696B0f6708f759B5D5E94ABBad55AD9eb'
+// BondRoomV4 deployed on Arc Testnet
+export const BONDROOM_ADDRESS = '0x3be4cEAA2bD284701e5CAA71BA17120ea50b72ce'
 export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'
 
 export const ARC_TESTNET = {
@@ -23,6 +23,7 @@ export const BONDROOM_ABI = [
   'function dispute(uint256 id) external',
   'function refundRoom(uint256 id) external',
   'function sellerAcceptDispute(uint256 id) external',
+  'function expireRoom(uint256 id) external',
   // Read
   'function getRoom(uint256 id) external view returns (address maker, address counter, bool makerIsSeller, string item, uint256 price, uint256 tax, uint256 total, uint256 sellerTimeout, uint256 autoReleaseDelay, uint8 status)',
   'function getSeller(uint256 id) external view returns (address)',
@@ -38,8 +39,7 @@ export const BONDROOM_ABI = [
   'function timeUntilAutoRelease(uint256 id) external view returns (uint256)',
   'function timeUntilRefund(uint256 id) external view returns (uint256)',
   // Constants
-  'function CREATION_FEE() external view returns (uint256)',
-  'function DELIVERY_FEE() external view returns (uint256)',
+  'function JOIN_FEE() external view returns (uint256)',
   'function TAX_BPS() external view returns (uint256)',
   'function DEFAULT_SELLER_TIMEOUT() external view returns (uint256)',
   'function DEFAULT_AUTO_RELEASE() external view returns (uint256)',
@@ -55,7 +55,7 @@ export const BONDROOM_ABI = [
   'event Released(uint256 indexed id, address seller, uint256 amount)',
   'event Refunded(uint256 indexed id, address buyer, uint256 amount)',
   'event Disputed(uint256 indexed id, address indexed by)',
-  'event Expired(uint256 indexed id)',
+  'event RoomExpired(uint256 indexed id)',
 ]
 
 export const ERC20_ABI = [
@@ -65,7 +65,6 @@ export const ERC20_ABI = [
   'function decimals() view returns (uint8)',
 ]
 
-// Status: EMPTY=0, WAITING=1, FUNDED=2, DELIVERED=3, RELEASED=4, REFUNDED=5, DISPUTED=6, EXPIRED=7
 export const ROOM_STATUS = ['EMPTY', 'WAITING', 'FUNDED', 'DELIVERED', 'RELEASED', 'REFUNDED', 'DISPUTED', 'EXPIRED']
 export const ROOM_BADGE = {
   EMPTY:    'bg-neutral-100 text-neutral-400 border-neutral-200',
