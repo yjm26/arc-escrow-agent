@@ -26,12 +26,12 @@ export default function CreateRoom({ room, token, signerAddress }) {
       // ─── Step 1: Check USDC balance ───
       setStatus({ type: 'info', msg: 'Checking USDC balance…' })
       setStep(0)
-      const feeWei = ethers.parseUnits(String(CREATION_FEE), 6)
+      const feeWei = ethers.parseUnits(String(CREATION_FEE + DELIVERY_FEE), 6)
       const balance = await token.balanceOf(signerAddress)
       console.log('USDC balance:', ethers.formatUnits(balance, 6))
 
       if (balance < feeWei) {
-        setStatus({ type: 'err', msg: `Need ${CREATION_FEE} USDC for creation fee. Balance: ${ethers.formatUnits(balance, 6)} USDC` })
+        setStatus({ type: 'err', msg: `Need ${CREATION_FEE + DELIVERY_FEE} USDC for fees. Balance: ${ethers.formatUnits(balance, 6)} USDC` })
         return
       }
 
