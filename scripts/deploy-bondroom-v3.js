@@ -1,7 +1,8 @@
 const hre = require("hardhat");
 
 async function main() {
-  const USDC = process.env.USDC_ADDRESS || "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+  // USDC ERC-20 precompile on Arc
+  const USDC = process.env.USDC_ADDRESS || "0x3600000000000000000000000000000000000000";
 
   // Deployer = wallet lo (bayar gas, create room)
   const [deployer] = await hre.ethers.getSigners();
@@ -10,11 +11,9 @@ async function main() {
   // Treasury = wallet khusus terima fee
   let treasury;
   if (process.env.TREASURY_PRIVATE_KEY) {
-    // Derive address from private key
     const wallet = new hre.ethers.Wallet(process.env.TREASURY_PRIVATE_KEY);
     treasury = wallet.address;
   } else {
-    // Default: same as deployer (not recommended)
     treasury = deployer.address;
     console.log("⚠️  No TREASURY_PRIVATE_KEY — using deployer as treasury");
   }
