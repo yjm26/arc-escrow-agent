@@ -152,9 +152,6 @@ contract BondRoomV4 is ReentrancyGuard {
         require(msg.sender != r.maker, "cannot join own room");
         require(block.timestamp < r.createdAt + STALE_ROOM_EXPIRY, "room expired");
 
-        // Collect join fee (refunded if deal succeeds)
-        require(usdc.transferFrom(msg.sender, treasury, JOIN_FEE), "join fee failed");
-
         r.counter = msg.sender;
         activeRooms[msg.sender]++;
         emit RoomJoined(id, msg.sender);
@@ -250,8 +247,6 @@ contract BondRoomV4 is ReentrancyGuard {
         if (r.tax > 0) usdc.transfer(treasury, r.tax);
         // Price to seller
         usdc.transfer(seller, r.price);
-        // Refund join fee to counter (reward for completing the deal)
-        usdc.transfer(r.counter, JOIN_FEE);
 
         emit Released(id, seller, r.price);
     }
