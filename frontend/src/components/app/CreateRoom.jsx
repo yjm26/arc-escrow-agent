@@ -13,12 +13,30 @@ export default function CreateRoom({ room, token, signerAddress }) {
   const tax = price ? (parseFloat(price) * 0.01).toFixed(2) : '0'
   const total = price ? (parseFloat(price) + parseFloat(tax)).toFixed(2) : '0'
 
+  const ROOM_ADDR = room.target || room.address
+
   async function handleCreate() {
     if (!item || !price || parseFloat(price) <= 0) {
       setStatus({ type: 'err', msg: 'Fill item and price' })
       return
     }
     try {
+      // Step 1: Check & approve USDC for creation fee
+      setStatus({ type: 'info', msg: 'Checking USDC balance…' })
+      const feeWei = ethers.parseUnits(String(CREATION_FEE), 6)
+      const balance = await token.balanceOf(signerAddress)
+      if (balance < feeWei) {
+        setStatus({ type: 'err', msg: `Need ${CREATION_FEE} USDC for creation fee. Balance: ${ethers.formatUnits(balance, 6)} USDC` })
+        return
+      }
+
+      setStatus({ type: 'info', msg: 'Approving USDC for creation fee…' })
+      const allowance = await token.allowance(signerAddress, ROOM_ADDR)
+      if (allowance < feeWei) {
+        await (await token.approve(ROOM_ADDR, feeWei)).wait()
+      }
+
+      // Step 2: Create room
       setStatus({ type: 'info', msg: 'Creating room…' })
       const priceWei = ethers.parseUnits(price, 6)
       const tx = await room.createRoom(item, priceWei, isSeller)
