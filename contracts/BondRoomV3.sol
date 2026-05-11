@@ -2,12 +2,9 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/**
- * @title BondRoomV3
- * @notice Trustless escrow with fast timers, anti-griefing, anti-spam
- */
-contract BondRoomV3 {
+contract BondRoomV3 is ReentrancyGuard {
     enum Status { EMPTY, WAITING, FUNDED, DELIVERED, RELEASED, REFUNDED, DISPUTED, EXPIRED }
 
     struct Room {
@@ -21,40 +18,40 @@ contract BondRoomV3 {
         uint256 createdAt;
         uint256 fundedAt;
         uint256 deliveredAt;
-        uint256 disputedAt;
-        uint256 sellerTimeout;       // seconds: seller must deliver before buyer can refund
-        uint256 autoReleaseDelay;    // seconds: after delivery, auto-release window
+        uint256 sellerTimeout;      // custom: seconds before buyer can refund if no delivery
+        uint256 autoReleaseDelay;   // custom: seconds after delivery before auto-release
         Status  status;
     }
 
     IERC20 public immutable usdc;
     address public immutable treasury;
-    uint256 public constant TAX_BPS = 100;         // 1%
+    uint256 public constant TAX_BPS = 100; // 1%
     uint256 public constant BPS_DENOM = 10_000;
 
-    // Timers (all in seconds)
-    uint256 public constant DEFAULT_SELLER_TIMEOUT  = 6 hours;
-    uint256 public constant DEFAULT_AUTO_RELEASE    = 4 hours;
-    uint256 public constant DISPUTE_WINDOW          = 2 hours;
-    uint256 public constant STALE_TIMEOUT           = 4 hours;    // unjoined room expires
-    uint256 public constant DISPUTE_AUTO_REFUND     = 24 hours;   // dispute → auto refund
+    // Creation fee (non-refundable, goes to treasury on create)
+    uint256 public constant CREATION_FEE = 0.1 ether;   // 0.1 USDC (6 decimals = 100_000)
+    // Delivery fee (burned on creation, anti-spam)
+    uint256 public constant DELIVERY_FEE = 0.1 ether;   // 0.1 USDC
 
-    // Bounds for custom timers
+    // Defaults (in seconds)
+    uint256 public constant DEFAULT_SELLER_TIMEOUT = 6 hours;
+    uint256 public constant DEFAULT_AUTO_RELEASE   = 4 hours;
+    uint256 public constant DISPUTE_WINDOW         = 2 hours;
+    uint256 public constant STALE_ROOM_EXPIRY      = 4 hours;
+    uint256 public constant DISPUTE_AUTO_REFUND    = 24 hours;
+
+    // Min/max bounds
     uint256 public constant MIN_SELLER_TIMEOUT = 30 minutes;
     uint256 public constant MAX_SELLER_TIMEOUT = 24 hours;
     uint256 public constant MIN_AUTO_RELEASE   = 30 minutes;
     uint256 public constant MAX_AUTO_RELEASE   = 12 hours;
 
-    // Anti-spam
-    uint256 public constant CREATION_FEE = 0.1e6;  // 0.1 USDC (refundable)
+    // Anti-spam: max active rooms per address
     uint256 public constant MAX_ACTIVE_ROOMS = 10;
 
     uint256 public totalRooms;
     mapping(uint256 => Room) public rooms;
-    mapping(address => uint256) public activeRooms;  // active room count per address
-    mapping(address => uint256[]) public userRooms;  // room IDs per user
-
-    bool private _locked;
+    mapping(address => uint256) public activeRooms; // count of active rooms per address
 
     event RoomCreated(uint256 indexed id, address indexed maker, string item, uint256 price, bool makerIsSeller);
     event RoomJoined(uint256 indexed id, address indexed counter);
@@ -63,17 +60,7 @@ contract BondRoomV3 {
     event Released(uint256 indexed id, address seller, uint256 amount);
     event Refunded(uint256 indexed id, address buyer, uint256 amount);
     event Disputed(uint256 indexed id, address indexed by);
-    event Expired(uint256 indexed id);
-    event FeeRefunded(uint256 indexed id, address to, uint256 amount);
-
-    // ─── Modifiers ─────────────────────────────────────────────
-
-    modifier nonReentrant() {
-        require(!_locked, "reentrant");
-        _locked = true;
-        _;
-        _locked = false;
-    }
+    event RoomExpired(uint256 indexed id);
 
     modifier onlySeller(uint256 id) {
         Room storage r = rooms[id];
@@ -89,36 +76,21 @@ contract BondRoomV3 {
         _;
     }
 
-    modifier validRoom(uint256 id) {
-        require(id < totalRooms, "room not found");
-        _;
-    }
-
-    // ─── Helpers ───────────────────────────────────────────────
-
     function getSeller(uint256 id) public view returns (address) {
-        return rooms[id].makerIsSeller ? rooms[id].maker : rooms[id].counter;
+        Room storage r = rooms[id];
+        return r.makerIsSeller ? r.maker : r.counter;
     }
 
     function getBuyer(uint256 id) public view returns (address) {
-        return rooms[id].makerIsSeller ? rooms[id].counter : rooms[id].maker;
+        Room storage r = rooms[id];
+        return r.makerIsSeller ? r.counter : r.maker;
     }
 
-    function isActive(address user) public view returns (uint256 count) {
-        for (uint256 i = 0; i < userRooms[user].length; i++) {
-            uint256 rid = userRooms[user][i];
-            Status s = rooms[rid].status;
-            if (s == Status.WAITING || s == Status.FUNDED || s == Status.DELIVERED || s == Status.DISPUTED) {
-                count++;
-            }
-        }
+    function isActiveRoom(Status s) internal pure returns (bool) {
+        return s == Status.WAITING || s == Status.FUNDED || s == Status.DELIVERED || s == Status.DISPUTED;
     }
-
-    // ─── Constructor ───────────────────────────────────────────
 
     constructor(address _usdc, address _treasury) {
-        require(_usdc != address(0), "zero usdc");
-        require(_treasury != address(0), "zero treasury");
         usdc = IERC20(_usdc);
         treasury = _treasury;
     }
@@ -152,16 +124,17 @@ contract BondRoomV3 {
         uint256 _sellerTimeout,
         uint256 _autoReleaseDelay
     ) internal returns (uint256) {
-        // Checks
-        require(bytes(_item).length > 0, "empty item");
-        require(bytes(_item).length <= 200, "item too long");
         require(_price > 0, "price = 0");
-        require(isActive(msg.sender) < MAX_ACTIVE_ROOMS, "too many active rooms");
+        require(bytes(_item).length >= 1, "item too short");
+        require(bytes(_item).length <= 200, "item too long");
+        require(activeRooms[msg.sender] < MAX_ACTIVE_ROOMS, "too many active rooms");
 
-        // Collect creation fee
-        require(usdc.transferFrom(msg.sender, address(this), CREATION_FEE), "fee transfer failed");
+        // Collect fees
+        uint256 totalFee = CREATION_FEE + DELIVERY_FEE;
+        require(usdc.transferFrom(msg.sender, treasury, CREATION_FEE), "create fee failed");
+        // Delivery fee burned (sent to dead address)
+        require(usdc.transferFrom(msg.sender, address(0xdead), DELIVERY_FEE), "delivery fee failed");
 
-        // Effects
         uint256 id = totalRooms++;
         uint256 _tax = (_price * TAX_BPS) / BPS_DENOM;
 
@@ -176,164 +149,146 @@ contract BondRoomV3 {
             createdAt: block.timestamp,
             fundedAt: 0,
             deliveredAt: 0,
-            disputedAt: 0,
             sellerTimeout: _sellerTimeout,
             autoReleaseDelay: _autoReleaseDelay,
             status: Status.WAITING
         });
 
         activeRooms[msg.sender]++;
-        userRooms[msg.sender].push(id);
-
         emit RoomCreated(id, msg.sender, _item, _price, _makerIsSeller);
         return id;
     }
 
-    function joinRoom(uint256 id) external nonReentrant validRoom(id) {
+    function joinRoom(uint256 id) external nonReentrant {
         Room storage r = rooms[id];
         require(r.status == Status.WAITING, "not waiting");
         require(r.counter == address(0), "already joined");
         require(msg.sender != r.maker, "cannot join own room");
 
-        // Check stale timeout
-        require(block.timestamp < r.createdAt + STALE_TIMEOUT, "room expired");
-
-        // Collect creation fee from counter too
-        require(usdc.transferFrom(msg.sender, address(this), CREATION_FEE), "fee transfer failed");
+        // Anti-spam: collect delivery fee from counter too (burned)
+        require(usdc.transferFrom(msg.sender, address(0xdead), DELIVERY_FEE), "delivery fee failed");
 
         r.counter = msg.sender;
         activeRooms[msg.sender]++;
-        userRooms[msg.sender].push(id);
-
         emit RoomJoined(id, msg.sender);
     }
 
-    function fundRoom(uint256 id) external onlyBuyer(id) nonReentrant validRoom(id) {
+    function fundRoom(uint256 id) external nonReentrant onlyBuyer(id) {
         Room storage r = rooms[id];
         require(r.status == Status.WAITING, "not waiting");
         require(r.counter != address(0), "counter not joined");
-        require(block.timestamp < r.createdAt + STALE_TIMEOUT, "room expired");
+        require(block.timestamp < r.createdAt + STALE_ROOM_EXPIRY, "room expired");
 
-        // Interactions
-        require(usdc.transferFrom(msg.sender, address(this), r.total), "transfer failed");
-
-        // Effects
+        // CEI: transfer last
         r.fundedAt = block.timestamp;
         r.status = Status.FUNDED;
+        require(usdc.transferFrom(msg.sender, address(this), r.total), "transfer failed");
 
         emit Funded(id);
     }
 
-    function markDelivered(uint256 id) external onlySeller(id) validRoom(id) {
+    function markDelivered(uint256 id) external nonReentrant onlySeller(id) {
         Room storage r = rooms[id];
         require(r.status == Status.FUNDED, "not funded");
 
         r.deliveredAt = block.timestamp;
         r.status = Status.DELIVERED;
-
         emit Delivered(id);
     }
 
-    function releaseRoom(uint256 id) external onlyBuyer(id) nonReentrant validRoom(id) {
+    function releaseRoom(uint256 id) external nonReentrant onlyBuyer(id) {
         Room storage r = rooms[id];
         require(r.status == Status.DELIVERED, "not delivered");
         _release(id);
     }
 
-    function autoRelease(uint256 id) external nonReentrant validRoom(id) {
+    function autoRelease(uint256 id) external nonReentrant {
         Room storage r = rooms[id];
         require(r.status == Status.DELIVERED, "not delivered");
         require(block.timestamp >= r.deliveredAt + r.autoReleaseDelay, "too early");
         _release(id);
     }
 
-    function dispute(uint256 id) external onlyBuyer(id) validRoom(id) {
+    function dispute(uint256 id) external nonReentrant onlyBuyer(id) {
         Room storage r = rooms[id];
         require(r.status == Status.DELIVERED, "not delivered");
         require(block.timestamp < r.deliveredAt + DISPUTE_WINDOW, "dispute window closed");
 
-        r.disputedAt = block.timestamp;
         r.status = Status.DISPUTED;
-
         emit Disputed(id, msg.sender);
     }
 
-    function refundRoom(uint256 id) external onlyBuyer(id) nonReentrant validRoom(id) {
+    function refundRoom(uint256 id) external nonReentrant onlyBuyer(id) {
         Room storage r = rooms[id];
 
         if (r.status == Status.FUNDED) {
             require(block.timestamp >= r.fundedAt + r.sellerTimeout, "seller timeout not reached");
             _refund(id);
         } else if (r.status == Status.DISPUTED) {
-            require(block.timestamp >= r.disputedAt + DISPUTE_AUTO_REFUND, "dispute refund not ready");
+            require(block.timestamp >= r.deliveredAt + DISPUTE_AUTO_REFUND, "dispute not resolved yet");
             _refund(id);
         } else {
             revert("cannot refund");
         }
     }
 
-    function sellerAcceptDispute(uint256 id) external onlySeller(id) nonReentrant validRoom(id) {
+    function sellerAcceptDispute(uint256 id) external nonReentrant onlySeller(id) {
         Room storage r = rooms[id];
         require(r.status == Status.DISPUTED, "not disputed");
         _refund(id);
     }
 
-    function expireStaleRoom(uint256 id) external nonReentrant validRoom(id) {
+    function expireRoom(uint256 id) external nonReentrant {
         Room storage r = rooms[id];
         require(r.status == Status.WAITING, "not waiting");
         require(r.counter == address(0), "already joined");
-        require(block.timestamp >= r.createdAt + STALE_TIMEOUT, "not expired yet");
+        require(block.timestamp >= r.createdAt + STALE_ROOM_EXPIRY, "not expired yet");
 
         r.status = Status.EXPIRED;
-        _returnFee(id, r.maker);
+        activeRooms[r.maker]--;
+        emit RoomExpired(id);
+    }
 
-        emit Expired(id);
+    function expireUnfundedRoom(uint256 id) external nonReentrant {
+        Room storage r = rooms[id];
+        require(r.status == Status.WAITING, "not waiting");
+        require(r.counter != address(0), "not joined");
+        require(block.timestamp >= r.createdAt + STALE_ROOM_EXPIRY, "not expired yet");
+
+        r.status = Status.EXPIRED;
+        activeRooms[r.maker]--;
+        activeRooms[r.counter]--;
+        emit RoomExpired(id);
     }
 
     // ─── Internal ──────────────────────────────────────────────
 
     function _release(uint256 id) internal {
         Room storage r = rooms[id];
+        require(r.status == Status.DELIVERED, "not delivered");
+
         address seller = getSeller(id);
-        address buyer = getBuyer(id);
-
         r.status = Status.RELEASED;
-        activeRooms[r.maker] > 0 ? activeRooms[r.maker]-- : activeRooms[r.maker];
-        activeRooms[r.counter] > 0 ? activeRooms[r.counter]-- : activeRooms[r.counter];
+        activeRooms[r.maker]--;
+        activeRooms[r.counter]--;
 
-        // Refund creation fees (both parties completed)
-        _returnFee(id, r.maker);
-        _returnFee(id, r.counter);
-
-        // Transfer funds
-        if (r.tax > 0) usdc.transfer(treasury, r.tax);
+        if (r.tax > 0) {
+            usdc.transfer(treasury, r.tax);
+        }
         usdc.transfer(seller, r.price);
-
         emit Released(id, seller, r.price);
     }
 
     function _refund(uint256 id) internal {
         Room storage r = rooms[id];
+
         address buyer = getBuyer(id);
-
         r.status = Status.REFUNDED;
-        activeRooms[r.maker] > 0 ? activeRooms[r.maker]-- : activeRooms[r.maker];
-        activeRooms[r.counter] > 0 ? activeRooms[r.counter]-- : activeRooms[r.counter];
+        activeRooms[r.maker]--;
+        activeRooms[r.counter]--;
 
-        // Return buyer's fee, burn maker's fee (griefing penalty)
-        _returnFee(id, buyer);
-
-        // Refund total to buyer
         usdc.transfer(buyer, r.total);
-
         emit Refunded(id, buyer, r.total);
-    }
-
-    function _returnFee(uint256 id, address to) internal {
-        if (to != address(0)) {
-            usdc.transfer(to, CREATION_FEE);
-            emit FeeRefunded(id, to, CREATION_FEE);
-        }
     }
 
     // ─── View Helpers ──────────────────────────────────────────
@@ -367,7 +322,7 @@ contract BondRoomV3 {
     function canRefund(uint256 id) external view returns (bool) {
         Room storage r = rooms[id];
         if (r.status == Status.FUNDED) return block.timestamp >= r.fundedAt + r.sellerTimeout;
-        if (r.status == Status.DISPUTED) return block.timestamp >= r.disputedAt + DISPUTE_AUTO_REFUND;
+        if (r.status == Status.DISPUTED) return block.timestamp >= r.deliveredAt + DISPUTE_AUTO_REFUND;
         return false;
     }
 
@@ -375,13 +330,6 @@ contract BondRoomV3 {
         Room storage r = rooms[id];
         return r.status == Status.DELIVERED &&
                block.timestamp < r.deliveredAt + DISPUTE_WINDOW;
-    }
-
-    function isExpired(uint256 id) external view returns (bool) {
-        Room storage r = rooms[id];
-        return r.status == Status.WAITING &&
-               r.counter == address(0) &&
-               block.timestamp >= r.createdAt + STALE_TIMEOUT;
     }
 
     function timeUntilAutoRelease(uint256 id) external view returns (uint256) {
@@ -398,16 +346,24 @@ contract BondRoomV3 {
             return block.timestamp >= deadline ? 0 : deadline - block.timestamp;
         }
         if (r.status == Status.DISPUTED) {
-            uint256 deadline = r.disputedAt + DISPUTE_AUTO_REFUND;
+            uint256 deadline = r.deliveredAt + DISPUTE_AUTO_REFUND;
             return block.timestamp >= deadline ? 0 : deadline - block.timestamp;
         }
         return 0;
     }
 
-    function timeUntilStaleExpiry(uint256 id) external view returns (uint256) {
+    function disputeWindowEnd(uint256 id) external view returns (uint256) {
         Room storage r = rooms[id];
-        if (r.status != Status.WAITING || r.counter != address(0)) return 0;
-        uint256 deadline = r.createdAt + STALE_TIMEOUT;
-        return block.timestamp >= deadline ? 0 : deadline - block.timestamp;
+        if (r.status != Status.DELIVERED) return 0;
+        return r.deliveredAt + DISPUTE_WINDOW;
+    }
+
+    function getActiveRooms(address user) external view returns (uint256) {
+        return activeRooms[user];
+    }
+
+    function isExpired(uint256 id) external view returns (bool) {
+        Room storage r = rooms[id];
+        return r.status == Status.WAITING && block.timestamp >= r.createdAt + STALE_ROOM_EXPIRY;
     }
 }
