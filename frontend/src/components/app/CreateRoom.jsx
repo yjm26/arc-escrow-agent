@@ -7,6 +7,7 @@ export default function CreateRoom({ room, token, signerAddress }) {
   const [isSeller, setIsSeller] = useState(true)
   const [status, setStatus] = useState(null)
   const [roomId, setRoomId] = useState(null)
+  const [step, setStep] = useState(0) // 0=idle, 1=approving, 2=creating
 
   const CREATION_FEE = 0.1
   const DELIVERY_FEE = 0.1
@@ -20,35 +21,83 @@ export default function CreateRoom({ room, token, signerAddress }) {
       setStatus({ type: 'err', msg: 'Fill item and price' })
       return
     }
+
     try {
-      // Step 1: Check & approve USDC for creation fee
+      // ─── Step 1: Check USDC balance ───
       setStatus({ type: 'info', msg: 'Checking USDC balance…' })
+      setStep(0)
       const feeWei = ethers.parseUnits(String(CREATION_FEE), 6)
       const balance = await token.balanceOf(signerAddress)
+      console.log('USDC balance:', ethers.formatUnits(balance, 6))
+
       if (balance < feeWei) {
         setStatus({ type: 'err', msg: `Need ${CREATION_FEE} USDC for creation fee. Balance: ${ethers.formatUnits(balance, 6)} USDC` })
         return
       }
 
-      setStatus({ type: 'info', msg: 'Approving USDC for creation fee…' })
+      // ─── Step 2: Approve USDC ───
+      setStep(1)
       const allowance = await token.allowance(signerAddress, ROOM_ADDR)
+      console.log('Current allowance:', ethers.formatUnits(allowance, 6))
+
       if (allowance < feeWei) {
-        await (await token.approve(ROOM_ADDR, feeWei)).wait()
+        setStatus({ type: 'info', msg: 'Step 1/2: Approve USDC in wallet…' })
+        console.log('Sending approve tx to:', ROOM_ADDR, 'amount:', feeWei.toString())
+        const approveTx = await token.approve(ROOM_ADDR, feeWei)
+        console.log('Approve tx hash:', approveTx.hash)
+        setStatus({ type: 'info', msg: 'Waiting for approval confirmation…' })
+        const approveReceipt = await approveTx.wait()
+        console.log('Approve confirmed, block:', approveReceipt.blockNumber)
+
+        // Small delay to let state update
+        await new Promise(r => setTimeout(r, 1000))
+      } else {
+        console.log('Allowance sufficient, skipping approve')
       }
 
-      // Step 2: Create room
-      setStatus({ type: 'info', msg: 'Creating room…' })
+      // ─── Step 3: Verify allowance ───
+      const newAllowance = await token.allowance(signerAddress, ROOM_ADDR)
+      console.log('New allowance:', ethers.formatUnits(newAllowance, 6))
+      if (newAllowance < feeWei) {
+        setStatus({ type: 'err', msg: 'Approval failed — allowance still too low. Try again.' })
+        setStep(0)
+        return
+      }
+
+      // ─── Step 4: Create Room ───
+      setStep(2)
+      setStatus({ type: 'info', msg: 'Step 2/2: Create room in wallet…' })
       const priceWei = ethers.parseUnits(price, 6)
-      const tx = await room.createRoom(item, priceWei, isSeller)
-      const receipt = await tx.wait()
-      const event = receipt.logs.find((l) => l.fragment?.name === 'RoomCreated')
-      const id = event ? event.args[0].toString() : '?'
+      console.log('Calling createRoom:', item, priceWei.toString(), isSeller)
+      const createTx = await room.createRoom(item, priceWei, isSeller)
+      console.log('Create tx hash:', createTx.hash)
+      setStatus({ type: 'info', msg: 'Waiting for room creation…' })
+      const createReceipt = await createTx.wait()
+      console.log('Create confirmed, block:', createReceipt.blockNumber)
+
+      // Parse event
+      let id = '?'
+      for (const log of createReceipt.logs) {
+        try {
+          const parsed = room.interface.parseLog(log)
+          if (parsed?.name === 'RoomCreated') {
+            id = parsed.args[0].toString()
+            break
+          }
+        } catch {}
+      }
+
       setRoomId(id)
       setStatus({ type: 'ok', msg: `Room #${id} created!` })
+      setStep(0)
       setItem('')
       setPrice('')
+
     } catch (e) {
-      setStatus({ type: 'err', msg: e.reason || e.message })
+      console.error('Create room error:', e)
+      const msg = e.reason || e.shortMessage || e.message || 'Unknown error'
+      setStatus({ type: 'err', msg: `Error: ${msg}` })
+      setStep(0)
     }
   }
 
@@ -140,7 +189,21 @@ export default function CreateRoom({ room, token, signerAddress }) {
         </div>
       )}
 
-      <button onClick={handleCreate} className="btn-primary w-full py-3">Create Room</button>
+      {/* Step indicator */}
+      {step > 0 && (
+        <div className="flex gap-2 mb-4">
+          <div className={`flex-1 text-center py-2 rounded text-[12px] font-medium ${step === 1 ? 'bg-stripe-navy text-white' : 'bg-green-50 text-green-700'}`}>
+            {step > 1 ? '✓' : '1/2'} Approve
+          </div>
+          <div className={`flex-1 text-center py-2 rounded text-[12px] font-medium ${step === 2 ? 'bg-stripe-navy text-white' : step > 2 ? 'bg-green-50 text-green-700' : 'bg-stripe-surface text-stripe-body border border-stripe-border'}`}>
+            {step > 2 ? '✓' : '2/2'} Create
+          </div>
+        </div>
+      )}
+
+      <button onClick={handleCreate} disabled={step > 0} className="btn-primary w-full py-3 disabled:opacity-50">
+        {step > 0 ? 'Processing…' : 'Create Room'}
+      </button>
 
       {status && (
         <div className={`mt-3 px-4 py-2.5 rounded text-[13px] font-medium border ${
