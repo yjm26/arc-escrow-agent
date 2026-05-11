@@ -5,7 +5,7 @@ export default function CreateDeal({ escrow, onCreated }) {
   const [freelancer, setFreelancer] = useState('')
   const [amount, setAmount] = useState('')
   const [desc, setDesc] = useState('')
-  const [status, setStatus] = useState(null) // { type: 'ok'|'err'|'info', msg }
+  const [status, setStatus] = useState(null)
 
   async function handleCreate() {
     if (!freelancer || !amount || !desc) {
@@ -18,7 +18,7 @@ export default function CreateDeal({ escrow, onCreated }) {
       const receipt = await tx.wait()
       const event = receipt.logs.find((l) => l.fragment?.name === 'DealCreated')
       const id = event ? event.args[0].toString() : '?'
-      setStatus({ type: 'ok', msg: `Deal #${id} created ✓` })
+      setStatus({ type: 'ok', msg: `Deal #${id} created` })
       onCreated?.(id)
       setFreelancer('')
       setAmount('')
@@ -29,21 +29,24 @@ export default function CreateDeal({ escrow, onCreated }) {
   }
 
   return (
-    <div className="bg-dark-surface border border-dark-border rounded-2xl p-6">
-      <div className="font-mono text-[10px] uppercase tracking-[2px] text-dark-muted mb-4">
+    <div
+      className="bg-white border border-stripe-border rounded-lg p-6"
+      style={{ boxShadow: 'rgba(50,50,93,0.15) 0px 10px 25px -10px, rgba(0,0,0,0.06) 0px 6px 12px -6px' }}
+    >
+      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body mb-5">
         New Deal
       </div>
 
       <input
-        className="w-full px-4 py-3 bg-dark border border-dark-border rounded-xl text-white text-sm placeholder:text-[#333] outline-none focus:border-accent transition-colors mb-2.5"
+        className="stripe-input mb-3"
         placeholder="Freelancer address (0x...)"
         value={freelancer}
         onChange={(e) => setFreelancer(e.target.value)}
       />
 
-      <div className="grid grid-cols-2 gap-2.5 mb-2.5">
+      <div className="grid grid-cols-2 gap-3 mb-3">
         <input
-          className="w-full px-4 py-3 bg-dark border border-dark-border rounded-xl text-white text-sm placeholder:text-[#333] outline-none focus:border-accent transition-colors"
+          className="stripe-input"
           type="number"
           placeholder="Amount (USDC)"
           min="0.01"
@@ -52,30 +55,25 @@ export default function CreateDeal({ escrow, onCreated }) {
           onChange={(e) => setAmount(e.target.value)}
         />
         <input
-          className="w-full px-4 py-3 bg-dark border border-dark-border rounded-xl text-white text-sm placeholder:text-[#333] outline-none focus:border-accent transition-colors"
+          className="stripe-input"
           placeholder="Description"
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
         />
       </div>
 
-      <button
-        onClick={handleCreate}
-        className="w-full bg-accent text-white py-3 rounded-xl text-sm font-semibold hover:opacity-90 hover:-translate-y-px transition-all mt-2"
-      >
+      <button onClick={handleCreate} className="btn-primary w-full py-3 mt-1">
         Create Deal
       </button>
 
       {status && (
-        <div
-          className={`mt-3 px-4 py-2.5 rounded-xl text-sm font-medium ${
-            status.type === 'ok'
-              ? 'bg-green/10 text-green'
-              : status.type === 'err'
-              ? 'bg-red/10 text-red'
-              : 'bg-accent/10 text-accent'
-          }`}
-        >
+        <div className={`mt-3 px-4 py-2.5 rounded text-[13px] font-medium border ${
+          status.type === 'ok'
+            ? 'bg-green-50 text-green-700 border-green-100'
+            : status.type === 'err'
+            ? 'bg-red-50 text-red-600 border-red-100'
+            : 'bg-blue-50 text-blue-700 border-blue-100'
+        }`}>
           {status.msg}
         </div>
       )}

@@ -43,25 +43,34 @@ export default function App() {
       <HowItWorks />
 
       {/* App Section */}
-      <section id="app" className="py-25 px-6 bg-fg text-bg">
+      <section id="app" className="py-24 px-6">
         <div className="max-w-[560px] mx-auto">
-          <div className="font-mono text-[11px] uppercase tracking-[3px] text-[#666] mb-4">
+          <div className="font-mono text-[11px] uppercase tracking-[3px] text-stripe-body mb-4">
             App
           </div>
-          <h2 className="text-[32px] font-bold tracking-tight mb-8">
+          <h2
+            className="text-[32px] font-light text-stripe-navy mb-3"
+            style={{ letterSpacing: '-0.64px', fontFeatureSettings: '"ss01"' }}
+          >
             Start an escrow.
           </h2>
+          <p className="text-[15px] font-light text-stripe-body mb-10 leading-[1.5]">
+            Connect your wallet to create, fund, and manage trustless deals on Arc.
+          </p>
 
           {!wallet ? (
             <ConnectWallet onConnect={handleConnect} loading={connecting} error={connectError} />
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-5">
               {/* Wallet Bar */}
-              <div className="flex justify-between items-center px-4 py-3 bg-dark border border-dark-border rounded-xl">
-                <span className="text-accent text-sm font-semibold">
+              <div
+                className="flex justify-between items-center px-5 py-3.5 bg-white border border-stripe-border rounded"
+                style={{ boxShadow: 'rgba(50,50,93,0.15) 0px 10px 25px -10px, rgba(0,0,0,0.06) 0px 6px 12px -6px' }}
+              >
+                <span className="text-stripe-purple text-[13px] font-medium font-mono">
                   {formatAddress(wallet.address)}
                 </span>
-                <span className="text-[#555] text-xs">
+                <span className="text-stripe-body text-[13px]" style={{ fontFeatureSettings: '"tnum"' }}>
                   {formatBalance(wallet.balance)} USDC
                 </span>
               </div>
@@ -79,25 +88,33 @@ export default function App() {
       </section>
 
       {/* Footer */}
-      <footer className="py-10 text-center text-xs text-muted border-t border-border">
-        BOND on Arc Testnet ·{' '}
-        <a
-          href="https://testnet.arcscan.app/address/0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B"
-          target="_blank"
-          rel="noopener"
-          className="hover:text-fg transition-colors"
-        >
-          Contract
-        </a>{' '}
-        ·{' '}
-        <a
-          href="https://github.com/yjm26/arc-escrow-agent"
-          target="_blank"
-          rel="noopener"
-          className="hover:text-fg transition-colors"
-        >
-          GitHub
-        </a>
+      <footer className="py-12 text-center border-t border-stripe-border">
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <div className="w-5 h-5 bg-stripe-navy rounded flex items-center justify-center">
+            <span className="text-white text-[8px] font-bold font-mono">B</span>
+          </div>
+          <span className="text-[13px] font-medium text-stripe-navy">BOND</span>
+        </div>
+        <div className="text-[12px] font-light text-stripe-body">
+          on Arc Testnet ·{' '}
+          <a
+            href="https://testnet.arcscan.app/address/0xd6f0548Db78d50B210493ED545f4Cd1341C20c0B"
+            target="_blank"
+            rel="noopener"
+            className="text-stripe-purple hover:underline"
+          >
+            Contract
+          </a>
+          {' · '}
+          <a
+            href="https://github.com/yjm26/arc-escrow-agent"
+            target="_blank"
+            rel="noopener"
+            className="text-stripe-purple hover:underline"
+          >
+            GitHub
+          </a>
+        </div>
       </footer>
     </>
   )

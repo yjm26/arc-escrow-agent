@@ -1,3 +1,96 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    font-feature-settings: "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-sans text-stripe-navy bg-stripe-bg;
+  }
+
+  ::selection {
+    background: rgba(83, 58, 253, 0.2);
+    color: #061b31;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #e5edf5;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b9b9f9;
+  }
+}
+
+@layer components {
+  /* Stripe-style input */
+  .stripe-input {
+    @apply w-full px-4 py-3 bg-white border border-stripe-border rounded text-[15px] text-stripe-navy placeholder:text-stripe-body outline-none transition-all;
+  }
+  .stripe-input:focus {
+    @apply border-stripe-purple ring-1 ring-stripe-purple;
+  }
+
+  /* Stripe primary button */
+  .btn-primary {
+    @apply bg-stripe-purple text-white px-6 py-2.5 rounded text-[15px] font-medium transition-all;
+  }
+  .btn-primary:hover {
+    @apply bg-stripe-purple-hover -translate-y-px;
+    box-shadow: rgba(50,50,93,0.25) 0px 10px 20px -10px, rgba(0,0,0,0.1) 0px 6px 12px -6px;
+  }
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Stripe ghost button */
+  .btn-ghost {
+    @apply bg-transparent text-stripe-purple border border-stripe-border-purple px-6 py-2.5 rounded text-[15px] font-medium transition-all;
+  }
+  .btn-ghost:hover {
+    @apply bg-stripe-purple/5;
+  }
+
+  /* Stripe card */
+  .stripe-card {
+    @apply bg-white border border-stripe-border rounded p-6;
+    box-shadow: rgba(50,50,93,0.25) 0px 30px 45px -30px, rgba(0,0,0,0.1) 0px 18px 36px -18px;
+  }
+  .stripe-card:hover {
+    box-shadow: rgba(50,50,93,0.3) 0px 40px 55px -30px, rgba(0,0,0,0.12) 0px 22px 40px -18px;
+  }
+
+  /* Success badge */
+  .badge-success {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium;
+    background: rgba(21,190,83,0.2);
+    color: #108c3d;
+    border: 1px solid rgba(21,190,83,0.4);
+  }
+
+  /* Tab button */
+  .tab-btn {
+    @apply px-4 py-1.5 rounded text-xs font-medium transition-all;
+  }
+  .tab-btn.active {
+    @apply bg-stripe-purple text-white;
+  }
+  .tab-btn:not(.active) {
+    @apply bg-white text-stripe-body border border-stripe-border;
+  }
+  .tab-btn:not(.active):hover {
+    @apply border-stripe-purple text-stripe-purple;
+  }
+}
