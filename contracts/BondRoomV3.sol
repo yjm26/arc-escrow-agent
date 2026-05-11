@@ -129,11 +129,9 @@ contract BondRoomV3 is ReentrancyGuard {
         require(bytes(_item).length <= 200, "item too long");
         require(activeRooms[msg.sender] < MAX_ACTIVE_ROOMS, "too many active rooms");
 
-        // Collect fees
+        // Collect fees — single transferFrom for cleaner approval
         uint256 totalFee = CREATION_FEE + DELIVERY_FEE;
-        require(usdc.transferFrom(msg.sender, treasury, CREATION_FEE), "create fee failed");
-        // Delivery fee burned (sent to dead address)
-        require(usdc.transferFrom(msg.sender, address(0xdead), DELIVERY_FEE), "delivery fee failed");
+        require(usdc.transferFrom(msg.sender, treasury, totalFee), "fees failed");
 
         uint256 id = totalRooms++;
         uint256 _tax = (_price * TAX_BPS) / BPS_DENOM;
@@ -165,8 +163,8 @@ contract BondRoomV3 is ReentrancyGuard {
         require(r.counter == address(0), "already joined");
         require(msg.sender != r.maker, "cannot join own room");
 
-        // Anti-spam: collect delivery fee from counter too (burned)
-        require(usdc.transferFrom(msg.sender, address(0xdead), DELIVERY_FEE), "delivery fee failed");
+        // Anti-spam: collect delivery fee
+        require(usdc.transferFrom(msg.sender, treasury, DELIVERY_FEE), "delivery fee failed");
 
         r.counter = msg.sender;
         activeRooms[msg.sender]++;
