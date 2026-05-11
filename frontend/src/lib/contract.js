@@ -4,7 +4,7 @@ export const USDC_ADDRESS = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
 
 export const ARC_TESTNET = {
   chainId: 5042002,
-  hex: '0x4CE4A2',
+  hex: '0x4cef52',
   name: 'Arc Testnet',
   rpcUrl: 'https://rpc.testnet.arc.network',
   explorer: 'https://testnet.arcscan.app',
