@@ -17,20 +17,36 @@ export const ARC_GAS_APPROVE = {
 
 /// Poll for tx receipt — bypass MetaMask provider, use Arc RPC directly
 /// MetaMask's injected provider sometimes returns tx hashes that never land on Arc
-export async function waitForTx(walletProvider, txHash, timeoutMs = 60000) {
-  // Use direct Arc RPC for reliable receipt polling (MetaMask provider is unreliable on Arc)
+export async function waitForTx(walletProvider, txHash, timeoutMs = 120000) {
+  // Use direct Arc RPC for reliable receipt polling
   const rpcProvider = new ethers.JsonRpcProvider("https://rpc.testnet.arc.network", 5042002)
   const start = Date.now()
+  let attempts = 0
   while (Date.now() - start < timeoutMs) {
+    attempts++
     try {
       const receipt = await rpcProvider.getTransactionReceipt(txHash)
-      if (receipt) return receipt
-    } catch {}
-    await new Promise(r => setTimeout(r, 1500))
+      if (receipt) {
+        console.log(`TX confirmed after ${attempts} polls (${Date.now() - start}ms)`)
+        return receipt
+      }
+    } catch (e) {
+      // Swallow — RPC might be flaky
+      if (attempts % 10 === 0) console.warn(`Poll attempt ${attempts}: ${e.message}`)
+    }
+    await new Promise(r => setTimeout(r, 2000))
   }
   throw new Error(`TX ${txHash} not confirmed within ${timeoutMs/1000}s. Check https://testnet.arcscan.app/tx/${txHash}`)
 }
 
+
+// Verify user is on Arc Testnet before sending tx
+export async function ensureArcChain(signer) {
+  const network = await signer.provider.getNetwork()
+  if (network.chainId !== 5042002n) {
+    throw new Error(`Wrong network (chain ${network.chainId}). Please switch to Arc Testnet in your wallet.`)
+  }
+}
 export const USDC_ABI = [
   "function transfer(address to, uint256 amount) external returns (bool)",
   "function transferFrom(address from, address to, uint256 amount) external returns (bool)",
