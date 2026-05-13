@@ -303,11 +303,10 @@ export default function RoomView({ wallet }) {
 
   const handleDispute = async () => {
     if (!disputeReason.trim()) { setStatus({ type: 'err', msg: 'Reason required' }); return }
-    if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required — paste a link or description' }); return }
     await doAction(
-      (c) => c.openDispute(id, disputeReason, evidenceType, evidenceDesc, evidenceRef, ARC_GAS),
-      'Opening dispute with evidence…',
-      'Disputed! Evidence recorded on-chain.'
+      (c) => c.dispute(id, ARC_GAS),
+      'Opening dispute…',
+      'Disputed! Open a Discord ticket for arbiter review.'
     )
     setShowDisputeForm(false)
     setDisputeReason('')
@@ -317,24 +316,9 @@ export default function RoomView({ wallet }) {
 
   const handleSubmitEvidence = async () => {
     if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required' }); return }
-    await doAction(
-      (c) => c.submitEvidence(id, evidenceType, evidenceDesc, evidenceRef, ARC_GAS),
-      'Submitting evidence…',
-      'Evidence submitted!'
-    )
-    try {
-      await fetch(`${API_URL}/api/evidence/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          submitter: account,
-          evidenceType,
-          description: evidenceDesc,
-          evidenceRef,
-        }),
-      })
-    } catch {}
-    setShowEvidenceForm(false)
+    // Contract V18 does not store evidence on-chain; log to console only
+    console.log('Evidence submitted (off-chain):', { roomId: id, evidenceType, evidenceDesc, evidenceRef })
+    setStatus({ type: 'ok', msg: 'Evidence noted — share it in your Discord ticket for the arbiter.' })
     setEvidenceDesc('')
     setEvidenceRef('')
   }

@@ -61,8 +61,8 @@ export const CONTRACT_ABI = [
   "function fundRoom(uint256 _roomId) external",
   "function markDelivered(uint256 _roomId, bytes32 _proofHash) external",
   "function releaseFunds(uint256 _roomId) external",
-  "function openDispute(uint256 _roomId, string _reason, string _evidenceType, string _evidenceDesc, string _evidenceRef) external",
-  "function submitEvidence(uint256 _roomId, string _evidenceType, string _description, string _evidenceRef) external",
+  "function dispute(uint256 _roomId) external",
+  // Evidence views (contract V18 does not store evidence on-chain)
   "function buyerRefund(uint256 _roomId) external",
   "function autoRelease(uint256 _roomId) external",
   "function arbiterResolve(uint256 _roomId, address _winner) external",
