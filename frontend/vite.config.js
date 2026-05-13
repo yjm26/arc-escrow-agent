@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: command === 'build' ? '/arc-escrow-agent/' : '/',
+  base: process.env.GITHUB_PAGES ? '/arc-escrow-agent/' : '/',
   server: {
     historyApiFallback: true,
   },
