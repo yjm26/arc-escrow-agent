@@ -20,25 +20,27 @@ export default function Docs() {
     <section className="pt-24 pb-32 px-4 sm:px-6 min-h-screen">
       <div className="max-w-[900px] mx-auto">
 
-        {/* Mobile nav — full width, above content */}
-        <div className="md:hidden flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4">
-          {SECTIONS.map((s) => (
-            <Link
-              key={s.id}
-              to={`/docs/${s.id}`}
-              className={`text-[11px] px-3 py-1.5 rounded-full whitespace-nowrap no-underline border ${
-                active === s.id
-                  ? 'bg-stripe-navy text-white border-stripe-navy'
-                  : 'text-stripe-body dark:text-gray-400 border-stripe-border dark:border-white/10 hover:border-stripe-navy'
-              }`}
-            >
-              {s.label}
-            </Link>
-          ))}
+        {/* Mobile section nav — sticky, full bleed, scrollable */}
+        <div className="md:hidden sticky top-[60px] z-30 bg-[#faf9f7]/95 dark:bg-[#0c0f1a]/95 backdrop-blur-xl -mx-4 px-4 py-2 border-b border-stripe-border dark:border-white/10 mb-6">
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            {SECTIONS.map((s) => (
+              <Link
+                key={s.id}
+                to={`/docs/${s.id}`}
+                className={`shrink-0 text-[12px] px-3 py-1.5 rounded-full whitespace-nowrap no-underline border transition ${
+                  active === s.id
+                    ? 'bg-stripe-navy text-white border-stripe-navy'
+                    : 'text-stripe-body dark:text-gray-400 border-stripe-border dark:border-white/10 hover:border-stripe-navy'
+                }`}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </div>
         </div>
 
-        <div className="flex gap-8">
-          {/* Sidebar */}
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Sidebar — desktop only */}
           <nav className="hidden md:block w-[180px] shrink-0 pt-2">
             <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4">Docs</div>
             <div className="flex flex-col gap-1">
@@ -59,7 +61,7 @@ export default function Docs() {
           </nav>
 
           {/* Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 md:pt-2">
             {active === 'overview' && <Overview />}
             {active === 'how-it-works' && <HowItWorks />}
             {active === 'market' && <MarketDoc />}
@@ -77,15 +79,15 @@ export default function Docs() {
 }
 
 function H1({ children }) {
-  return <h1 className="text-[28px] font-light text-stripe-navy dark:text-white mb-2" style={{ letterSpacing: '-0.56px' }}>{children}</h1>
+  return <h1 className="text-[24px] md:text-[28px] font-light text-stripe-navy dark:text-white mb-2" style={{ letterSpacing: '-0.56px' }}>{children}</h1>
 }
 
 function H2({ children }) {
-  return <h2 className="text-[18px] font-semibold text-stripe-navy dark:text-white mt-8 mb-3">{children}</h2>
+  return <h2 className="text-[16px] md:text-[18px] font-semibold text-stripe-navy dark:text-white mt-8 mb-3">{children}</h2>
 }
 
 function H3({ children }) {
-  return <h3 className="text-[15px] font-semibold text-stripe-navy dark:text-white mt-6 mb-2">{children}</h3>
+  return <h3 className="text-[14px] md:text-[15px] font-semibold text-stripe-navy dark:text-white mt-6 mb-2">{children}</h3>
 }
 
 function P({ children }) {

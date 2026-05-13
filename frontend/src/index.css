@@ -45,6 +45,15 @@
   ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 2px; }
   .dark ::-webkit-scrollbar-thumb { background: #374151; }
 
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   hr {
     @apply border-stripe-border;
   }
