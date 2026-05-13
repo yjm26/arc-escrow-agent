@@ -1,91 +1,166 @@
 import { useState, useCallback, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom'
-import { createAppKit } from '@reown/appkit/react'
-import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react'
-import { EthersAdapter } from '@reown/appkit-adapter-ethers'
-import { ethers } from 'ethers'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import ErrorBoundary from './components/ErrorBoundary'
 import Hero from './components/Hero'
 import HowItWorks from './components/HowItWorks'
 import RoomsPage from './components/RoomsPage'
-import RoomView from './components/app/RoomView'
-import CreateRoom from './components/app/CreateRoom'
+import RoomView from './components/RoomView'
+import CreateRoom from './components/CreateRoom'
 import Market from './components/Market'
 import Offers from './components/Offers'
 import Docs from './components/Docs'
-import { reconnectWallet } from './lib/wallet'
-import { USDC_ADDRESS, ERC20_ABI } from './lib/contract'
+import { connectWallet, reconnectWallet } from './lib/wallet'
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from './utils/contract'
+import { ethers } from 'ethers'
 
-const ARC_TESTNET = {
-  id: 5042002,
-  name: 'Arc Testnet',
-  network: 'arc-testnet',
-  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-  rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
-  blockExplorers: { default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' } },
-  testnet: true,
-}
-
-createAppKit({
-  projectId: 'af815ce51d40ec33de9699ee550f21a8',
-  adapters: [new EthersAdapter()],
-  networks: [ARC_TESTNET],
-  metadata: {
-    name: 'BOND',
-    description: 'Trustless USDC escrow on Arc Network',
-    url: typeof window !== 'undefined' ? window.location.origin : '',
-    icons: ['https://avatars.githubusercontent.com/u/179229932'],
-  },
-  features: { analytics: false },
-})
-
-function AppRoutes() {
-  const { address, isConnected } = useAppKitAccount()
-  const { walletProvider } = useAppKitProvider('eip155')
-  const { open: openAppKit, disconnect } = useAppKit()
-
+export default function App() {
   const [wallet, setWallet] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [connectError, setConnectError] = useState(null)
 
+  // Auto-reconnect on mount if wallet was previously connected
   useEffect(() => {
-    if (!isConnected || !address) { setWallet(null); return }
-    let cancelled = false
+    if (typeof window.ethereum === 'undefined') return
+    const wasConnected = localStorage.getItem('bond_wallet_connected')
+    if (!wasConnected) return
     ;(async () => {
-      setLoading(true)
       try {
-        const w = await reconnectWallet(walletProvider)
-        // Also create USDC token contract
-        const token = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, w.signer)
-        if (!cancelled) setWallet({ ...w, token })
-      } catch (e) {
-        console.error('Wallet reconnect failed:', e)
-        if (!cancelled) setWallet(null)
-      } finally {
-        if (!cancelled) setLoading(false)
+        const w = await reconnectWallet()
+        setWallet(w)
+      } catch {
+        localStorage.removeItem('bond_wallet_connected')
       }
     })()
-    return () => { cancelled = true }
-  }, [isConnected, address, walletProvider])
+  }, [])
 
-  const handleConnect = useCallback(() => openAppKit(), [openAppKit])
-  const handleDisconnect = useCallback(() => { disconnect(); setWallet(null) }, [disconnect])
+  // Poll eth_accounts — aggressive first 10s (every 1s), then every 5s
+  useEffect(() => {
+    if (typeof window.ethereum === 'undefined') return
+    let active = true
+    let count = 0
+
+    const check = async () => {
+      if (!active || wallet) return
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' })
+        if (accounts.length > 0 && active && !wallet) {
+          const provider = new ethers.BrowserProvider(window.ethereum)
+          const signer = await provider.getSigner()
+          const address = await signer.getAddress()
+          let balance = 0n
+          try { balance = await provider.getBalance(address) } catch {}
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+          if (active) {
+            setWallet({ provider, signer, address, balance, contract })
+            localStorage.setItem('bond_wallet_connected', '1')
+          }
+        }
+      } catch {}
+      count++
+    }
+
+    // Start checking after 500ms (let MetaMask inject)
+    const startTimer = setTimeout(() => {
+      if (!active) return
+      check()
+      const fastInterval = setInterval(() => { if (count < 10 && !wallet) check() }, 1000)
+      const slowInterval = setInterval(() => { if (count >= 10 && !wallet) check() }, 5000)
+      // Store refs for cleanup
+      check._fastInterval = fastInterval
+      check._slowInterval = slowInterval
+    }, 500)
+
+    return () => {
+      active = false
+      clearTimeout(startTimer)
+      if (check._fastInterval) clearInterval(check._fastInterval)
+      if (check._slowInterval) clearInterval(check._slowInterval)
+    }
+  }, [wallet])
+
+  // Listen for wallet disconnect
+  useEffect(() => {
+    if (typeof window.ethereum === 'undefined') return
+    const handleAccountsChanged = (accounts) => {
+      if (accounts.length === 0) {
+        setWallet(null)
+        localStorage.removeItem('bond_wallet_connected')
+      } else if (wallet && accounts[0].toLowerCase() !== wallet.address.toLowerCase()) {
+        // Account switched — reconnect
+        setWallet(null)
+        handleConnect()
+      }
+    }
+    window.ethereum.on('accountsChanged', handleAccountsChanged)
+    return () => window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+  }, [wallet])
+
+  const handleDisconnect = useCallback(() => {
+    setWallet(null)
+    localStorage.removeItem('bond_wallet_connected')
+  }, [])
+
+  const handleConnect = useCallback(async () => {
+    setConnecting(true)
+    setConnectError(null)
+    try {
+      // Check if already authorized (no popup needed)
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const accounts = await provider.send('eth_accounts', [])
+        if (accounts.length > 0) {
+          // Already connected — rebuild state silently
+          const w = await reconnectWallet()
+          setWallet(w)
+          localStorage.setItem('bond_wallet_connected', '1')
+          setConnecting(false)
+          return
+        }
+      }
+      // First time — trigger popup
+      const w = await connectWallet()
+      setWallet(w)
+      localStorage.setItem('bond_wallet_connected', '1')
+    } catch (e) {
+      setConnectError(e.message)
+    } finally {
+      setConnecting(false)
+    }
+  }, [])
 
   return (
     <BrowserRouter>
-      <Navbar onConnect={handleConnect} onDisconnect={handleDisconnect} wallet={wallet} connecting={loading} />
+      <Navbar onConnect={handleConnect} onDisconnect={handleDisconnect} wallet={wallet} connecting={connecting} />
       <ErrorBoundary>
       <Routes>
         <Route path="/" element={<><Hero wallet={wallet} onConnect={handleConnect} /><HowItWorks /></>} />
-        <Route path="/create" element={<CreatePage wallet={wallet} onConnect={handleConnect} loading={loading} />} />
-        <Route path="/rooms" element={<RoomsPage wallet={wallet} />} />
-        <Route path="/room/:id" element={<RoomPageRoute wallet={wallet} />} />
+        <Route
+          path="/create"
+          element={
+            <CreateRoom wallet={wallet} />
+          }
+        />
+        <Route
+          path="/rooms"
+          element={
+            <RoomsPage wallet={wallet} />
+          }
+        />
+        <Route
+          path="/room/:id"
+          element={
+            <RoomView wallet={wallet} />
+          }
+        />
         <Route path="/docs/:section?" element={<Docs />} />
         <Route path="/market" element={<Market wallet={wallet} />} />
         <Route path="/offers" element={<Offers wallet={wallet} />} />
+        
       </Routes>
       </ErrorBoundary>
 
+      {/* Disclaimer */}
       <div className="max-w-[600px] mx-auto px-6 mb-16">
         <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg px-5 py-3 text-center text-[13px] text-amber-800 dark:text-amber-400 font-medium">
           Arc Testnet — for testing only, not real money
@@ -106,40 +181,3 @@ function AppRoutes() {
   )
 }
 
-function CreatePage({ wallet, onConnect, loading }) {
-  if (!wallet) {
-    return (
-      <section className="pt-28 pb-32 px-6 min-h-screen">
-        <div className="max-w-[480px] mx-auto text-center">
-          <p className="text-stripe-body mb-4">Connect your wallet to create a room</p>
-          <button onClick={onConnect} disabled={loading} className="btn-primary px-6 py-3">
-            {loading ? 'Connecting…' : 'Connect Wallet'}
-          </button>
-        </div>
-      </section>
-    )
-  }
-  return (
-    <section className="pt-28 pb-32 px-6 min-h-screen">
-      <div className="max-w-[480px] mx-auto">
-        <CreateRoom room={wallet.contract} token={wallet.token} signerAddress={wallet.address} />
-      </div>
-    </section>
-  )
-}
-
-function RoomPageRoute({ wallet }) {
-  const { id } = useParams()
-  if (!wallet) return <section className="pt-28 pb-32 px-6 min-h-screen"><p className="text-center text-stripe-body">Connect wallet first</p></section>
-  return (
-    <section className="pt-28 pb-32 px-6 min-h-screen">
-      <div className="max-w-[600px] mx-auto">
-        <RoomView roomId={id} room={wallet.contract} token={wallet.token} signerAddress={wallet.address} />
-      </div>
-    </section>
-  )
-}
-
-export default function App() {
-  return <AppRoutes />
-}
