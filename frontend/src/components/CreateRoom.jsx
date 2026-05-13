@@ -41,7 +41,7 @@ export default function CreateRoom({ wallet }) {
         try {
           const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
           console.log('approve tx:', approveTx.hash)
-          await waitForTx(wallet.provider, approveTx.hash, 30000)
+          await approveTx.wait(1)
         } catch (approveErr) {
           console.error('approve failed:', approveErr)
           throw new Error('USDC approve failed: ' + (approveErr.message || 'unknown'))
@@ -53,7 +53,7 @@ export default function CreateRoom({ wallet }) {
       const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, ARC_GAS)
       console.log('createRoom tx:', tx.hash)
       setStep('Waiting for confirmation…')
-      const receipt = await waitForTx(wallet.provider, tx.hash, 60000)
+      const receipt = await tx.wait(1)
 
       const event = receipt.logs.find(log => {
         try { return contract.interface.parseLog(log)?.name === 'RoomCreated' } catch { return false }
@@ -65,7 +65,7 @@ export default function CreateRoom({ wallet }) {
       setResult({ roomId, inviteLink, joinCode })
       setStep('')
 
-          // Mark listing as taken (if from market)
+          // Mark listing as taken + notify listing creator (if from market)
       const listingId = searchParams.get('listingId')
       if (listingId) {
         try {
@@ -75,6 +75,21 @@ export default function CreateRoom({ wallet }) {
             body: JSON.stringify({ roomId, creator: wallet.address }),
           })
         } catch (e) { console.error('Mark taken:', e) }
+        // Notify listing creator
+        if (counterparty) {
+          try {
+            await fetch(`${API_URL}/api/notifications`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: counterparty,
+                from: wallet.address,
+                message: `Someone opened a deal for "${item}" — Room #${roomId}`,
+                listingId,
+              }),
+            })
+          } catch (e) { console.error('Notify:', e) }
+        }
       }
 
       // Auto-post join code to backend so counterparty can auto-join
