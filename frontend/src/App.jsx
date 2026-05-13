@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { createAppKit } from '@reown/appkit/react'
-import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react'
+import { useAppKit, useAppKitAccount, useAppKitProvider, useDisconnect } from '@reown/appkit/react'
 import { EthersAdapter } from '@reown/appkit-adapter-ethers'
 import Navbar from './components/Navbar'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -41,7 +41,8 @@ createAppKit({
 export default function App() {
   const { address, isConnected } = useAppKitAccount()
   const { walletProvider } = useAppKitProvider('eip155')
-  const { open: openAppKit, disconnect } = useAppKit()
+  const { open: openAppKit } = useAppKit()
+  const { disconnect } = useDisconnect()
 
   const [wallet, setWallet] = useState(null)
   const [connecting, setConnecting] = useState(false)
@@ -53,7 +54,6 @@ export default function App() {
       setWallet(null)
       return
     }
-    // Ignore reconnect right after manual disconnect
     if (manualDisconnect.current) {
       manualDisconnect.current = false
       return
@@ -80,11 +80,11 @@ export default function App() {
 
   const handleConnect = useCallback(() => openAppKit(), [openAppKit])
 
-  const handleDisconnect = useCallback(() => {
+  const handleDisconnect = useCallback(async () => {
     manualDisconnect.current = true
-    disconnect()
     setWallet(null)
     localStorage.removeItem('bond_wallet_connected')
+    try { await disconnect() } catch (e) { console.error('Disconnect failed:', e) }
   }, [disconnect])
 
   return (
