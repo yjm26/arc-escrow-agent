@@ -10,96 +10,147 @@
   }
 
   body {
-    @apply font-sans text-stripe-navy bg-white;
+    @apply font-sans text-stripe-navy;
+    background: #faf9f7;
+    cursor: default;
+  }
+
+  .dark body {
+    @apply text-gray-100;
+    background: #0c0f1a;
+  }
+
+  /* Prevent text cursor on non-text elements */
+  nav, button, a, .card-3d {
+    cursor: pointer;
+  }
+
+  /* Only show text cursor on actual text inputs */
+  input, textarea {
+    cursor: text;
   }
 
   ::selection {
-    background: rgba(83, 58, 253, 0.2);
+    background: rgba(83, 58, 253, 0.15);
     color: #061b31;
   }
 
-  ::-webkit-scrollbar { width: 6px; }
+  .dark ::selection {
+    background: rgba(83, 58, 253, 0.3);
+    color: #e2e8f0;
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #e5edf5; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 2px; }
+  .dark ::-webkit-scrollbar-thumb { background: #374151; }
+
+  hr {
+    @apply border-stripe-border;
+  }
+
+  .dark hr {
+    @apply border-white/10;
+  }
 }
 
 @layer components {
+  /* ─── Inputs ─── */
   .stripe-input {
-    @apply w-full px-4 py-3 bg-white border border-stripe-border rounded text-[15px] text-stripe-navy placeholder:text-stripe-body outline-none transition-all;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+    @apply w-full px-4 py-3 bg-white border border-stripe-border rounded-md text-[15px] text-stripe-navy placeholder:text-stripe-body/60 outline-none transition-all;
   }
   .stripe-input:focus {
-    @apply border-stripe-purple;
-    box-shadow: 0 0 0 3px rgba(83,58,253,0.1), inset 0 1px 2px rgba(0,0,0,0.04);
+    @apply border-stripe-navy;
+    box-shadow: none;
   }
 
-  .btn-primary {
-    @apply bg-stripe-navy text-white px-6 py-2.5 rounded text-[15px] font-medium transition-all;
-    box-shadow: 0 2px 8px rgba(6,27,49,0.3), 0 1px 3px rgba(6,27,49,0.2);
+  .dark .stripe-input {
+    @apply bg-white/5 text-gray-100 border-white/10 placeholder:text-gray-500;
   }
-  .btn-primary:hover {
-    @apply -translate-y-px;
-    box-shadow: 0 4px 16px rgba(6,27,49,0.35), 0 2px 6px rgba(6,27,49,0.25);
+  .dark .stripe-input:focus {
+    @apply border-white/30;
+  }
+
+  /* ─── Buttons ─── */
+  .btn-primary {
+    @apply bg-stripe-navy text-white px-6 py-2.5 rounded-md text-[14px] font-medium transition-colors;
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-stripe-navy/90;
   }
   .btn-primary:disabled {
-    @apply opacity-50 cursor-not-allowed;
+    @apply opacity-40 cursor-not-allowed;
+  }
+
+  .dark .btn-primary {
+    @apply bg-white text-[#0c0f1a];
+  }
+  .dark .btn-primary:hover:not(:disabled) {
+    @apply bg-gray-200;
   }
 
   .btn-ghost {
-    @apply bg-transparent text-stripe-navy border border-stripe-border px-6 py-2.5 rounded text-[15px] font-medium transition-all;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    @apply bg-transparent text-stripe-body border border-stripe-border px-6 py-2.5 rounded-md text-[14px] font-medium transition-colors;
   }
   .btn-ghost:hover {
-    @apply border-stripe-navy -translate-y-px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    @apply border-stripe-navy text-stripe-navy;
   }
 
-  /* 3D floating card */
+  .dark .btn-ghost {
+    @apply text-gray-400 border-white/10;
+  }
+  .dark .btn-ghost:hover {
+    @apply border-white/30 text-white;
+  }
+
+  .btn-secondary {
+    @apply bg-stripe-surface text-stripe-navy border border-stripe-border px-6 py-2.5 rounded-md text-[14px] font-medium transition-colors;
+  }
+  .btn-secondary:hover {
+    @apply bg-stripe-surface/80;
+  }
+
+  .dark .btn-secondary {
+    @apply bg-white/5 text-gray-100 border-white/10;
+  }
+  .dark .btn-secondary:hover {
+    @apply bg-white/10;
+  }
+
+  /* ─── Cards ─── */
   .card-3d {
     @apply bg-white border border-stripe-border rounded-lg;
-    box-shadow:
-      0 2px 4px rgba(50,50,93,0.08),
-      0 8px 16px rgba(50,50,93,0.1),
-      0 20px 40px rgba(50,50,93,0.08);
-    transition: all 0.3s ease;
+    box-shadow: none;
   }
   .card-3d:hover {
-    @apply -translate-y-1;
-    box-shadow:
-      0 4px 8px rgba(50,50,93,0.1),
-      0 12px 24px rgba(50,50,93,0.14),
-      0 30px 60px rgba(50,50,93,0.1);
+    box-shadow: none;
   }
 
-  /* Heavy shadow card for hero preview */
-  .card-heavy {
-    @apply bg-white border border-stripe-border rounded-lg;
-    box-shadow:
-      0 4px 8px rgba(50,50,93,0.12),
-      0 16px 32px rgba(50,50,93,0.16),
-      0 40px 80px rgba(50,50,93,0.12);
+  .dark .card-3d {
+    @apply bg-white/[0.03] border-white/10;
   }
 
-  .badge-success {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium;
-    background: rgba(21,190,83,0.15);
-    color: #108c3d;
-    border: 1px solid rgba(21,190,83,0.3);
-  }
-
+  /* ─── Tabs ─── */
   .tab-btn {
-    @apply px-4 py-2 rounded text-[13px] font-medium transition-all;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    @apply px-4 py-2 rounded-md text-[13px] font-medium transition-colors;
   }
   .tab-btn.active {
     @apply bg-stripe-navy text-white;
-    box-shadow: 0 2px 8px rgba(6,27,49,0.3);
   }
   .tab-btn:not(.active) {
-    @apply bg-white text-stripe-body border border-stripe-border;
+    @apply bg-transparent text-stripe-body border border-stripe-border;
   }
   .tab-btn:not(.active):hover {
-    @apply border-stripe-navy text-stripe-navy -translate-y-px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    @apply text-stripe-navy border-stripe-navy;
+  }
+
+  .dark .tab-btn.active {
+    @apply bg-white text-[#0c0f1a];
+  }
+  .dark .tab-btn:not(.active) {
+    @apply text-gray-400 border-white/10;
+  }
+  .dark .tab-btn:not(.active):hover {
+    @apply text-white border-white/30;
   }
 }
