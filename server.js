@@ -354,6 +354,15 @@ const server = http.createServer(async (req, res) => {
       return json(res, { status: 'ok', listings: readJSON(DATA_FILE, []).length, offers: readJSON(OFFERS_FILE, []).length })
     }
 
+    // ── ADMIN: CLEAR ALL LISTINGS (temporary) ──
+    if (pathname === '/api/clear-all' && req.method === 'POST') {
+      writeJSON(DATA_FILE, [])
+      writeJSON(OFFERS_FILE, [])
+      writeJSON(NOTIF_FILE, {})
+      writeJSON(ROOM_CODES_FILE, [])
+      return json(res, { ok: true, cleared: ['listings', 'offers', 'notifications', 'room_codes'] })
+    }
+
     json(res, { error: 'Not found' }, 404)
   } catch (err) {
     json(res, { error: err.message }, 500)
