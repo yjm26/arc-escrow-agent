@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, STATE_NAMES, CONTRACT_ADDRESS, ARC_GAS, ARC_GAS_APPROVE, ensureArcChain } from '../utils/contract'
+import { getContract, getUsdc, STATE_NAMES, CONTRACT_ADDRESS, ARC_GAS, ARC_GAS_APPROVE, ensureArcChain, waitForTx } from '../utils/contract'
 import { STATE_BADGE, formatAddress } from '../utils/constants'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
@@ -76,12 +76,13 @@ export default function RoomsPage({ wallet }) {
         const allowance = await usdc.allowance(wallet.address, CONTRACT_ADDRESS)
         if (allowance < collateralWei) {
           const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
-          await approveTx.wait(1, 180000)
+          await waitForTx(wallet.provider, approveTx.hash, 180000)
         }
       }
       const codeBytes = ethers.toUtf8Bytes(roomCode.joinCode)
+      setStatus({ type: 'info', msg: 'Joining…' })
       const tx = await contract.joinRoom(roomCode.roomId, codeBytes, ARC_GAS)
-      await tx.wait(1, 180000)
+      await waitForTx(wallet.provider, tx.hash, 180000)
       loadRooms()
       fetchPendingRooms()
     } catch (e) {

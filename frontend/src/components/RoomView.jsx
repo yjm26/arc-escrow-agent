@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
+import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS, waitForTx } from '../utils/contract'
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 import RoomHistory from './room/RoomHistory'
 
@@ -250,10 +250,7 @@ export default function RoomView({ wallet }) {
       const contract = getContract(signer)
       const tx = await fn(contract)
       setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}… — waiting for confirmation…` })
-      const receipt = await Promise.race([
-        tx.wait(1),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('TX timeout — check https://testnet.arcscan.app/tx/' + tx.hash)), 120000))
-      ])
+      const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
       if (receipt.status === 0) {
         setStatus({ type: 'err', msg: 'TX reverted on-chain' })
         return false
@@ -283,11 +280,11 @@ export default function RoomView({ wallet }) {
         const usdc = getUsdc(signer)
         setStatus({ type: 'info', msg: 'Approving collateral…' })
         const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
-        await approveTx.wait(1, 180000)
+        await waitForTx(wallet.provider, approveTx.hash, 180000)
       }
       setStatus({ type: 'info', msg: 'Joining…' })
       const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
-      await tx.wait(1, 180000)
+      await waitForTx(wallet.provider, tx.hash, 180000)
       setStatus({ type: 'ok', msg: 'Joined!' })
       loadRoom()
     } catch (e) {
@@ -310,10 +307,10 @@ export default function RoomView({ wallet }) {
       if (bal < exactNeeded) { setStatus({ type: 'err', msg: `Insufficient USDC. Need ${ethers.formatUnits(exactNeeded, 6)} USDC (incl. ${Number(taxBps)/100}% fee)` }); return }
       setStatus({ type: 'info', msg: 'Approving USDC…' })
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
-      await approveTx.wait(1, 180000)
+      await waitForTx(wallet.provider, approveTx.hash, 180000)
       setStatus({ type: 'info', msg: 'Funding room…' })
       const fundTx = await contract.fundRoom(id, ARC_GAS)
-      await fundTx.wait(1, 180000)
+      await waitForTx(wallet.provider, fundTx.hash, 180000)
       setStatus({ type: 'ok', msg: 'Funded!' })
       loadRoom()
     } catch (e) {
