@@ -451,7 +451,11 @@ function ListingCard({ listing, wallet, expanded, onToggle, onOpenDeal, onDelete
 
           <div className="flex gap-2">
             {isOwner ? (
-              <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="text-[12px] px-4 py-2 rounded border border-red-200 dark:border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition">Delete Listing</button>
+              listing.taken ? (
+                <span className="text-[12px] text-amber-600 dark:text-amber-400 font-medium px-5 py-2.5">⏳ Room Active</span>
+              ) : (
+                <button onClick={(e) => { e.stopPropagation(); onDelete() }} className="text-[12px] px-4 py-2 rounded border border-red-200 dark:border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition">Delete Listing</button>
+              )
             ) : listing.taken ? (
               <span className="text-[12px] text-amber-600 dark:text-amber-400 font-medium px-5 py-2.5">⏳ Room in progress</span>
             ) : (

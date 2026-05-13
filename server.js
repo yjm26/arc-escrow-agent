@@ -329,6 +329,7 @@ const server = http.createServer(async (req, res) => {
           joinCode: body.joinCode,
           creator: body.creator.toLowerCase(),
           counterparty: body.counterparty.toLowerCase(),
+          listingId: body.listingId || null,
           item: body.item || '',
           price: body.price || '',
           createdAt: Date.now(),

@@ -119,11 +119,20 @@ export default function CreateRoom({ wallet }) {
               counterparty,
               item,
               price,
+              listingId: searchParams.get('listingId'),
             }),
           })
           const respData = await resp.json()
-          console.log('Room code post response:', respData)
-        } catch (e) { console.error('Failed to post room code:', e) }
+          console.log('Room code post response:', resp.status, respData)
+          if (!resp.ok) {
+            setError('Warning: Room created but seller notification failed: ' + (respData.error || resp.status))
+          }
+        } catch (e) { 
+          console.error('Failed to post room code:', e)
+          setError('Warning: Room created but seller notification failed: ' + e.message)
+        }
+      } else {
+        console.log('No counterparty set — room code not posted')
       }
     } catch (err) {
       console.error(err)
