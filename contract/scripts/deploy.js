@@ -9,12 +9,12 @@ async function main() {
   const ARBITER = process.env.ARBITER_ADDRESS || deployer.address;
   const ARBITER_NAME = process.env.ARBITER_NAME || 'BondRoom Arbiter';
 
-  const BondRoom = await ethers.getContractFactory('BondRoomV18');
+  const BondRoom = await ethers.getContractFactory('BondRoomV19');
   const contract = await BondRoom.deploy(USDC, TREASURY, ARBITER, ARBITER_NAME);
   await contract.waitForDeployment();
 
   const addr = await contract.getAddress();
-  console.log('BondRoomV18 deployed to:', addr);
+  console.log('BondRoomV19 deployed to:', addr);
   console.log('USDC:', USDC);
   console.log('Treasury:', TREASURY);
   console.log('Arbiter:', ARBITER);

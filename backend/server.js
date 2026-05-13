@@ -6,6 +6,7 @@ const PORT = process.env.PORT || 3001
 const DATA_FILE = path.join(__dirname, 'listings.json')
 const NOTIF_FILE = path.join(__dirname, 'notifications.json')
 const OFFERS_FILE = path.join(__dirname, 'offers.json')
+const EVIDENCE_FILE = path.join(__dirname, 'evidence.json')
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -357,6 +358,38 @@ const server = http.createServer(async (req, res) => {
       const codes = readJSON(ROOM_CODES_FILE, [])
       const pending = codes.filter(c => c.counterparty === wallet)
       return json(res, pending)
+    }
+
+    // ── EVIDENCE ──
+
+    // POST /api/evidence/:roomId — submit evidence
+    if (pathname.match(/^\/api\/evidence\/\d+$/) && req.method === 'POST') {
+      const roomId = parseInt(pathname.split('/')[3])
+      const body = await parseBody(req)
+      if (!body.submitter || !body.evidenceType || !body.evidenceRef) {
+        return json(res, { error: 'submitter, evidenceType, evidenceRef required' }, 400)
+      }
+      const evidence = readJSON(EVIDENCE_FILE, {})
+      if (!evidence[roomId]) evidence[roomId] = []
+      const entry = {
+        id: Date.now(),
+        roomId,
+        submitter: body.submitter.toLowerCase(),
+        evidenceType: body.evidenceType,
+        description: body.description || '',
+        evidenceRef: body.evidenceRef,
+        timestamp: Date.now(),
+      }
+      evidence[roomId].push(entry)
+      writeJSON(EVIDENCE_FILE, evidence)
+      return json(res, entry, 201)
+    }
+
+    // GET /api/evidence/:roomId — list evidence for a room
+    if (pathname.match(/^\/api\/evidence\/\d+$/) && req.method === 'GET') {
+      const roomId = parseInt(pathname.split('/')[3])
+      const evidence = readJSON(EVIDENCE_FILE, {})
+      return json(res, evidence[roomId] || [])
     }
 
     // ── HEALTH ──

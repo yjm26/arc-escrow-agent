@@ -16,6 +16,7 @@ const STATE_BADGE = {
 }
 
 const TREASURY = '0xB8b4e8E7Ad2651d36b8E0D24B5EF1ae06EE2cC4a'
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://bond-market-backend-production.up.railway.app'
 
 function formatAddress(addr) {
   if (!addr || addr === '0x0000000000000000000000000000000000000000') return '—'
@@ -35,6 +36,16 @@ export default function RoomView({ wallet }) {
   const [arbiterName, setArbiterName] = useState('Bond Escrow')
   const [arbiterAddr, setArbiterAddr] = useState(TREASURY)
   const [copied, setCopied] = useState(false)
+  const [ownerAddr, setOwnerAddr] = useState('')
+
+  // Evidence state
+  const [evidence, setEvidence] = useState([])
+  const [disputeReason, setDisputeReason] = useState('')
+  const [evidenceType, setEvidenceType] = useState('link')
+  const [evidenceDesc, setEvidenceDesc] = useState('')
+  const [evidenceRef, setEvidenceRef] = useState('')
+  const [showDisputeForm, setShowDisputeForm] = useState(false)
+  const [showEvidenceForm, setShowEvidenceForm] = useState(false)
 
   const account = wallet?.address?.toLowerCase()
 
@@ -53,30 +64,69 @@ export default function RoomView({ wallet }) {
         createdAt: Number(data.createdAt),
         joinedAt: Number(data.joinedAt),
         deliveredAt: Number(data.deliveredAt),
+        disputedAt: Number(data.disputedAt),
         state: STATE_NAMES[Number(data.state)],
         value: ethers.formatUnits(data.fundedAmount, 6),
-        collateralLocked: data.collateralAmount, // amount set at creation, represents locked collateral
+        collateralLocked: data.collateralAmount,
         creatorIsSeller: data.creatorIsSeller,
       })
       try { setArbiterName(await contract.arbiterName()) } catch {}
       try { setArbiterAddr(await contract.arbiter()) } catch {}
+      try { setOwnerAddr(await contract.owner()) } catch {}
     } catch (err) {
       console.error(err)
       setStatus({ type: 'err', msg: 'Room not found' })
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { loadRoom() }, [id, wallet])
+  async function loadEvidence() {
+    try {
+      if (!wallet || !id) return
+      const provider = wallet.provider
+      const contract = getContract(provider)
+      // Try on-chain first
+      const chainEvidence = await contract.getAllEvidence(id)
+      const formatted = chainEvidence.map((e, i) => ({
+        id: `chain-${i}`,
+        submitter: e.submitter,
+        evidenceType: e.evidenceType,
+        description: e.description,
+        evidenceRef: e.evidenceRef,
+        timestamp: Number(e.timestamp) * 1000,
+        source: 'chain',
+      }))
+      // Also fetch from backend (for any off-chain extras)
+      const res = await fetch(`${BACKEND_URL}/api/evidence/${id}`)
+      const backendEvidence = res.ok ? await res.json() : []
+      const backendFormatted = backendEvidence.map(e => ({
+        ...e,
+        id: `backend-${e.id}`,
+        source: 'backend',
+      }))
+      // Merge and dedupe by evidenceRef
+      const seen = new Set()
+      const merged = [...formatted, ...backendFormatted].filter(e => {
+        if (seen.has(e.evidenceRef)) return false
+        seen.add(e.evidenceRef)
+        return true
+      })
+      setEvidence(merged)
+    } catch (err) {
+      console.error('loadEvidence error:', err)
+    }
+  }
+
+  useEffect(() => { loadRoom(); loadEvidence() }, [id, wallet])
 
   useEffect(() => {
     if (!wallet) return
-    const interval = setInterval(() => loadRoom(), 10000)
+    const interval = setInterval(() => { loadRoom(); loadEvidence() }, 10000)
     return () => clearInterval(interval)
   }, [id, wallet])
 
   useEffect(() => {
     if (!room || room.state !== 'Delivered' || !room.deliveredAt) return
-    const AUTO_RELEASE = 2 * 3600 // 2h matches contract AUTO_RELEASE_TIME
+    const AUTO_RELEASE = 2 * 3600
     const interval = setInterval(() => {
       const remaining = (room.deliveredAt + AUTO_RELEASE) - Math.floor(Date.now() / 1000)
       if (remaining <= 0) { setCountdown('Ready for auto-release!'); clearInterval(interval); return }
@@ -90,19 +140,7 @@ export default function RoomView({ wallet }) {
 
   const isCreator = account === room?.creator?.toLowerCase()
   const isCounter = account === room?.counterparty?.toLowerCase()
-  const isArbiter = account === arbiterAddr?.toLowerCase()
-  const isOwner = account === room?.creator?.toLowerCase() && false // we need owner addr from contract
-
-  // Fetch owner from contract
-  const [ownerAddr, setOwnerAddr] = useState('')
-
-  useEffect(() => {
-    if (!wallet) return
-    const provider = wallet.provider
-    const contract = getContract(provider)
-    contract.owner().then(setOwnerAddr).catch(() => {})
-  }, [wallet])
-
+  const isParticipant = isCreator || isCounter
   const isAdmin = account === ownerAddr?.toLowerCase() || account === arbiterAddr?.toLowerCase()
 
   async function doAction(fn, label, successMsg) {
@@ -124,6 +162,7 @@ export default function RoomView({ wallet }) {
       } else {
         setStatus({ type: 'ok', msg: successMsg })
         loadRoom()
+        loadEvidence()
       }
     } catch (err) {
       console.error('TX failed:', err)
@@ -137,7 +176,6 @@ export default function RoomView({ wallet }) {
       const signer = await wallet.provider.getSigner()
       const contract = getContract(signer)
 
-      // If joining as seller on a buyer-created room, must lock collateral
       if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
         const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
         const usdc = getUsdc(signer)
@@ -180,18 +218,55 @@ export default function RoomView({ wallet }) {
   }
   const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
   const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
-  const handleDispute = () => doAction((c) => c.dispute(id, ARC_GAS), 'Opening dispute…', 'Disputed! Open a Discord ticket for arbiter.')
+
+  const handleDispute = async () => {
+    if (!disputeReason.trim()) { setStatus({ type: 'err', msg: 'Reason required' }); return }
+    if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required — paste a link or description' }); return }
+    await doAction(
+      (c) => c.openDispute(id, disputeReason, evidenceType, evidenceDesc, evidenceRef, ARC_GAS),
+      'Opening dispute with evidence…',
+      'Disputed! Evidence recorded on-chain.'
+    )
+    setShowDisputeForm(false)
+    setDisputeReason('')
+    setEvidenceDesc('')
+    setEvidenceRef('')
+  }
+
+  const handleSubmitEvidence = async () => {
+    if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required' }); return }
+    await doAction(
+      (c) => c.submitEvidence(id, evidenceType, evidenceDesc, evidenceRef, ARC_GAS),
+      'Submitting evidence…',
+      'Evidence submitted!'
+    )
+    // Also store in backend for redundancy
+    try {
+      await fetch(`${BACKEND_URL}/api/evidence/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submitter: account,
+          evidenceType,
+          description: evidenceDesc,
+          evidenceRef,
+        }),
+      })
+    } catch {}
+    setShowEvidenceForm(false)
+    setEvidenceDesc('')
+    setEvidenceRef('')
+  }
+
   const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling…', 'Cancelled. Collateral returned.')
   const handleLeave = () => doAction((c) => c.leaveRoom(id, ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
   const handleExpire = () => doAction((c) => c.expireRoom(id, ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
   const handleAutoRelease = () => doAction((c) => c.autoRelease(id, ARC_GAS), 'Auto-releasing…', 'Auto-released! Seller gets price + collateral.')
   const handleArbRelease = () => {
-    // Release to seller (not always creator!)
     const seller = room.creatorIsSeller ? room.creator : room.counterparty
     doAction((c) => c.arbiterResolve(id, seller, ARC_GAS), 'Resolving…', 'Released to seller (+ collateral)')
   }
   const handleArbRefund = () => {
-    // Refund to buyer (not always counterparty!)
     const buyer = room.creatorIsSeller ? room.counterparty : room.creator
     doAction((c) => c.arbiterResolve(id, buyer, ARC_GAS), 'Resolving…', 'Refunded to buyer (+ collateral)')
   }
@@ -204,10 +279,10 @@ export default function RoomView({ wallet }) {
   }
 
   const canExpire = room && (
-    (room.state === 'Created' && (Date.now() / 1000 - room.createdAt) > 3600) ||   // JOIN_DEADLINE = 1h
-    (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 1800)        // FUND_DEADLINE = 30m
+    (room.state === 'Created' && (Date.now() / 1000 - room.createdAt) > 3600) ||
+    (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 1800)
   )
-  const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 7200 // AUTO_RELEASE = 2h
+  const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 7200
 
   if (loading) return <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen"><div className="max-w-full sm:max-w-[500px] mx-auto"><div className="card-3d p-8 text-center"><div className="text-stripe-body dark:text-gray-400 text-[14px]">Loading room…</div></div></div></section>
   if (!room) return <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen"><div className="max-w-full sm:max-w-[500px] mx-auto"><div className="card-3d p-8 text-center"><div className="text-red-600 text-[14px]">Room not found</div></div></div></section>
@@ -327,7 +402,7 @@ export default function RoomView({ wallet }) {
             {room.state === 'Delivered' && isCounter && (
               <>
                 <button onClick={handleRelease} className="btn-primary w-full py-3">Confirm Received</button>
-                <button onClick={handleDispute} className="btn-ghost w-full py-3">Dispute → Discord Ticket</button>
+                <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">⚖️ Open Dispute + Evidence</button>
               </>
             )}
             {room.state === 'Delivered' && isCreator && canAutoRelease && (
@@ -337,22 +412,132 @@ export default function RoomView({ wallet }) {
               <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to confirm receipt…</div>
             )}
 
+            {/* Dispute Form */}
+            {showDisputeForm && room.state === 'Delivered' && (
+              <div className="bg-red-50 border border-red-200 rounded p-4 space-y-3">
+                <div className="text-[13px] font-medium text-red-700">⚖️ Open Dispute</div>
+                <div className="text-[11px] text-red-500">Explain the problem and attach evidence (screenshot link, tx hash, etc.)</div>
+                <input
+                  type="text"
+                  placeholder="Reason for dispute"
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
+                />
+                <select
+                  value={evidenceType}
+                  onChange={(e) => setEvidenceType(e.target.value)}
+                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
+                >
+                  <option value="link">Link / URL</option>
+                  <option value="screenshot">Screenshot</option>
+                  <option value="tx_hash">Transaction Hash</option>
+                  <option value="text">Text / Description</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={evidenceDesc}
+                  onChange={(e) => setEvidenceDesc(e.target.value)}
+                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Evidence URL / link / hash"
+                  value={evidenceRef}
+                  onChange={(e) => setEvidenceRef(e.target.value)}
+                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
+                />
+                <div className="flex gap-2">
+                  <button onClick={handleDispute} className="btn-primary flex-1 py-2.5 text-[13px]">Submit Dispute</button>
+                  <button onClick={() => setShowDisputeForm(false)} className="btn-ghost flex-1 py-2.5 text-[13px]">Cancel</button>
+                </div>
+              </div>
+            )}
+
             {/* DISPUTED */}
             {room.state === 'Disputed' && (
               <div className="bg-red-50 border border-red-200 rounded p-4">
                 <div className="text-[13px] text-red-700 font-medium text-center mb-1">⚖️ Under Dispute — Fund Frozen</div>
                 <div className="text-[12px] text-red-500 text-center mb-3">
-                  {arbiterName} will review via Discord ticket and decide on-chain
+                  {arbiterName} will review evidence and decide on-chain
                 </div>
+
+                {/* Evidence List */}
+                {evidence.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    <div className="text-[11px] font-mono uppercase tracking-[2px] text-red-600">Submitted Evidence</div>
+                    {evidence.map((ev) => (
+                      <div key={ev.id} className="bg-white border border-red-100 rounded p-2.5">
+                        <div className="flex justify-between items-start">
+                          <div className="text-[11px] font-medium text-red-700">{ev.evidenceType}</div>
+                          <div className="text-[10px] text-gray-400">{formatAddress(ev.submitter)}</div>
+                        </div>
+                        {ev.description && <div className="text-[12px] text-gray-600 mt-1">{ev.description}</div>}
+                        <div className="text-[11px] text-blue-600 mt-1 break-all">
+                          {ev.evidenceRef.startsWith('http') ? (
+                            <a href={ev.evidenceRef} target="_blank" rel="noopener noreferrer" className="hover:underline">🔗 {ev.evidenceRef}</a>
+                          ) : (
+                            <span className="font-mono">{ev.evidenceRef}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Submit more evidence */}
+                {isParticipant && (
+                  <>
+                    <button onClick={() => setShowEvidenceForm(!showEvidenceForm)} className="btn-ghost w-full py-2 text-[12px] mb-2">
+                      + Add More Evidence
+                    </button>
+                    {showEvidenceForm && (
+                      <div className="bg-white border border-red-100 rounded p-3 space-y-2">
+                        <select
+                          value={evidenceType}
+                          onChange={(e) => setEvidenceType(e.target.value)}
+                          className="w-full px-3 py-2 rounded border border-red-200 text-[13px]"
+                        >
+                          <option value="link">Link / URL</option>
+                          <option value="screenshot">Screenshot</option>
+                          <option value="tx_hash">Transaction Hash</option>
+                          <option value="text">Text / Description</option>
+                          <option value="other">Other</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="Description (optional)"
+                          value={evidenceDesc}
+                          onChange={(e) => setEvidenceDesc(e.target.value)}
+                          className="w-full px-3 py-2 rounded border border-red-200 text-[13px]"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Evidence URL / link / hash"
+                          value={evidenceRef}
+                          onChange={(e) => setEvidenceRef(e.target.value)}
+                          className="w-full px-3 py-2 rounded border border-red-200 text-[13px]"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={handleSubmitEvidence} className="btn-primary flex-1 py-2 text-[12px]">Submit</button>
+                          <button onClick={() => setShowEvidenceForm(false)} className="btn-ghost flex-1 py-2 text-[12px]">Cancel</button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {isAdmin && (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 mt-3">
                     <button onClick={handleArbRelease} className="btn-primary w-full py-2.5 text-[13px]">Release to Seller (price + collateral)</button>
                     <button onClick={handleArbRefund} className="btn-ghost w-full py-2.5 text-[13px]">Refund to Buyer (price + collateral)</button>
                     <button onClick={handleArbSplit} className="btn-ghost w-full py-2.5 text-[13px]">50/50 Split</button>
                   </div>
                 )}
                 {!isAdmin && (
-                  <div className="text-[12px] text-red-500 text-center">
+                  <div className="text-[12px] text-red-500 text-center mt-2">
                     Awaiting arbiter decision. Funds are safe.
                   </div>
                 )}
