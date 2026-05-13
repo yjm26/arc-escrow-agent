@@ -178,7 +178,7 @@ export default function Market({ wallet }) {
 
   return (
     <section className="pt-24 pb-32 px-4 sm:px-6 min-h-screen">
-      <div className="max-w-[900px] mx-auto">
+      <div className="max-w-[1400px] mx-auto">
 
         {/* Header */}
         <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
@@ -320,9 +320,9 @@ export default function Market({ wallet }) {
           </div>
         )}
 
-        {/* Search + Sort + Category filter */}
+        {/* Search + Sort + Category filter — single row */}
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <div className="flex-1 min-w-[180px] max-w-[320px] relative">
+          <div className="w-full sm:w-auto sm:flex-1 sm:max-w-[360px] relative">
             <input
               className="stripe-input w-full pl-9"
               placeholder="Search listings…"
@@ -347,14 +347,13 @@ export default function Market({ wallet }) {
           >
             {SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
           </select>
-        </div>
-
-        <div className="flex gap-1.5 overflow-x-auto pb-3 mb-6 -mx-1 px-1">
-          {CATEGORIES.map((cat) => (
-            <button key={cat} onClick={() => setFilter(cat)} className={`text-[11px] font-mono px-3 py-1.5 rounded-md whitespace-nowrap border transition ${filter === cat ? 'bg-zinc-900 text-zinc-100 border-zinc-700' : 'text-zinc-500 dark:text-gray-400 border-zinc-200 dark:border-white/10 hover:border-zinc-400 dark:hover:border-white/20 hover:text-zinc-700 dark:hover:text-white bg-white dark:bg-white/5'}`}>
-              {cat !== 'All' && <span className="mr-1 opacity-60">{CATEGORY_ICON[cat]}</span>}{cat}
-            </button>
-          ))}
+          <div className="flex gap-1.5 overflow-x-auto">
+            {CATEGORIES.map((cat) => (
+              <button key={cat} onClick={() => setFilter(cat)} className={`text-[11px] font-mono px-3 py-1.5 rounded-md whitespace-nowrap border transition ${filter === cat ? 'bg-zinc-900 text-zinc-100 border-zinc-700' : 'text-zinc-500 dark:text-gray-400 border-zinc-200 dark:border-white/10 hover:border-zinc-400 dark:hover:border-white/20 hover:text-zinc-700 dark:hover:text-white bg-white dark:bg-white/5'}`}>
+                {cat !== 'All' && <span className="mr-1 opacity-60">{CATEGORY_ICON[cat]}</span>}{cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Loading */}
@@ -378,7 +377,7 @@ export default function Market({ wallet }) {
         )}
 
         {!loading && sorted.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sorted.map((listing) => (
               <ListingCard
                 key={listing.id}
