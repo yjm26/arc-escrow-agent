@@ -1,18 +1,23 @@
 const hre = require("hardhat");
 
 async function main() {
-  const USDC_ADDRESS = process.env.USDC_ADDRESS || "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+  const USDC_ADDRESS = process.env.USDC_ADDRESS || "0x3600000000000000000000000000000000000000";
+  const TREASURY = process.env.TREASURY || "0xB8b4e8E7Ad2651d36b8E0D24B5EF1ae06EE2cC4a";
+  const ARBITER = process.env.ARBITER || "0xB8b4e8E7Ad2651d36b8E0D24B5EF1ae06EE2cC4a";
+  const ARBITER_NAME = process.env.ARBITER_NAME || "BOND Team";
 
-  console.log("Deploying Escrow contract...");
-  console.log("USDC address:", USDC_ADDRESS);
+  console.log("Deploying BondRoomV13...");
+  console.log("USDC:", USDC_ADDRESS);
+  console.log("Treasury:", TREASURY);
+  console.log("Arbiter:", ARBITER);
 
-  const Escrow = await hre.ethers.getContractFactory("Escrow");
-  const escrow = await Escrow.deploy(USDC_ADDRESS);
+  const BondRoom = await hre.ethers.getContractFactory("BondRoom");
+  const room = await BondRoom.deploy(USDC_ADDRESS, TREASURY, ARBITER, ARBITER_NAME);
 
-  await escrow.waitForDeployment();
-  const address = await escrow.getAddress();
+  await room.waitForDeployment();
+  const address = await room.getAddress();
 
-  console.log("Escrow deployed to:", address);
+  console.log("BondRoom deployed to:", address);
   console.log("Network:", hre.network.name);
 }
 
