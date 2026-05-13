@@ -1,19 +1,80 @@
 import { ethers } from 'ethers'
-import { BONDROOM_ADDRESS, BONDROOM_ABI, ARC_TESTNET } from './contract'
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../utils/contract'
 
-// Reconnect with optional Reown provider, fallback to window.ethereum
-export async function reconnectWallet(reownProvider) {
-  const provider = reownProvider
-    ? new ethers.BrowserProvider(reownProvider)
-    : new ethers.BrowserProvider(window.ethereum)
+const ARC_TESTNET = {
+  chainId: 5042002,
+  hex: '0x4cef52',
+  name: 'Arc Testnet',
+  rpcUrl: 'https://rpc.testnet.arc.network',
+  explorer: 'https://testnet.arcscan.io',
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+}
 
+// Silent reconnect — no popup, uses already-authorized account
+export async function reconnectWallet() {
+  if (!window.ethereum) throw new Error('No wallet detected')
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  const accounts = await provider.send('eth_accounts', [])
+  if (accounts.length === 0) throw new Error('No connected account')
+  const signer = await provider.getSigner()
+  const address = await signer.getAddress()
+  let balance = 0n
+  try { balance = await provider.getBalance(address) } catch {}
+  const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+  return { provider, signer, address, balance, contract }
+}
+
+export async function connectWallet() {
+  if (!window.ethereum) throw new Error('No wallet detected')
+
+  // Step 1: Add Arc Testnet chain
+  const chainParams = {
+    chainId: ARC_TESTNET.hex,
+    chainName: ARC_TESTNET.name,
+    rpcUrls: [ARC_TESTNET.rpcUrl],
+    nativeCurrency: ARC_TESTNET.nativeCurrency,
+    blockExplorerUrls: [ARC_TESTNET.explorer],
+  }
+
+  try {
+    await window.ethereum.request({
+      method: 'wallet_addEthereumChain',
+      params: [chainParams],
+    })
+  } catch (e) {
+    if (e.code === 4001) throw new Error('User rejected chain add')
+  }
+
+  // Step 2: Switch to Arc Testnet
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: ARC_TESTNET.hex }],
+    })
+  } catch (e) {
+    if (e.code === 4001) throw new Error('User rejected chain switch')
+    if (e.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [chainParams],
+      })
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: ARC_TESTNET.hex }],
+      })
+    }
+  }
+
+  // Step 3: Request accounts (triggers popup)
+  const provider = new ethers.BrowserProvider(window.ethereum)
+  await provider.send('eth_requestAccounts', [])
   const signer = await provider.getSigner()
   const address = await signer.getAddress()
 
   let balance = 0n
   try { balance = await provider.getBalance(address) } catch {}
 
-  const contract = new ethers.Contract(BONDROOM_ADDRESS, BONDROOM_ABI, signer)
+  const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
 
   return { provider, signer, address, balance, contract }
 }
