@@ -1,4 +1,4 @@
-import { createAppKit } from '@reown/appkit'
+import { createAppKit } from '@reown/appkit/react'
 import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react'
 import { EthersAdapter } from '@reown/appkit-adapter-ethers'
 
@@ -12,22 +12,17 @@ const ARC_TESTNET = {
   testnet: true,
 }
 
-let initialized = false
-
-if (!initialized) {
-  createAppKit({
-    projectId: 'af815ce51d40ec33de9699ee550f21a8',
-    adapters: [new EthersAdapter()],
-    networks: [ARC_TESTNET],
-    metadata: {
-      name: 'BOND',
-      description: 'Trustless USDC escrow on Arc Network',
-      url: typeof window !== 'undefined' ? window.location.origin : '',
-      icons: ['https://avatars.githubusercontent.com/u/179229932'],
-    },
-    features: { analytics: false },
-  })
-  initialized = true
-}
+createAppKit({
+  projectId: 'af815ce51d40ec33de9699ee550f21a8',
+  adapters: [new EthersAdapter()],
+  networks: [ARC_TESTNET],
+  metadata: {
+    name: 'BOND',
+    description: 'Trustless USDC escrow on Arc Network',
+    url: typeof window !== 'undefined' ? window.location.origin : '',
+    icons: ['https://avatars.githubusercontent.com/u/179229932'],
+  },
+  features: { analytics: false },
+})
 
 export { useAppKit, useAppKitAccount, useAppKitProvider }
