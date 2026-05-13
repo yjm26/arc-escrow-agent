@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, sendCircleTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS, USDC_ADDRESS } from '../utils/contract'
-import { useCircle } from '../contexts/CircleContext'
+import { getContract, getUsdc, waitForTx, sendArcTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS } from '../utils/contract'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
 export default function CreateRoom({ wallet }) {
-  const circleCtx = useCircle()
   const [searchParams] = useSearchParams()
   const [item, setItem] = useState(searchParams.get('item') || '')
   const [price, setPrice] = useState(searchParams.get('price') || '')
@@ -28,6 +26,9 @@ export default function CreateRoom({ wallet }) {
     setError('')
     setStep('Creating room…')
     try {
+      const signer = await wallet.provider.getSigner()
+      const contract = getContract(signer)
+      const usdc = getUsdc(signer)
       const priceWei = ethers.parseUnits(price, 6)
       const collateralValue = noCollateral ? '0' : collateral
       const collateralWei = collateralValue ? ethers.parseUnits(collateralValue, 6) : 0n
@@ -38,9 +39,9 @@ export default function CreateRoom({ wallet }) {
       if (collateralWei > 0n) {
         setStep('Approving USDC…')
         try {
-          const approveResult = await sendCircleTx(circleCtx, USDC_ADDRESS, 'approve', [CONTRACT_ADDRESS, collateralWei], { gasLimit: '100000' })
-          console.log('approve challenge:', approveResult.challengeId)
-          await circleCtx.waitForTx(approveResult.txId)
+          const approveTx = await sendArcTx(usdc, 'approve', [CONTRACT_ADDRESS, collateralWei], ARC_GAS_APPROVE)
+          console.log('approve tx:', approveTx.hash)
+          await approveTx.wait()
         } catch (approveErr) {
           console.error('approve failed:', approveErr)
           throw new Error('USDC approve failed: ' + (approveErr.message || 'unknown'))
@@ -49,16 +50,22 @@ export default function CreateRoom({ wallet }) {
 
       // Step 2: Create room (contract pulls collateral via transferFrom)
       setStep('Creating room…')
-      const result = await sendCircleTx(circleCtx, CONTRACT_ADDRESS, 'createRoom', [item, priceWei, collateralWei, joinCodeHash, creatorIsSeller])
-      console.log('createRoom challenge:', result.challengeId)
+      const tx = await sendArcTx(contract, 'createRoom', [item, priceWei, collateralWei, joinCodeHash, creatorIsSeller], ARC_GAS)
+      console.log('createRoom tx:', tx.hash)
       setStep('Waiting for confirmation…')
-      const txResult = await circleCtx.waitForTx(result.txId)
-      const roomId = txResult?.roomId || 'pending'
+      const receipt = await tx.wait()
 
-      setResult({ roomId: String(roomId), inviteLink: createInviteLink(roomId, joinCode), joinCode })
+      const event = receipt.logs.find(log => {
+        try { return contract.interface.parseLog(log)?.name === 'RoomCreated' } catch { return false }
+      })
+      const parsed = contract.interface.parseLog(event)
+      const roomId = parsed.args.roomId.toString()
+      const inviteLink = createInviteLink(roomId, joinCode)
+
+      setResult({ roomId, inviteLink, joinCode })
       setStep('')
 
-      // Mark listing as taken (if from market)
+          // Mark listing as taken (if from market)
       const listingId = searchParams.get('listingId')
       if (listingId) {
         try {
