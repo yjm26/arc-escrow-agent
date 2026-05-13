@@ -134,11 +134,11 @@ export default function RoomView({ wallet }) {
 
       setStatus({ type: 'info', msg: 'Approving USDC…' })
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
-      await approveTx.wait(1)
+      await approveTx.wait(1, 180000)
 
       setStatus({ type: 'info', msg: 'Funding room…' })
       const fundTx = await contract.fundRoom(id, ARC_GAS)
-      await fundTx.wait(1)
+      await fundTx.wait(1, 180000)
       setStatus({ type: 'ok', msg: 'Funded!' })
       loadRoom()
     } catch (e) {
