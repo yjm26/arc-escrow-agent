@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OfferModal from './OfferModal'
 import OffersPanel from './OffersPanel'
+import ReputationBadge from './ReputationBadge'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
@@ -362,6 +363,7 @@ function ListingCard({ listing, wallet, expanded, onToggle, onOpenDeal, onDelete
               <span className="text-zinc-800 font-medium">{listing.price} USDC</span>
               {Number(listing.collateral) > 0 && <span className="text-amber-600">🔒 {listing.collateral}</span>}
               <span className="text-zinc-400">{formatAddress(listing.creator)}</span>
+              <ReputationBadge provider={wallet?.provider} address={listing.creator} />
             </div>
           </div>
           <div className="text-[12px] text-zinc-400 shrink-0 mt-1 font-mono">{expanded ? '↑' : '↓'}</div>
@@ -390,7 +392,8 @@ function ListingCard({ listing, wallet, expanded, onToggle, onOpenDeal, onDelete
             </div>
             <div className="bg-zinc-50 border border-zinc-200 rounded p-3">
               <div className="font-mono text-[9px] uppercase tracking-[2px] text-zinc-400 mb-1">seller</div>
-              <div className="text-[13px] font-semibold text-zinc-500 dark:text-gray-400 font-mono">{formatAddress(listing.creator)}</div>
+              <div className="text-[13px] font-semibold text-zinc-500 dark:text-gray-400 font-mono mb-2">{formatAddress(listing.creator)}</div>
+              <ReputationBadge provider={wallet?.provider} address={listing.creator} showDetails />
             </div>
           </div>
 

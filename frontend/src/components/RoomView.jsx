@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, waitForTx, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
+import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -38,6 +39,10 @@ export default function RoomView({ wallet }) {
   const [copied, setCopied] = useState(false)
   const [ownerAddr, setOwnerAddr] = useState('')
 
+  // Reputation state
+  const [creatorRep, setCreatorRep] = useState(null)
+  const [counterpartyRep, setCounterpartyRep] = useState(null)
+
   // Evidence state
   const [evidence, setEvidence] = useState([])
   const [disputeReason, setDisputeReason] = useState('')
@@ -73,6 +78,15 @@ export default function RoomView({ wallet }) {
       try { setArbiterName(await contract.arbiterName()) } catch {}
       try { setArbiterAddr(await contract.arbiter()) } catch {}
       try { setOwnerAddr(await contract.owner()) } catch {}
+      // Fetch reputation for both parties
+      try {
+        const [cRep, cpRep] = await Promise.all([
+          fetchReputation(provider, data.creator),
+          fetchReputation(provider, data.counterparty),
+        ])
+        setCreatorRep(cRep)
+        setCounterpartyRep(cpRep)
+      } catch {}
     } catch (err) {
       console.error(err)
       setStatus({ type: 'err', msg: 'Room not found' })
@@ -348,9 +362,9 @@ export default function RoomView({ wallet }) {
           {/* Parties */}
           <div className="border border-stripe-border dark:border-white/10 rounded p-4 mb-5">
             <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-3">Parties</div>
-            <PartyRow label="Creator" address={room.creator} role={room.creatorIsSeller ? 'Seller' : 'Buyer'} isYou={isCreator} />
+            <PartyRow label="Creator" address={room.creator} role={room.creatorIsSeller ? 'Seller' : 'Buyer'} isYou={isCreator} reputation={creatorRep} />
             {room.counterparty !== '0x0000000000000000000000000000000000000000' ? (
-              <PartyRow label="Counter" address={room.counterparty} role={room.creatorIsSeller ? 'Buyer' : 'Seller'} isYou={isCounter} />
+              <PartyRow label="Counter" address={room.counterparty} role={room.creatorIsSeller ? 'Buyer' : 'Seller'} isYou={isCounter} reputation={counterpartyRep} />
             ) : (
               <div className="text-[13px] text-stripe-body dark:text-gray-400 py-2">Waiting for counter party…</div>
             )}
@@ -579,14 +593,42 @@ function PriceRow({ label, value, bold }) {
   )
 }
 
-function PartyRow({ label, address, role, isYou }) {
+function PartyRow({ label, address, role, isYou, reputation }) {
+  const badge = reputation ? getReputationBadge(reputation) : null
+  const collBadge = reputation ? getCollateralBadge(reputation.multiplier) : null
   return (
-    <div className="flex justify-between items-center py-2 border-b border-stripe-border dark:border-white/10 last:border-b-0">
-      <div>
-        <span className="text-[13px] text-stripe-navy dark:text-white font-mono">{formatAddress(address)}</span>
-        {isYou && <span className="ml-2 text-[10px] text-purple-600 font-medium">(you)</span>}
+    <div className="flex justify-between items-start py-2 border-b border-stripe-border dark:border-white/10 last:border-b-0">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] text-stripe-navy dark:text-white font-mono">{formatAddress(address)}</span>
+          {isYou && <span className="text-[10px] text-purple-600 font-medium">(you)</span>}
+          {badge && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badge.color} font-medium`}>
+              {badge.label}
+            </span>
+          )}
+        </div>
+        {reputation && reputation.totalDeals > 0 && (
+          <div className="flex items-center gap-2 text-[11px] text-gray-500">
+            <span>{reputation.success} success</span>
+            <span>·</span>
+            <span>{reputation.dispute} dispute</span>
+            <span>·</span>
+            <span>{reputation.refunded} refunded</span>
+            <span>·</span>
+            <span>{reputation.successRate}% rate</span>
+          </div>
+        )}
+        {collBadge && (
+          <div className="flex items-center gap-1">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${collBadge.color} font-medium`}>
+              Collateral: {collBadge.label}
+            </span>
+            <span className="text-[10px] text-gray-400">{collBadge.desc}</span>
+          </div>
+        )}
       </div>
-      <span className="text-[12px] text-stripe-body dark:text-gray-400">{role}</span>
+      <span className="text-[12px] text-stripe-body dark:text-gray-400 shrink-0">{role}</span>
     </div>
   )
 }
