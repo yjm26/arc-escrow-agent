@@ -87,13 +87,16 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
           </button>
         )}
       </div>
-          {/* Mobile menu */}
+      {/* Mobile menu */}
       <div id="mobile-menu" className="hidden md:hidden fixed top-[60px] left-0 right-0 bg-[#faf9f7] dark:bg-[#0c0f1a] border-b border-stripe-border dark:border-white/10 p-6 space-y-4 z-40">
         <Link to="/#how" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">How it works</Link>
+        <Link to="/docs" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">Docs</Link>
+        <Link to="/market" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">Market</Link>
         <ThemeToggle />
         {wallet ? (
           <>
             <Link to="/rooms" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">My Rooms</Link>
+            <Link to="/offers" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">Offers</Link>
             <Link to="/create" className="btn-primary block text-center text-[14px]">Create Room</Link>
           </>
         ) : (
