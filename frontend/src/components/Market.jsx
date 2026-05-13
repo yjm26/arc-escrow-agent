@@ -86,8 +86,14 @@ export default function Market({ wallet }) {
     return () => clearInterval(interval)
   }, [filter])
 
+  const [formError, setFormError] = useState('')
+  const [touched, setTouched] = useState({ title: false, price: false })
+
   const handleSubmit = async () => {
-    if (!wallet || !form.title || !form.price) return
+    setFormError('')
+    if (!wallet) { setFormError('Connect your wallet first'); return }
+    if (!form.title.trim()) { setTouched(t => ({ ...t, title: true })); setFormError('Title is required'); return }
+    if (!form.price || Number(form.price) <= 0) { setTouched(t => ({ ...t, price: true })); setFormError('Price must be greater than 0'); return }
     const socials = {}
     for (const s of SOCIAL_TYPES) {
       if (form.socials[s.key]?.trim()) socials[s.key] = form.socials[s.key].trim()
@@ -98,7 +104,7 @@ export default function Market({ wallet }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: form.role,
-          title: form.title,
+          title: form.title.trim(),
           description: form.description,
           category: form.category,
           price: form.price,
@@ -110,10 +116,12 @@ export default function Market({ wallet }) {
       })
       if (!res.ok) throw new Error('Failed to post')
       setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, socials: { twitter: '', telegram: '', discord: '' } })
+      setTouched({ title: false, price: false })
       setShowForm(false)
       fetchListings()
     } catch (err) {
       console.error(err)
+      setFormError(err.message || 'Failed to post listing')
     }
   }
 
@@ -202,7 +210,14 @@ export default function Market({ wallet }) {
               </div>
             </div>
 
-            <input className="stripe-input mb-3" placeholder="Title (e.g. Azuki NFT Whitelist Spot)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={100} />
+            <input
+              className={`stripe-input mb-3 ${touched.title && !form.title.trim() ? 'border-red-300 dark:border-red-500/50 bg-red-50/30' : ''}`}
+              placeholder="Title (e.g. Azuki NFT Whitelist Spot) *"
+              value={form.title}
+              onChange={(e) => { setForm({ ...form, title: e.target.value }); setTouched(t => ({ ...t, title: true })) }}
+              onBlur={() => setTouched(t => ({ ...t, title: true }))}
+              maxLength={100}
+            />
             <textarea className="stripe-input mb-3 resize-none" placeholder="Description — what are you selling?" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} maxLength={500} />
 
             <div className="grid grid-cols-3 gap-3 mb-4">
@@ -213,9 +228,18 @@ export default function Market({ wallet }) {
                 </select>
               </div>
               <div>
-                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Price</label>
+                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Price *</label>
                 <div className="relative">
-                  <input className="stripe-input w-full" type="number" placeholder="0.00" min="0.01" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                  <input
+                    className={`stripe-input w-full ${touched.price && (!form.price || Number(form.price) <= 0) ? 'border-red-300 dark:border-red-500/50 bg-red-50/30' : ''}`}
+                    type="number"
+                    placeholder="0.00"
+                    min="0.01"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(e) => { setForm({ ...form, price: e.target.value }); setTouched(t => ({ ...t, price: true })) }}
+                    onBlur={() => setTouched(t => ({ ...t, price: true }))}
+                  />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">USDC</span>
                 </div>
               </div>
@@ -254,7 +278,12 @@ export default function Market({ wallet }) {
               </div>
             </div>
 
-            <button onClick={handleSubmit} disabled={!form.title || !form.price} className="btn-primary w-full py-3">Post Listing</button>
+            <button onClick={handleSubmit} className="btn-primary w-full py-3">Post Listing</button>
+            {formError && (
+              <div className="mt-3 px-4 py-2.5 rounded text-[13px] font-medium border bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-500/20">
+                {formError}
+              </div>
+            )}
           </div>
         )}
 
