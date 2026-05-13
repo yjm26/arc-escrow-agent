@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1,
+    "title": "Azuki NFT Whitelist Spot",
+    "description": "Guaranteed WL for Azuki Elementals mint. Wallet surrender after purchase. Serious buyers only — DM me on Twitter first to confirm availability.",
+    "category": "NFT",
+    "price": "0.5",
+    "collateral": "0.25",
+    "creator": "0xAa11000000000000000000000000000000000000",
+    "createdAt": 1778568509151,
+    "socials": {
+      "twitter": "@azuki_seller",
+      "telegram": "@azuki_deals"
+    }
+  },
+  {
+    "id": 2,
+    "title": "MetaMask Wallet (fresh)",
+    "description": "Brand new MetaMask wallet with no history. Full seed phrase transfer. Created specifically for multi-account farming. No KYC attached.",
+    "category": "Wallet",
+    "price": "2.0",
+    "collateral": "1.0",
+    "creator": "0xBb22000000000000000000000000000000000000",
+    "createdAt": 1778564909151,
+    "socials": {
+      "discord": "walletguy#9999"
+    }
+  },
+  {
+    "id": 3,
+    "title": "Twitter Account — 10K followers",
+    "description": "Crypto-focused Twitter account, 10.2K organic followers, no bans, no strikes. Handle: @cryptotrader10k. Full email transfer included.",
+    "category": "Account",
+    "price": "1.5",
+    "collateral": "0.5",
+    "creator": "0xCc33000000000000000000000000000000000000",
+    "createdAt": 1778561309151,
+    "socials": {
+      "telegram": "@twitter_seller",
+      "twitter": "@seller_main"
+    }
+  },
+  {
+    "id": 4,
+    "title": "Smart Contract Audit",
+    "description": "One Solidity contract audit, 48h turnaround, detailed PDF report with severity ratings. Experience with DeFi, NFT, and token contracts.",
+    "category": "Service",
+    "price": "0.8",
+    "collateral": "0",
+    "creator": "0xDd44000000000000000000000000000000000000",
+    "createdAt": 1778557709151,
+    "socials": {
+      "discord": "auditor#0001",
+      "twitter": "@audit_service"
+    }
+  },
+  {
+    "id": 5,
+    "title": "Pudgy Penguins WL — 2 spots",
+    "description": "Two whitelist spots for upcoming Pudgy Penguins mint. Price is per spot. Can buy 1 or 2. Verified by project team.",
+    "category": "NFT",
+    "price": "0.3",
+    "collateral": "0.15",
+    "creator": "0xEe55000000000000000000000000000000000000",
+    "createdAt": 1778554109151,
+    "socials": {
+      "telegram": "@pudgy_wl"
+    }
+  }
+]
