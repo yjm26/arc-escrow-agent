@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, waitForTx, sendArcTx, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
+import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -99,7 +99,7 @@ export default function RoomView({ wallet }) {
       const contract = getContract(signer)
       const tx = await fn(contract)
       setStatus({ type: 'info', msg: `TX pending: ${tx.hash.slice(0, 10)}…` })
-      await tx.wait()
+      await waitForTx(wallet.provider, tx.hash, 60000)
       setStatus({ type: 'ok', msg: successMsg })
       loadRoom()
     } catch (err) {
@@ -109,7 +109,7 @@ export default function RoomView({ wallet }) {
 
   const handleJoin = () => {
     if (!joinCode) { setStatus({ type: 'err', msg: 'Invite link missing join code' }); return }
-    doAction((c) => sendArcTx(c, 'joinRoom', [id, ethers.toUtf8Bytes(joinCode)], ARC_GAS), 'Joining…', 'Joined!')
+    doAction((c) => c.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS), 'Joining…', 'Joined!')
   }
   const handleFund = async () => {
     const BPS = 10000n
@@ -122,36 +122,36 @@ export default function RoomView({ wallet }) {
       const usdc = getUsdc(signer)
 
       setStatus({ type: 'info', msg: 'Approving USDC…' })
-      const approveTx = await sendArcTx(usdc, 'approve', [CONTRACT_ADDRESS, exactNeeded], ARC_GAS_APPROVE)
-      await approveTx.wait()
+      const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
+      await waitForTx(wallet.provider, approveTx.hash, 30000)
 
       setStatus({ type: 'info', msg: 'Funding room…' })
-      const fundTx = await sendArcTx(contract, 'fundRoom', [id], ARC_GAS)
-      await fundTx.wait()
+      const fundTx = await contract.fundRoom(id, ARC_GAS)
+      await waitForTx(wallet.provider, fundTx.hash, 60000)
       setStatus({ type: 'ok', msg: 'Funded!' })
       loadRoom()
     } catch (e) {
       setStatus({ type: 'err', msg: e.reason || e.message })
     }
   }
-  const handleDeliver = () => doAction((c) => sendArcTx(c, 'markDelivered', [id, ethers.ZeroHash], ARC_GAS), 'Confirming item given…', 'Delivered!')
-  const handleRelease = () => doAction((c) => sendArcTx(c, 'releaseFunds', [id], ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
-  const handleDispute = () => doAction((c) => sendArcTx(c, 'dispute', [id], ARC_GAS), 'Opening dispute…', 'Disputed! Open a Discord ticket for arbiter.')
-  const handleCancel = () => doAction((c) => sendArcTx(c, 'cancelRoom', [id], ARC_GAS), 'Cancelling…', 'Cancelled. Collateral returned.')
-  const handleLeave = () => doAction((c) => sendArcTx(c, 'leaveRoom', [id], ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
-  const handleExpire = () => doAction((c) => sendArcTx(c, 'expireRoom', [id], ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
-  const handleAutoRelease = () => doAction((c) => sendArcTx(c, 'autoRelease', [id], ARC_GAS), 'Auto-releasing…', 'Auto-released! Seller gets price + collateral.')
+  const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
+  const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
+  const handleDispute = () => doAction((c) => c.dispute(id, ARC_GAS), 'Opening dispute…', 'Disputed! Open a Discord ticket for arbiter.')
+  const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling…', 'Cancelled. Collateral returned.')
+  const handleLeave = () => doAction((c) => c.leaveRoom(id, ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
+  const handleExpire = () => doAction((c) => c.expireRoom(id, ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
+  const handleAutoRelease = () => doAction((c) => c.autoRelease(id, ARC_GAS), 'Auto-releasing…', 'Auto-released! Seller gets price + collateral.')
   const handleArbRelease = () => {
     // Release to seller (not always creator!)
     const seller = room.creatorIsSeller ? room.creator : room.counterparty
-    doAction((c) => sendArcTx(c, 'arbiterResolve', [id, seller], ARC_GAS), 'Resolving…', 'Released to seller (+ collateral)')
+    doAction((c) => c.arbiterResolve(id, seller, ARC_GAS), 'Resolving…', 'Released to seller (+ collateral)')
   }
   const handleArbRefund = () => {
     // Refund to buyer (not always counterparty!)
     const buyer = room.creatorIsSeller ? room.counterparty : room.creator
-    doAction((c) => sendArcTx(c, 'arbiterResolve', [id, buyer], ARC_GAS), 'Resolving…', 'Refunded to buyer (+ collateral)')
+    doAction((c) => c.arbiterResolve(id, buyer, ARC_GAS), 'Resolving…', 'Refunded to buyer (+ collateral)')
   }
-  const handleArbSplit = () => doAction((c) => sendArcTx(c, 'arbiterSplit', [id], ARC_GAS), 'Splitting…', '50/50 split')
+  const handleArbSplit = () => doAction((c) => c.arbiterSplit(id, ARC_GAS), 'Splitting…', '50/50 split')
 
   const copyInvite = () => {
     navigator.clipboard.writeText(window.location.href)
