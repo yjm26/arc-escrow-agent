@@ -100,11 +100,18 @@ export default function RoomView({ wallet }) {
       const contract = getContract(signer)
       const tx = await fn(contract)
       console.log('TX sent:', tx.hash)
-      setStatus({ type: 'info', msg: `TX pending: ${tx.hash.slice(0, 10)}…` })
-      const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
-      console.log('TX confirmed in block:', receipt.blockNumber)
-      setStatus({ type: 'ok', msg: successMsg })
-      loadRoom()
+      setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}… — waiting for confirmation…` })
+      const receipt = await Promise.race([
+        tx.wait(1),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TX timeout — check https://testnet.arcscan.app/tx/' + tx.hash)), 120000))
+      ])
+      console.log('TX confirmed in block:', receipt.blockNumber, 'status:', receipt.status)
+      if (receipt.status === 0) {
+        setStatus({ type: 'err', msg: 'TX reverted on-chain' })
+      } else {
+        setStatus({ type: 'ok', msg: successMsg })
+        loadRoom()
+      }
     } catch (err) {
       console.error('TX failed:', err)
       setStatus({ type: 'err', msg: err.reason || err.message })
@@ -127,11 +134,11 @@ export default function RoomView({ wallet }) {
 
       setStatus({ type: 'info', msg: 'Approving USDC…' })
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
-      await waitForTx(wallet.provider, approveTx.hash, 60000)
+      await approveTx.wait(1)
 
       setStatus({ type: 'info', msg: 'Funding room…' })
       const fundTx = await contract.fundRoom(id, ARC_GAS)
-      await waitForTx(wallet.provider, fundTx.hash, 120000)
+      await fundTx.wait(1)
       setStatus({ type: 'ok', msg: 'Funded!' })
       loadRoom()
     } catch (e) {
