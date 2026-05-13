@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" font-family="'Source Sans 3', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="trust" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#15be53" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#533afd" stop-opacity="0.05"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="900" fill="#faf9f7"/>
+  
+  <!-- Top bar - Trust signals -->
+  <rect x="0" y="0" width="1200" height="44" fill="#061b31"/>
+  <text x="600" y="28" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="500">
+    🔒 Open Source · Audited Contract · Live on Arc Testnet · Sub-second Finality
+  </text>
+  
+  <!-- Navbar -->
+  <rect x="0" y="44" width="1200" height="60" fill="#faf9f7" opacity="0.95"/>
+  <rect x="0" y="103" width="1200" height="1" fill="#e5edf5"/>
+  <rect x="40" y="62" width="28" height="28" rx="6" fill="#061b31"/>
+  <text x="54" y="81" text-anchor="middle" fill="white" font-size="13" font-weight="700" font-family="monospace">B</text>
+  <text x="76" y="81" fill="#061b31" font-size="17" font-weight="600">BOND</text>
+  
+  <text x="900" y="80" fill="#64748d" font-size="14" font-weight="500">How it works</text>
+  <text x="1010" y="80" fill="#64748d" font-size="14" font-weight="500">Contract ↗</text>
+  <text x="1100" y="80" fill="#64748d" font-size="14" font-weight="500">GitHub ↗</text>
+  
+  <!-- HERO SECTION -->
+  <text x="600" y="200" text-anchor="middle" fill="#64748d" font-size="11" font-weight="600" letter-spacing="3" text-transform="uppercase">TRUSTLESS ESCROW</text>
+  
+  <text x="600" y="280" text-anchor="middle" fill="#061b31" font-size="64" font-weight="300" letter-spacing="-1.4">Trust, automated.</text>
+  
+  <text x="600" y="330" text-anchor="middle" fill="#64748d" font-size="18" font-weight="300">No middleman. No trust needed. Smart contract escrow on Arc.</text>
+  
+  <!-- Trust badges row -->
+  <rect x="250" y="370" width="170" height="56" rx="8" fill="white" stroke="#e5edf5"/>
+  <text x="265" y="395" font-size="11" fill="#64748d" font-weight="500">🔒 Verified</text>
+  <text x="265" y="415" font-size="13" fill="#061b31" font-weight="600">Contract on-chain</text>
+  
+  <rect x="440" y="370" width="170" height="56" rx="8" fill="white" stroke="#e5edf5"/>
+  <text x="455" y="395" font-size="11" fill="#64748d" font-weight="500">📂 Open Source</text>
+  <text x="455" y="415" font-size="13" fill="#061b31" font-weight="600">GitHub verified</text>
+  
+  <rect x="630" y="370" width="170" height="56" rx="8" fill="white" stroke="#e5edf5"/>
+  <text x="645" y="395" font-size="11" fill="#64748d" font-weight="500">⚡ Arc Network</text>
+  <text x="645" y="415" font-size="13" fill="#061b31" font-weight="600">Sub-1s finality</text>
+  
+  <rect x="820" y="370" width="170" height="56" rx="8" fill="white" stroke="#e5edf5"/>
+  <text x="835" y="395" font-size="11" fill="#64748d" font-weight="500">💰 Low fees</text>
+  <text x="835" y="415" font-size="13" fill="#061b31" font-weight="600">$0.01 per tx</text>
+  
+  <!-- CTA buttons -->
+  <rect x="450" y="460" width="140" height="44" rx="6" fill="#061b31"/>
+  <text x="520" y="487" text-anchor="middle" fill="white" font-size="15" font-weight="500">Open App →</text>
+  
+  <rect x="610" y="460" width="140" height="44" rx="6" fill="transparent" stroke="#e5edf5"/>
+  <text x="680" y="487" text-anchor="middle" fill="#64748d" font-size="15" font-weight="500">How it works</text>
+  
+  <!-- How it works section -->
+  <line x1="100" y1="560" x2="1100" y2="560" stroke="#e5edf5"/>
+  
+  <text x="100" y="610" fill="#64748d" font-size="11" font-weight="600" letter-spacing="3">HOW IT WORKS</text>
+  <text x="100" y="660" fill="#061b31" font-size="32" font-weight="300" letter-spacing="-0.64">Four steps. Zero trust.</text>
+  
+  <!-- Steps -->
+  <text x="100" y="720" fill="#64748d" font-size="12" font-family="monospace">01</text>
+  <text x="140" y="720" fill="#061b31" font-size="15" font-weight="500">Create a room</text>
+  <text x="140" y="742" fill="#64748d" font-size="13" font-weight="300">Set item, price in USDC. Get a unique invite code.</text>
+  
+  <line x1="100" y1="760" x2="1100" y2="760" stroke="#e5edf5"/>
+  
+  <text x="100" y="795" fill="#64748d" font-size="12" font-family="monospace">02</text>
+  <text x="140" y="795" fill="#061b31" font-size="15" font-weight="500">Fund escrow</text>
+  <text x="140" y="817" fill="#64748d" font-size="13" font-weight="300">Buyer deposits USDC. 1% fee only. Funds locked until release.</text>
+  
+  <line x1="100" y1="835" x2="1100" y2="835" stroke="#e5edf5"/>
+  
+  <text x="100" y="870" fill="#64748d" font-size="12" font-family="monospace">03</text>
+  <text x="140" y="870" fill="#061b31" font-size="15" font-weight="500">Deliver & confirm</text>
+  <text x="140" y="892" fill="#64748d" font-size="13" font-weight="300">Seller marks delivered. Buyer confirms — or disputes within 2h.</text>
+
+</svg>
