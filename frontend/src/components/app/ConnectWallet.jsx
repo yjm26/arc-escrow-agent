@@ -8,20 +8,13 @@ export default function ConnectWallet({ onConnect, loading, error }) {
           <circle cx="17" cy="14" r="1.5" fill="#061b31"/>
         </svg>
       </div>
-      <h3
-        className="text-[20px] font-light text-stripe-navy mb-2"
-        style={{ letterSpacing: '-0.22px' }}
-      >
+      <h3 className="text-[20px] font-light text-stripe-navy mb-2" style={{ letterSpacing: '-0.22px' }}>
         Connect your wallet
       </h3>
       <p className="text-[14px] font-light text-stripe-body mb-8 max-w-[320px] mx-auto">
-        You need MetaMask or a compatible wallet to interact with the escrow contract on Arc.
+        Connect MetaMask, Coinbase Wallet, or any supported wallet to interact with BOND.
       </p>
-      <button
-        onClick={onConnect}
-        disabled={loading}
-        className="btn-primary w-full max-w-[280px] mx-auto py-3"
-      >
+      <button onClick={onConnect} disabled={loading} className="btn-primary w-full max-w-[280px] mx-auto py-3">
         {loading ? 'Connecting…' : 'Connect Wallet'}
       </button>
       {error && (
