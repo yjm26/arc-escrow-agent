@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { createAppKit } from '@reown/appkit'
-import { EthersAdapter } from '@reown/appkit-adapter-ethers'
-import { useAppKitAccount, useAppKitProvider, useAppKit } from '@reown/appkit/react'
+import { useAppKitAccount, useAppKitProvider, useAppKit } from './lib/reown'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Features from './components/Features'
@@ -12,29 +10,6 @@ import RoomView from './components/app/RoomView'
 import CreateRoom from './components/app/CreateRoom'
 import ConnectWallet from './components/app/ConnectWallet'
 import { reconnectWallet } from './lib/wallet'
-
-const ARC_TESTNET = {
-  id: 5042002,
-  name: 'Arc Testnet',
-  network: 'arc-testnet',
-  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-  rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
-  blockExplorers: { default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' } },
-  testnet: true,
-}
-
-createAppKit({
-  projectId: 'af815ce51d40ec33de9699ee550f21a8',
-  adapters: [new EthersAdapter()],
-  networks: [ARC_TESTNET],
-  metadata: {
-    name: 'BOND',
-    description: 'Trustless USDC escrow on Arc Network',
-    url: typeof window !== 'undefined' ? window.location.origin : '',
-    icons: ['https://avatars.githubusercontent.com/u/179229932'],
-  },
-  features: { analytics: false },
-})
 
 export default function App() {
   const { address, isConnected } = useAppKitAccount()
