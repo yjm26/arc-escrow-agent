@@ -131,7 +131,7 @@ export default function RoomView({ wallet }) {
 
   async function loadRoom() {
     try {
-      if (!wallet) { setLoading(false); return }
+      if (!wallet) { setRoom(null); setLoading(false); return }
       const provider = wallet.provider
       const contract = getContract(provider)
       const data = await contract.getRoom(id)
@@ -164,6 +164,7 @@ export default function RoomView({ wallet }) {
       } catch {}
     } catch (err) {
       console.error(err)
+      setRoom(null)
       setStatus({ type: 'err', msg: 'Room not found' })
     } finally { setLoading(false) }
   }
@@ -206,9 +207,11 @@ export default function RoomView({ wallet }) {
 
   useEffect(() => {
     if (!wallet) return
+    // Stop polling once room reaches a terminal state
+    if (['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room?.state)) return
     const interval = setInterval(() => { loadRoom(); loadEvidence() }, 10000)
     return () => clearInterval(interval)
-  }, [id, wallet])
+  }, [id, wallet, room?.state])
 
   useEffect(() => {
     if (!room) return
@@ -294,13 +297,17 @@ export default function RoomView({ wallet }) {
 
   const handleFund = async () => {
     const priceWei = ethers.parseUnits(room.price, 6)
-    const feeWei = (priceWei * 100n) / 10000n
-    const exactNeeded = priceWei + feeWei
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
       const contract = getContract(signer)
+      // Fetch dynamic tax from contract — never hardcode
+      const taxBps = await contract.FUND_TAX_BPS()
+      const feeWei = (priceWei * taxBps) / 10000n
+      const exactNeeded = priceWei + feeWei
       const usdc = getUsdc(signer)
+      const bal = await usdc.balanceOf(wallet.address)
+      if (bal < exactNeeded) { setStatus({ type: 'err', msg: `Insufficient USDC. Need ${ethers.formatUnits(exactNeeded, 6)} USDC (incl. ${Number(taxBps)/100}% fee)` }); return }
       setStatus({ type: 'info', msg: 'Approving USDC…' })
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
       await approveTx.wait(1, 180000)

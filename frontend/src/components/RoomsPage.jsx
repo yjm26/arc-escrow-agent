@@ -57,6 +57,10 @@ export default function RoomsPage({ wallet }) {
 
   async function handleJoinRoom(roomCode) {
     setJoinError('')
+    if (!roomCode?.roomId || !roomCode?.joinCode) {
+      setJoinError('Invalid room code data')
+      return
+    }
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)

@@ -117,26 +117,6 @@ export function getUsdc(signerOrProvider) {
   return new ethers.Contract(USDC_ADDRESS, USDC_ABI, signerOrProvider);
 }
 
-/// Send USDC — try contract method first, fall back to low-level
-export async function sendUsdc(signer, to, amount) {
-  try {
-    // Try standard ERC-20 transfer via ethers contract
-    const usdc = getUsdc(signer)
-    const tx = await usdc.transfer(to, amount)
-    return await tx.wait()
-  } catch (err) {
-    console.warn('Standard transfer failed, trying low-level:', err.message)
-    // Fallback: low-level call (for precompile that doesn't return bool)
-    const data = ethers.AbiCoder.defaultAbiCoder().encode(['address', 'uint256'], [to, amount])
-    const tx = await signer.sendTransaction({
-      to: USDC_ADDRESS,
-      data: '0xa9059cbb' + data.slice(2),
-      gasLimit: 100000,
-    })
-    return tx.wait()
-  }
-}
-
 export const STATE_NAMES = ['Created', 'Joined', 'Funded', 'Delivered', 'Released', 'Disputed', 'Refunded', 'Expired', 'Cancelled'];
 
 export function generateJoinCode() {

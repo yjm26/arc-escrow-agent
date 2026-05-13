@@ -219,7 +219,7 @@ function Overview() {
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500">Token</span>
-          <span className="text-[13px] text-stripe-navy dark:text-white">USDC (0xD4799E405aB5eC71E2acab8E0EAC76B13469cD56)</span>
+          <span className="text-[13px] text-stripe-navy dark:text-white">USDC (0x3600000000000000000000000000000000000000)</span>
         </div>
       </div>
 

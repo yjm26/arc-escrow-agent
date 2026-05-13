@@ -136,16 +136,21 @@ export default function Market({ wallet }) {
     setOfferTarget(listing)
   }
 
+  const [deleteError, setDeleteError] = useState('')
+
   const handleDelete = async (id) => {
+    setDeleteError('')
     try {
-      await fetch(`${API_URL}/api/listings/${id}`, {
+      const res = await fetch(`${API_URL}/api/listings/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ creator: wallet?.address }),
       })
+      if (!res.ok) throw new Error('Delete failed')
       fetchListings()
     } catch (err) {
       console.error(err)
+      setDeleteError('Failed to delete listing. Try again.')
     }
   }
 
@@ -317,6 +322,12 @@ export default function Market({ wallet }) {
                 {formError}
               </div>
             )}
+          </div>
+        )}
+
+        {deleteError && (
+          <div className="mb-4 px-4 py-2.5 rounded text-[13px] font-medium border bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-500/20">
+            {deleteError}
           </div>
         )}
 
