@@ -88,7 +88,7 @@ export default function App() {
   }, [disconnect])
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Navbar onConnect={handleConnect} onDisconnect={handleDisconnect} wallet={wallet} connecting={connecting} />
       <ErrorBoundary>
       <Routes>
