@@ -316,14 +316,16 @@ export default function CreateRoom({ wallet }) {
               <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400">
                 {creatorIsSeller ? 'Collateral' : 'Required Seller Collateral'}
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}">
                 <input
                   type="checkbox"
                   checked={noCollateral}
                   onChange={(e) => {
+                    if (fromMarket) return
                     setNoCollateral(e.target.checked)
                     if (e.target.checked) setCollateral('')
                   }}
+                  disabled={fromMarket}
                   className="w-3.5 h-3.5 rounded border-stripe-border dark:border-white/20 accent-stripe-navy"
                 />
                 <span className="text-[11px] text-stripe-body dark:text-gray-400">No collateral</span>
@@ -364,15 +366,16 @@ export default function CreateRoom({ wallet }) {
               Delivery Window
             </label>
             <div className="flex items-center gap-3">
-              <input
-                className="stripe-input flex-1"
-                type="number"
-                min={1}
-                max={90}
-                step={1}
-                value={deliveryDays}
-                onChange={(e) => setDeliveryDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
-              />
+                <input
+                  className="stripe-input flex-1"
+                  type="number"
+                  min={1}
+                  max={90}
+                  step={1}
+                  value={deliveryDays}
+                  onChange={(e) => !fromMarket && setDeliveryDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
+                  readOnly={fromMarket}
+                />
               <span className="text-[13px] text-stripe-body dark:text-gray-400 font-medium">days</span>
             </div>
             <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
