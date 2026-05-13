@@ -8,8 +8,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 import Hero from './components/Hero'
 import HowItWorks from './components/HowItWorks'
 import RoomsPage from './components/RoomsPage'
-import RoomView from './components/RoomView'
-import CreateRoom from './components/CreateRoom'
+import RoomView from './components/app/RoomView'
+import CreateRoom from './components/app/CreateRoom'
 import Market from './components/Market'
 import Offers from './components/Offers'
 import Docs from './components/Docs'
@@ -46,7 +46,6 @@ function AppRoutes() {
   const [wallet, setWallet] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // Build wallet object when connected
   useEffect(() => {
     if (!isConnected || !address) { setWallet(null); return }
     let cancelled = false
@@ -65,14 +64,8 @@ function AppRoutes() {
     return () => { cancelled = true }
   }, [isConnected, address, walletProvider])
 
-  const handleConnect = useCallback(() => {
-    openAppKit()
-  }, [openAppKit])
-
-  const handleDisconnect = useCallback(() => {
-    disconnect()
-    setWallet(null)
-  }, [disconnect])
+  const handleConnect = useCallback(() => openAppKit(), [openAppKit])
+  const handleDisconnect = useCallback(() => { disconnect(); setWallet(null) }, [disconnect])
 
   return (
     <BrowserRouter>
@@ -80,7 +73,7 @@ function AppRoutes() {
       <ErrorBoundary>
       <Routes>
         <Route path="/" element={<><Hero wallet={wallet} onConnect={handleConnect} /><HowItWorks /></>} />
-        <Route path="/create" element={<CreateRoom wallet={wallet} />} />
+        <Route path="/create" element={<CreatePage wallet={wallet} onConnect={handleConnect} loading={loading} />} />
         <Route path="/rooms" element={<RoomsPage wallet={wallet} />} />
         <Route path="/room/:id" element={<RoomView wallet={wallet} />} />
         <Route path="/docs/:section?" element={<Docs />} />
@@ -89,7 +82,6 @@ function AppRoutes() {
       </Routes>
       </ErrorBoundary>
 
-      {/* Disclaimer */}
       <div className="max-w-[600px] mx-auto px-6 mb-16">
         <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg px-5 py-3 text-center text-[13px] text-amber-800 dark:text-amber-400 font-medium">
           Arc Testnet — for testing only, not real money
@@ -107,6 +99,28 @@ function AppRoutes() {
         <div className="font-mono text-[10px] text-gray-400 dark:text-gray-600 mt-2">0x59Ab8013D4e65d938Ab83b235956e1881046BfB4</div>
       </footer>
     </BrowserRouter>
+  )
+}
+
+function CreatePage({ wallet, onConnect, loading }) {
+  if (!wallet) {
+    return (
+      <section className="pt-28 pb-32 px-6 min-h-screen">
+        <div className="max-w-[480px] mx-auto text-center">
+          <p className="text-stripe-body mb-4">Connect your wallet to create a room</p>
+          <button onClick={onConnect} disabled={loading} className="btn-primary px-6 py-3">
+            {loading ? 'Connecting…' : 'Connect Wallet'}
+          </button>
+        </div>
+      </section>
+    )
+  }
+  return (
+    <section className="pt-28 pb-32 px-6 min-h-screen">
+      <div className="max-w-[480px] mx-auto">
+        <CreateRoom room={wallet.contract} token={null} signerAddress={wallet.address} />
+      </div>
+    </section>
   )
 }
 
