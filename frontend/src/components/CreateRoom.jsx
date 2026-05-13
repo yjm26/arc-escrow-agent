@@ -41,7 +41,7 @@ export default function CreateRoom({ wallet }) {
         try {
           const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
           console.log('approve tx:', approveTx.hash)
-          await approveTx.wait(1)
+          await approveTx.wait(1, 180000)
         } catch (approveErr) {
           console.error('approve failed:', approveErr)
           throw new Error('USDC approve failed: ' + (approveErr.message || 'unknown'))
@@ -53,7 +53,7 @@ export default function CreateRoom({ wallet }) {
       const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, ARC_GAS)
       console.log('createRoom tx:', tx.hash)
       setStep('Waiting for confirmation…')
-      const receipt = await tx.wait(1)
+      const receipt = await tx.wait(1, 180000)
 
       const event = receipt.logs.find(log => {
         try { return contract.interface.parseLog(log)?.name === 'RoomCreated' } catch { return false }
