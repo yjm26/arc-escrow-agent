@@ -93,46 +93,23 @@ export function getUsdc(signerOrProvider) {
   return new ethers.Contract(USDC_ADDRESS, USDC_ABI, signerOrProvider);
 }
 
-const RELAY_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
-
-/// Send tx via backend relay — bypasses MetaMask entirely
-/// Backend signs with server-side private key and broadcasts to Arc RPC directly
-export async function sendArcTx(contract, methodName, args, overrides = {}) {
-  const contractAddr = await contract.getAddress()
-  const txData = contract.interface.encodeFunctionData(methodName, args)
-  
-  // Send via backend relay
-  const resp = await fetch(`${RELAY_URL}/api/relay-tx`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      to: contractAddr,
-      data: txData,
-      gasLimit: overrides.gasLimit || 300000,
-      maxFeePerGas: Number(overrides.maxFeePerGas || 25000000000n),
-      maxPriorityFeePerGas: Number(overrides.maxPriorityFeePerGas || 1000000000n),
-    }),
-  })
-  
-  const result = await resp.json()
-  if (result.error) throw new Error('Relay failed: ' + result.error)
-  
-  console.log('Relay tx hash:', result.hash)
-  
-  // Return a tx-like object with hash and wait()
-  return {
-    hash: result.hash,
-    wait: async () => {
-      // Poll relay for receipt
-      const start = Date.now()
-      while (Date.now() - start < 60000) {
-        const r = await fetch(`${RELAY_URL}/api/relay-receipt/${result.hash}`)
-        const data = await r.json()
-        if (data.confirmed) return { status: data.status, blockNumber: data.blockNumber, logs: data.logs }
-        await new Promise(r => setTimeout(r, 1500))
-      }
-      throw new Error(`Relay tx ${result.hash} not confirmed within 60s`)
-    }
+/// Send USDC — try contract method first, fall back to low-level
+export async function sendUsdc(signer, to, amount) {
+  try {
+    // Try standard ERC-20 transfer via ethers contract
+    const usdc = getUsdc(signer)
+    const tx = await usdc.transfer(to, amount)
+    return await tx.wait()
+  } catch (err) {
+    console.warn('Standard transfer failed, trying low-level:', err.message)
+    // Fallback: low-level call (for precompile that doesn't return bool)
+    const data = ethers.AbiCoder.defaultAbiCoder().encode(['address', 'uint256'], [to, amount])
+    const tx = await signer.sendTransaction({
+      to: USDC_ADDRESS,
+      data: '0xa9059cbb' + data.slice(2),
+      gasLimit: 100000,
+    })
+    return tx.wait()
   }
 }
 
