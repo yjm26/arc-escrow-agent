@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 
-export const CONTRACT_ADDRESS = '0x019A88470A1989eE0b13f53b65C0Fe7194b219c0'; // BondRoomV18 (owner+arbiter dispute resolution)
+export const CONTRACT_ADDRESS = '0x7630A99188C5B4199c8ABd06b9462A6eC502AC2C'; // BondRoomV21 (fixed expireRoom double decrement)
 export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc USDC precompile
 
 /// Arc minimum gas params — transactions below 20 Gwei maxFeePerGas stay pending forever
@@ -57,7 +57,7 @@ export const CONTRACT_ABI = [
   "function fundRoom(uint256 _roomId) external",
   "function markDelivered(uint256 _roomId, bytes32 _proofHash) external",
   "function releaseFunds(uint256 _roomId) external",
-  "function dispute(uint256 _roomId) external",
+  "function openDispute(uint256 _roomId, string _reason, string _evidenceType, string _evidenceDesc, string _evidenceRef) external",
   // Evidence views (contract V18 does not store evidence on-chain)
   "function buyerRefund(uint256 _roomId) external",
   "function autoRelease(uint256 _roomId) external",
@@ -66,6 +66,12 @@ export const CONTRACT_ABI = [
   "function cancelRoom(uint256 _roomId) external",
   "function leaveRoom(uint256 _roomId) external",
   "function expireRoom(uint256 _roomId) external",
+  // Mutual cancel
+  "function requestMutualCancel(uint256 _roomId) external",
+  "function revokeMutualCancel(uint256 _roomId) external",
+  "function executeMutualCancel(uint256 _roomId) external",
+  "function getMutualCancelStatus(uint256 _roomId) external view returns (bool creatorApproved, bool counterpartyApproved)",
+  "function mutualCancelApproved(uint256, address) external view returns (bool)",
   // Evidence views
   "function getEvidenceCount(uint256 _roomId) external view returns (uint256)",
   "function getEvidence(uint256 _roomId, uint256 _index) external view returns (tuple(address submitter, string evidenceType, string description, string evidenceRef, uint256 timestamp))",
@@ -107,6 +113,9 @@ export const CONTRACT_ABI = [
   "event RoomExpired(uint256 indexed id)",
   "event RoomCancelled(uint256 indexed id, address indexed by)",
   "event DisputeResolved(uint256 indexed id, address indexed winner, uint256 amount)",
+  "event MutualCancelRequested(uint256 indexed id, address indexed by)",
+  "event MutualCancelExecuted(uint256 indexed id)",
+  "event MutualCancelRevoked(uint256 indexed id, address indexed by)",
 ];
 
 export function getContract(signerOrProvider) {

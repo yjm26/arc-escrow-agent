@@ -34,12 +34,13 @@ const STATE_GUIDES = {
     seller: [
       'Buyer has joined. Waiting for them to fund.',
       'Your collateral is locked as guarantee.',
-      'You can leave now (collateral returned).',
+      'Both parties can agree to mutual cancel before funding.',
     ],
     buyer: [
       'Fund the room with the total amount shown.',
       'Seller collateral is locked — your funds are protected.',
       'After funding, seller must deliver the item.',
+      'You can leave now if you change your mind.',
     ],
   },
   Funded: {
@@ -47,11 +48,13 @@ const STATE_GUIDES = {
       'Funds are now in escrow.',
       'Deliver the item, then click "Item Given".',
       'Buyer will confirm receipt to release funds.',
+      'Both parties can agree to mutual cancel.',
     ],
     buyer: [
       'Funds locked in escrow.',
       'Waiting for seller to deliver and mark "Item Given".',
       'You will confirm receipt once satisfied.',
+      'Both parties can agree to mutual cancel.',
     ],
   },
   Delivered: {
@@ -59,12 +62,14 @@ const STATE_GUIDES = {
       'Waiting for buyer to confirm receipt.',
       'Auto-release happens 2 hours after delivery.',
       'If buyer disputes, evidence will be reviewed.',
+      'Both parties can still agree to mutual cancel.',
     ],
     buyer: [
       'Seller marked item as delivered.',
       'If satisfied, click "Confirm Received".',
       'If there is an issue, open a dispute with evidence.',
       'Auto-release to seller happens in 2 hours if no action.',
+      'Both parties can agree to mutual cancel.',
     ],
   },
   Disputed: {
@@ -126,6 +131,7 @@ export default function RoomView({ wallet }) {
   const [evidenceRef, setEvidenceRef] = useState('')
   const [showDisputeForm, setShowDisputeForm] = useState(false)
   const [showEvidenceForm, setShowEvidenceForm] = useState(false)
+  const [mutualCancelStatus, setMutualCancelStatus] = useState({ creatorApproved: false, counterpartyApproved: false })
 
   const account = wallet?.address?.toLowerCase()
 
@@ -154,6 +160,10 @@ export default function RoomView({ wallet }) {
       try { setArbiterName(await contract.arbiterName()) } catch {}
       try { setArbiterAddr(await contract.arbiter()) } catch {}
       try { setOwnerAddr(await contract.owner()) } catch {}
+      try {
+        const mc = await contract.getMutualCancelStatus(id)
+        setMutualCancelStatus({ creatorApproved: mc[0], counterpartyApproved: mc[1] })
+      } catch {}
       try {
         const [cRep, cpRep] = await Promise.all([
           fetchReputation(provider, data.creator),
@@ -325,7 +335,7 @@ export default function RoomView({ wallet }) {
   const handleDispute = async () => {
     if (!disputeReason.trim()) { setStatus({ type: 'err', msg: 'Reason required' }); return }
     const ok = await doAction(
-      (c) => c.dispute(id, ARC_GAS),
+      (c) => c.openDispute(id, disputeReason.trim(), evidenceType || 'link', evidenceDesc.trim(), evidenceRef.trim(), ARC_GAS),
       'Opening dispute…',
       'Disputed! Open a Discord ticket for arbiter review.'
     )
@@ -385,6 +395,9 @@ export default function RoomView({ wallet }) {
   const handleLeave = () => doAction((c) => c.leaveRoom(id, ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
   const handleExpire = () => doAction((c) => c.expireRoom(id, ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
   const handleAutoRelease = () => doAction((c) => c.autoRelease(id, ARC_GAS), 'Auto-releasing…', 'Auto-released! Seller gets price + collateral.')
+  const handleRequestMutualCancel = () => doAction((c) => c.requestMutualCancel(id, ARC_GAS), 'Requesting mutual cancel…', 'You approved mutual cancel. Waiting for counterparty.')
+  const handleRevokeMutualCancel = () => doAction((c) => c.revokeMutualCancel(id, ARC_GAS), 'Revoking mutual cancel…', 'You revoked your approval.')
+  const handleExecuteMutualCancel = () => doAction((c) => c.executeMutualCancel(id, ARC_GAS), 'Executing mutual cancel…', 'Deal cancelled. All funds refunded.')
   const handleArbRelease = () => {
     const seller = room.creatorIsSeller ? room.creator : room.counterparty
     doAction((c) => c.arbiterResolve(id, seller, ARC_GAS), 'Resolving…', 'Released to seller (+ collateral)')
@@ -407,6 +420,11 @@ export default function RoomView({ wallet }) {
   )
   const canBuyerRefund = room?.state === 'Funded' && room?.deliveryDeadline && (Date.now() / 1000) > room.deliveryDeadline
   const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 7200
+
+  const canMutualCancel = isParticipant && ['Joined', 'Funded', 'Delivered'].includes(room?.state)
+  const hasApprovedMutualCancel = isCreator ? mutualCancelStatus.creatorApproved : isCounter ? mutualCancelStatus.counterpartyApproved : false
+  const counterpartyApprovedMutualCancel = isCreator ? mutualCancelStatus.counterpartyApproved : isCounter ? mutualCancelStatus.creatorApproved : false
+  const mutualCancelReady = mutualCancelStatus.creatorApproved && mutualCancelStatus.counterpartyApproved
 
   const role = isCreator ? (room?.creatorIsSeller ? 'seller' : 'buyer') : isCounter ? (room?.creatorIsSeller ? 'buyer' : 'seller') : null
   const guide = room && STATE_GUIDES[room.state] ? (STATE_GUIDES[room.state][role || 'both'] || STATE_GUIDES[room.state].both) : []
@@ -734,10 +752,53 @@ export default function RoomView({ wallet }) {
                 <button onClick={handleExpire} className="btn-ghost w-full py-2.5 text-[12px]">⏰ Expire Stale Room</button>
               )}
 
-              {/* TERMINAL */}
-              {['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room.state) && (
-                <div className="text-stripe-body dark:text-gray-400 text-[13px] text-center py-2 bg-gray-50 dark:bg-white/5 rounded">This deal is closed.</div>
+      {/* MUTUAL CANCEL */}
+      {canMutualCancel && (
+        <div className={`rounded-lg border p-4 ${mutualCancelReady ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 dark:bg-white/5 border-stripe-border dark:border-white/10'}`}>
+          <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Mutual Cancel</div>
+          {mutualCancelReady ? (
+            <>
+              <div className="text-[13px] font-medium text-amber-800 mb-1 text-center">Both parties agreed <span className="font-mono">(2/2)</span></div>
+              <div className="text-[11px] text-amber-600 text-center mb-3">All funds will be refunded. No fees.</div>
+              <button onClick={handleExecuteMutualCancel} className="w-full py-2.5 rounded text-[13px] font-medium bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition">Execute Mutual Cancel</button>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${mutualCancelStatus.creatorApproved ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                  <span className="text-[11px] text-stripe-body dark:text-gray-400">Creator</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-stripe-body dark:text-gray-400">Counterparty</span>
+                  <div className={`w-2 h-2 rounded-full ${mutualCancelStatus.counterpartyApproved ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                </div>
+              </div>
+              <div className="text-[12px] text-stripe-body dark:text-gray-400 text-center mb-3">
+                {hasApprovedMutualCancel
+                  ? 'You approved. Waiting for counterparty (1/2).'
+                  : counterpartyApprovedMutualCancel
+                  ? 'Counterparty approved. Your turn (1/2).'
+                  : 'Both parties must agree to cancel (0/2).'}
+              </div>
+              {!hasApprovedMutualCancel && (
+                <button onClick={handleRequestMutualCancel} className="btn-ghost w-full py-2.5 text-[12px]">Request Mutual Cancel</button>
               )}
+              {hasApprovedMutualCancel && !counterpartyApprovedMutualCancel && (
+                <>
+                  <div className="text-[11px] text-stripe-body dark:text-gray-400 text-center py-2">Waiting for counterparty to approve…</div>
+                  <button onClick={handleRevokeMutualCancel} className="btn-ghost w-full py-2 text-[11px] text-red-600 border-red-200 hover:bg-red-50">Revoke Approval</button>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* TERMINAL */}
+      {['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room.state) && (
+        <div className="text-stripe-body dark:text-gray-400 text-[13px] text-center py-2 bg-gray-50 dark:bg-white/5 rounded">This deal is closed.</div>
+      )}
             </div>
 
             {/* Status */}
