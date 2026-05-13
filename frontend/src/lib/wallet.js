@@ -11,9 +11,10 @@ const ARC_TESTNET = {
 }
 
 // Silent reconnect — no popup, uses already-authorized account
-export async function reconnectWallet() {
-  if (!window.ethereum) throw new Error('No wallet detected')
-  const provider = new ethers.BrowserProvider(window.ethereum)
+export async function reconnectWallet(reownProvider) {
+  const ethereum = reownProvider || window.ethereum
+  if (!ethereum) throw new Error('No wallet detected')
+  const provider = new ethers.BrowserProvider(ethereum)
   const accounts = await provider.send('eth_accounts', [])
   if (accounts.length === 0) throw new Error('No connected account')
   const signer = await provider.getSigner()
