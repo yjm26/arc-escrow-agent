@@ -58,8 +58,10 @@ export default function CreateRoom({ wallet }) {
       const event = receipt.logs.find(log => {
         try { return contract.interface.parseLog(log)?.name === 'RoomCreated' } catch { return false }
       })
+      if (!event) throw new Error('RoomCreated event not found in transaction receipt')
       const parsed = contract.interface.parseLog(event)
-      const roomId = parsed.args.roomId.toString()
+      if (!parsed?.args?.id) throw new Error('Could not parse room ID from event')
+      const roomId = parsed.args.id.toString()
       const inviteLink = createInviteLink(roomId, joinCode)
 
       setResult({ roomId, inviteLink, joinCode })
