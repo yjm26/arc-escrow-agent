@@ -8,7 +8,10 @@ export default function OfferModal({ listing, wallet, API_URL, onClose, onSubmit
   const [submitting, setSubmitting] = useState(false)
 
   const creatorIsSeller = listing.role === 'buyer'
-  const collateral = creatorIsSeller ? (listing.collateral || '0') : '0'
+  // Collateral always comes from listing — contract handles both cases:
+  // - creatorIsSeller=true: creator locks at createRoom
+  // - creatorIsSeller=false: counterparty (seller) locks at joinRoom
+  const collateral = listing.collateral || '0'
 
   const isAccepting = Number(price) === Number(listing.price)
 
