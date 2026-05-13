@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://bond-market-backend-production.up.railway.app'
+const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
 export default function NotificationBell({ wallet }) {
   const [notifs, setNotifs] = useState([])

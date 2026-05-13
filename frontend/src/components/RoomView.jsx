@@ -93,7 +93,7 @@ const STATE_GUIDES = {
 }
 
 const TREASURY = '0xB8b4e8E7Ad2651d36b8E0D24B5EF1ae06EE2cC4a'
-const API_URL = import.meta.env.VITE_API_URL || 'https://bond-market-backend-production.up.railway.app'
+const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
 function formatAddress(addr) {
   if (!addr || addr === '0x0000000000000000000000000000000000000000') return '—'

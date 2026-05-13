@@ -4,7 +4,7 @@ import OfferModal from './OfferModal'
 import OffersPanel from './OffersPanel'
 import ReputationBadge from './ReputationBadge'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://bond-market-backend-production.up.railway.app'
+const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
 const CATEGORIES = ['All', 'NFT', 'Wallet', 'Account', 'Service', 'Other']
 
