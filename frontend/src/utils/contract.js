@@ -20,18 +20,14 @@ export async function waitForTx(walletProvider, txHash, timeoutMs = 120000) {
   // Use direct Arc RPC for reliable receipt polling
   const rpcProvider = new ethers.JsonRpcProvider("https://rpc.testnet.arc.network", 5042002)
   const start = Date.now()
-  let attempts = 0
   while (Date.now() - start < timeoutMs) {
-    attempts++
     try {
       const receipt = await rpcProvider.getTransactionReceipt(txHash)
       if (receipt) {
-        console.log(`TX confirmed after ${attempts} polls (${Date.now() - start}ms)`)
         return receipt
       }
     } catch (e) {
       // Swallow — RPC might be flaky
-      if (attempts % 10 === 0) console.warn(`Poll attempt ${attempts}: ${e.message}`)
     }
     await new Promise(r => setTimeout(r, 2000))
   }

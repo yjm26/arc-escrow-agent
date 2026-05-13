@@ -51,7 +51,7 @@ export default function Docs() {
                   className={`text-[13px] px-3 py-1.5 rounded transition no-underline ${
                     active === s.id
                       ? 'bg-stripe-navy text-white font-medium'
-                      : 'text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:text-white hover:bg-stripe-surface dark:bg-white/5'
+                      : 'text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:hover:text-white hover:bg-stripe-surface dark:hover:bg-white/5'
                   }`}
                 >
                   {s.label}

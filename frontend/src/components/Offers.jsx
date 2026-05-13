@@ -34,8 +34,14 @@ export default function Offers({ wallet }) {
   const handleAccept = async (offer) => {
     try {
       await fetch(`${API_URL}/api/offers/${offer.id}/accept`, { method: 'PUT' })
-      // Navigate to create room with offer details
-      navigate(`/create?item=${encodeURIComponent(offer.listingTitle)}&price=${offer.offerPrice}&collateral=${offer.collateral}&creatorIsSeller=${offer.listingRole === 'buyer'}&counterparty=${offer.offererWallet}`)
+      const isListingCreator = offer.listingCreator.toLowerCase() === wallet.address.toLowerCase()
+      const counterparty = isListingCreator ? offer.offererWallet : offer.listingCreator
+      // If I'm listing creator: my role = listingRole. If I'm offerer: my role is opposite.
+      const creatorIsSeller = isListingCreator
+        ? offer.listingRole === 'seller'
+        : offer.listingRole === 'buyer'
+      const collateral = creatorIsSeller ? (offer.collateral || '0') : '0'
+      navigate(`/create?item=${encodeURIComponent(offer.listingTitle)}&price=${offer.offerPrice || offer.counterPrice}&collateral=${collateral}&creatorIsSeller=${creatorIsSeller}&counterparty=${counterparty}&listingId=${offer.listingId || offer.listing_id || ''}&deliveryDays=${offer.deliveryDays || 5}`)
     } catch (err) {
       console.error(err)
     }

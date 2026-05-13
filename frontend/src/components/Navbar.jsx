@@ -7,6 +7,7 @@ import ThemeToggle from './ThemeToggle'
 export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) {
   const [showWalletMenu, setShowWalletMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     if (!wallet) { setIsAdmin(false); return }
@@ -21,6 +22,11 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
     })
   }, [wallet])
 
+  // Close mobile menu on route change (listen to pathname)
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [typeof window !== 'undefined' ? window.location.pathname : ''])
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-[#faf9f7]/95 dark:bg-[#0c0f1a]/95 backdrop-blur-xl border-b border-stripe-border dark:border-white/10">
       <Link to="/" className="flex items-center gap-2.5">
@@ -31,7 +37,7 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
       </Link>
 
       {/* Desktop nav — slim: How it works, Docs, Market only */}
-      <button className="md:hidden p-2 text-stripe-navy dark:text-white" onClick={() => document.getElementById('mobile-menu')?.classList.toggle('hidden')}>
+      <button className="md:hidden p-2 text-stripe-navy dark:text-white" onClick={() => setMobileOpen(!mobileOpen)}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
       </button>
       <div className="hidden md:flex items-center gap-7">
@@ -88,23 +94,28 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
         )}
       </div>
       {/* Mobile menu */}
-      <div id="mobile-menu" className="hidden md:hidden fixed top-[60px] left-0 right-0 bg-[#faf9f7] dark:bg-[#0c0f1a] border-b border-stripe-border dark:border-white/10 p-6 space-y-4 z-40">
-        <Link to="/#how" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">How it works</Link>
-        <Link to="/docs" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">Docs</Link>
-        <Link to="/market" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">Market</Link>
-        <ThemeToggle />
-        {wallet ? (
-          <>
-            <Link to="/rooms" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">My Rooms</Link>
-            <Link to="/offers" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">Offers</Link>
-            <Link to="/create" className="btn-primary block text-center text-[14px]">Create Room</Link>
-          </>
-        ) : (
-          <button onClick={onConnect} disabled={connecting} className="btn-primary w-full">
-            {connecting ? 'Connecting…' : 'Connect Wallet'}
-          </button>
-        )}
-      </div>
+      {mobileOpen && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setMobileOpen(false)} />
+          <div className="md:hidden fixed top-[60px] left-0 right-0 bg-[#faf9f7] dark:bg-[#0c0f1a] border-b border-stripe-border dark:border-white/10 p-6 space-y-4 z-40">
+            <Link to="/#how" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>How it works</Link>
+            <Link to="/docs" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Docs</Link>
+            <Link to="/market" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Market</Link>
+            <div onClick={() => setMobileOpen(false)}><ThemeToggle /></div>
+            {wallet ? (
+              <>
+                <Link to="/rooms" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>My Rooms</Link>
+                <Link to="/offers" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Offers</Link>
+                <Link to="/create" className="btn-primary block text-center text-[14px]" onClick={() => setMobileOpen(false)}>Create Room</Link>
+              </>
+            ) : (
+              <button onClick={() => { onConnect(); setMobileOpen(false) }} disabled={connecting} className="btn-primary w-full">
+                {connecting ? 'Connecting…' : 'Connect Wallet'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </nav>
   )
 }

@@ -30,6 +30,7 @@ export default function OffersPanel({ wallet, API_URL }) {
   const [counterMsg, setCounterMsg] = useState('')
 
   async function fetchOffers() {
+    if (!wallet?.address) return
     try {
       const res = await fetch(`${API_URL}/api/offers?wallet=${wallet.address}`)
       const data = await res.json()
@@ -39,12 +40,13 @@ export default function OffersPanel({ wallet, API_URL }) {
     }
   }
 
-  useEffect(() => { fetchOffers() }, [])
+  useEffect(() => { fetchOffers() }, [wallet?.address])
 
   useEffect(() => {
+    if (!wallet?.address) return
     const i = setInterval(fetchOffers, 10000)
     return () => clearInterval(i)
-  }, [])
+  }, [wallet?.address])
 
   const incoming = offers.filter(o => o.listingCreator.toLowerCase() === wallet.address.toLowerCase())
   const outgoing = offers.filter(o => o.offererWallet.toLowerCase() === wallet.address.toLowerCase())
@@ -87,13 +89,11 @@ export default function OffersPanel({ wallet, API_URL }) {
   //   - listing.role === 'buyer'  → I'm BUYER → creatorIsSeller=false, collateral=0
   function openRoom(offer, isOutgoing) {
     const iAmSeller = isOutgoing
-      ? offer.listingRole === 'buyer'   // buyer listing → I (offerer) am selling
-      : offer.listingRole === 'seller'  // seller listing → I (creator) am selling
-
+      ? offer.listingRole === 'buyer'
+      : offer.listingRole === 'seller'
     const collateral = iAmSeller ? (offer.collateral || '0') : '0'
-
     const counterparty = isOutgoing ? offer.listingCreator : offer.offererWallet
-    navigate(`/create?item=${encodeURIComponent(offer.listingTitle)}&price=${offer.offerPrice}&collateral=${collateral}&creatorIsSeller=${iAmSeller}&counterparty=${counterparty}`)
+    navigate(`/create?item=${encodeURIComponent(offer.listingTitle)}&price=${offer.offerPrice || offer.counterPrice}&collateral=${collateral}&creatorIsSeller=${iAmSeller}&counterparty=${counterparty}&listingId=${offer.listingId || offer.listing_id || ''}&deliveryDays=${offer.deliveryDays || 5}`)
   }
 
   return (
@@ -238,7 +238,7 @@ export default function OffersPanel({ wallet, API_URL }) {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setCounterTarget(null)} className="flex-1 py-2 rounded border border-zinc-200 dark:border-white/10 text-[13px] text-zinc-600 dark:text-gray-400 hover:bg-zinc-50 dark:hover:bg-white/5 transition">Cancel</button>
-                <button onClick={() => submitCounter(counterTarget.id)} disabled={!counterPrice} className="flex-1 py-2 rounded bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 transition disabled:opacity-40">Counter →</button>
+                <button onClick={() => submitCounter(counterTarget.id)} disabled={!counterPrice || Number(counterPrice) <= 0} className="flex-1 py-2 rounded bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 transition disabled:opacity-40">Counter →</button>
               </div>
             </div>
           </div>

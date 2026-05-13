@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, STATE_NAMES } from '../utils/contract'
-import { STATE_BADGE, formatAddress, TIMERS } from '../utils/constants'
+import { STATE_BADGE, formatAddress } from '../utils/constants'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
@@ -11,6 +11,7 @@ export default function RoomsPage({ wallet }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [pendingRooms, setPendingRooms] = useState([])
+  const [joinError, setJoinError] = useState('')
 
   const FILTERS = [
     { key: 'all', label: 'All' },
@@ -55,19 +56,18 @@ export default function RoomsPage({ wallet }) {
   }
 
   async function handleJoinRoom(roomCode) {
+    setJoinError('')
     try {
       const signer = await wallet.provider.getSigner()
       const contract = getContract(signer)
-      // Contract expects raw bytes, not hash — it hashes internally
       const codeBytes = ethers.toUtf8Bytes(roomCode.joinCode)
-      console.log('Joining room:', roomCode.roomId, 'code:', roomCode.joinCode, 'bytes:', codeBytes)
       const tx = await contract.joinRoom(roomCode.roomId, codeBytes)
       await tx.wait()
       loadRooms()
       fetchPendingRooms()
     } catch (e) {
       console.error('Join room failed:', e)
-      alert('Failed to join: ' + (e.reason || e.message))
+      setJoinError('Failed to join: ' + (e.reason || e.message))
     }
   }
 
@@ -113,17 +113,8 @@ export default function RoomsPage({ wallet }) {
       }
       setRooms(myRooms)
 
-      // Auto-expire stale rooms (fire-and-forget)
-      const signer = await wallet.provider.getSigner()
-      const writeContract = getContract(signer)
-      const now = Math.floor(Date.now() / 1000)
-      for (const room of myRooms) {
-        if (room.state === 'Created' && (now - room.createdAt) >= TIMERS.joinDeadline) {
-          try { await writeContract.expireRoom(room.id) } catch {}
-        } else if (room.state === 'Joined' && (now - room.joinedAt) >= TIMERS.fundDeadline) {
-          try { await writeContract.expireRoom(room.id) } catch {}
-        }
-      }
+      // NOTE: Auto-expire removed — user must explicitly expire stale rooms
+      // to avoid surprise transactions. Expire buttons are shown in RoomView.
     } catch (e) {
       console.error('Load rooms error:', e)
     } finally {
@@ -165,6 +156,11 @@ export default function RoomsPage({ wallet }) {
         {pendingRooms.length > 0 && (
           <div className="mb-8">
             <div className="font-mono text-[10px] uppercase tracking-[2px] text-amber-600 dark:text-amber-400 mb-3">// rooms waiting for you</div>
+            {joinError && (
+              <div className="mb-3 px-4 py-2.5 rounded text-[13px] font-medium border bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-100 dark:border-red-500/20">
+                {joinError}
+              </div>
+            )}
             <div className="flex flex-col gap-3">
               {pendingRooms.map((rc) => (
                 <div key={rc.roomId} className="card-3d p-5 flex items-center justify-between">
@@ -201,7 +197,7 @@ export default function RoomsPage({ wallet }) {
                 className={`flex-1 py-2 rounded-md text-[13px] font-medium transition-colors ${
                   filter === f.key
                     ? 'bg-stripe-navy text-white'
-                    : 'text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:text-white'
+                    : 'text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:hover:text-white'
                 }`}
               >
                 {f.label}

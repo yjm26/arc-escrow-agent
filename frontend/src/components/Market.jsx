@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import OfferModal from './OfferModal'
 import OffersPanel from './OffersPanel'
@@ -72,7 +72,7 @@ export default function Market({ wallet }) {
     socials: { twitter: '', telegram: '', discord: '' },
   })
 
-  async function fetchListings() {
+  const fetchListings = useCallback(async () => {
     try {
       const cat = filter === 'All' ? '' : `?category=${filter}`
       const res = await fetch(`${API_URL}/api/listings${cat}`)
@@ -83,15 +83,15 @@ export default function Market({ wallet }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter])
 
-  useEffect(() => { fetchListings() }, [filter])
+  useEffect(() => { fetchListings() }, [fetchListings])
 
   // Auto-poll every 15s
   useEffect(() => {
     const interval = setInterval(() => fetchListings(), 15000)
     return () => clearInterval(interval)
-  }, [filter])
+  }, [fetchListings])
 
   const [formError, setFormError] = useState('')
   const [touched, setTouched] = useState({ title: false, price: false })
@@ -290,7 +290,7 @@ export default function Market({ wallet }) {
               <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Collateral {form.role === 'buyer' ? '(N/A)' : ''}</label>
               {form.role === 'seller' ? (
                 <div className="relative">
-                  <input className="stripe-input w-full" type="number" placeholder="0 (optional)" min="0" step="0.01" value={form.collateral} onChange={(e) => setForm({ ...form, collateral: e.target.value })} />
+                  <input className="stripe-input w-full" type="number" placeholder="0 (optional)" min="0" step="0.01" value={form.collateral} onChange={(e) => setForm({ ...form, collateral: Math.max(0, Number(e.target.value) || 0).toString() })} />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">USDC</span>
                 </div>
               ) : (

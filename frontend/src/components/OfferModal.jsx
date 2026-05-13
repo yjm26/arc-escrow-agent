@@ -16,7 +16,7 @@ export default function OfferModal({ listing, wallet, API_URL, onClose, onSubmit
   const isAccepting = Number(price) === Number(listing.price)
 
   const handleSubmit = async () => {
-    if (!price || submitting) return
+    if (!price || Number(price) <= 0 || submitting) return
     setSubmitting(true)
     try {
       if (isAccepting) {

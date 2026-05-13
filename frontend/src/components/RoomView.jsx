@@ -234,13 +234,11 @@ export default function RoomView({ wallet }) {
       await ensureArcChain(signer)
       const contract = getContract(signer)
       const tx = await fn(contract)
-      console.log('TX sent:', tx.hash)
       setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}… — waiting for confirmation…` })
       const receipt = await Promise.race([
         tx.wait(1),
         new Promise((_, reject) => setTimeout(() => reject(new Error('TX timeout — check https://testnet.arcscan.app/tx/' + tx.hash)), 120000))
       ])
-      console.log('TX confirmed in block:', receipt.blockNumber, 'status:', receipt.status)
       if (receipt.status === 0) {
         setStatus({ type: 'err', msg: 'TX reverted on-chain' })
       } else {
@@ -316,8 +314,6 @@ export default function RoomView({ wallet }) {
 
   const handleSubmitEvidence = async () => {
     if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required' }); return }
-    // Contract V18 does not store evidence on-chain; log to console only
-    console.log('Evidence submitted (off-chain):', { roomId: id, evidenceType, evidenceDesc, evidenceRef })
     setStatus({ type: 'ok', msg: 'Evidence noted — share it in your Discord ticket for the arbiter.' })
     setEvidenceDesc('')
     setEvidenceRef('')
@@ -357,6 +353,20 @@ export default function RoomView({ wallet }) {
       <div className="max-w-5xl mx-auto">
         <div className="card-3d p-8 text-center">
           <div className="text-stripe-body dark:text-gray-400 text-[14px]">Loading room…</div>
+        </div>
+      </div>
+    </section>
+  )
+
+  if (!wallet) return (
+    <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
+      <div className="max-w-5xl mx-auto">
+        <div className="card-3d p-8 text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-stripe-surface dark:bg-white/5 border border-stripe-border dark:border-white/10 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 15v2m0 0v2m0-2h2m-2 0H9m12-2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          </div>
+          <h2 className="text-[18px] font-medium text-stripe-navy dark:text-white mb-2">Connect your wallet</h2>
+          <p className="text-[14px] text-stripe-body dark:text-gray-400">Use the "Connect Wallet" button in the top navigation.</p>
         </div>
       </div>
     </section>
@@ -631,7 +641,7 @@ export default function RoomView({ wallet }) {
               )}
 
               {/* EXPIRE */}
-              {canExpire && (
+              {canExpire && isParticipant && (
                 <button onClick={handleExpire} className="btn-ghost w-full py-2.5 text-[12px]">⏰ Expire Stale Room</button>
               )}
 

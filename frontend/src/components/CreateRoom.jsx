@@ -23,6 +23,23 @@ export default function CreateRoom({ wallet }) {
 
   const handleCreate = async () => {
     if (!wallet || !item || !price) return
+    if (Number(price) <= 0) { setError('Price must be greater than 0'); return }
+    if (deliveryDays < 1 || deliveryDays > 90) { setError('Delivery window must be 1–90 days'); return }
+    // Validate price is at least 0.000001 USDC (1 unit = 1e-6), otherwise parseUnits rounds to 0
+    try {
+      const testWei = ethers.parseUnits(price, 6)
+      if (testWei === 0n) { setError('Price too small — minimum 0.000001 USDC'); return }
+    } catch {
+      setError('Invalid price format'); return
+    }
+    // Validate collateral format
+    if (!noCollateral && collateral) {
+      try {
+        ethers.parseUnits(collateral, 6)
+      } catch {
+        setError('Invalid collateral format'); return
+      }
+    }
     setLoading(true)
     setError('')
     setStep('Checking limits…')
@@ -51,7 +68,6 @@ export default function CreateRoom({ wallet }) {
         setStep('Approving USDC…')
         try {
           const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
-          console.log('approve tx:', approveTx.hash)
           await approveTx.wait(1, 180000)
         } catch (approveErr) {
           console.error('approve failed:', approveErr)
@@ -62,7 +78,6 @@ export default function CreateRoom({ wallet }) {
       // Step 2: Create room (contract pulls collateral via transferFrom)
       setStep('Creating room…')
       const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, ARC_GAS)
-      console.log('createRoom tx:', tx.hash)
       setStep('Waiting for confirmation…')
       const receipt = await tx.wait(1, 180000)
 
@@ -108,7 +123,6 @@ export default function CreateRoom({ wallet }) {
       // Auto-post join code to backend so counterparty can auto-join
       if (counterparty) {
         try {
-          console.log('Posting room code:', { roomId, joinCode, creator: wallet.address, counterparty })
           const resp = await fetch(`${API_URL}/api/room-codes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -123,7 +137,6 @@ export default function CreateRoom({ wallet }) {
             }),
           })
           const respData = await resp.json()
-          console.log('Room code post response:', resp.status, respData)
           if (!resp.ok) {
             setError('Warning: Room created but seller notification failed: ' + (respData.error || resp.status))
           }
@@ -131,8 +144,6 @@ export default function CreateRoom({ wallet }) {
           console.error('Failed to post room code:', e)
           setError('Warning: Room created but seller notification failed: ' + e.message)
         }
-      } else {
-        console.log('No counterparty set — room code not posted')
       }
     } catch (err) {
       console.error(err)
@@ -325,7 +336,7 @@ export default function CreateRoom({ wallet }) {
               <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400">
                 {creatorIsSeller ? 'Collateral' : 'Required Seller Collateral'}
               </label>
-              <label className="flex items-center gap-2 cursor-pointer ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}">
+              <label className={`flex items-center gap-2 cursor-pointer ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}>
                 <input
                   type="checkbox"
                   checked={noCollateral}

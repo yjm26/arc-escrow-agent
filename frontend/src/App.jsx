@@ -119,7 +119,7 @@ export default function App() {
           <span className="text-stripe-border dark:text-white/10">·</span>
           <a href="https://github.com/yjm26/arc-escrow-agent" target="_blank" rel="noopener" className="text-[11px] text-stripe-body dark:text-gray-500 hover:text-stripe-navy dark:hover:text-white transition">GitHub</a>
         </div>
-        <div className="font-mono text-[10px] text-gray-400 dark:text-gray-600 mt-2">0x59Ab8013D4e65d938Ab83b235956e1881046BfB4</div>
+        <div className="font-mono text-[10px] text-gray-400 dark:text-gray-600 mt-2">0x019A88470A1989eE0b13f53b65C0Fe7194b219c0</div>
       </footer>
     </BrowserRouter>
   )
