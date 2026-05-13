@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BONDROOM_ADDRESS as CONTRACT_ADDRESS } from '../lib/contract'
+import { CONTRACT_ADDRESS } from '../utils/contract'
 import NotificationBell from './NotificationBell'
 import ThemeToggle from './ThemeToggle'
 
