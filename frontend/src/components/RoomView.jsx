@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
+import { getContract, getUsdc, waitForTx, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -96,13 +96,17 @@ export default function RoomView({ wallet }) {
     setStatus({ type: 'info', msg: label })
     try {
       const signer = await wallet.provider.getSigner()
+      await ensureArcChain(signer)
       const contract = getContract(signer)
       const tx = await fn(contract)
+      console.log('TX sent:', tx.hash)
       setStatus({ type: 'info', msg: `TX pending: ${tx.hash.slice(0, 10)}…` })
-      await waitForTx(wallet.provider, tx.hash, 60000)
+      const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
+      console.log('TX confirmed in block:', receipt.blockNumber)
       setStatus({ type: 'ok', msg: successMsg })
       loadRoom()
     } catch (err) {
+      console.error('TX failed:', err)
       setStatus({ type: 'err', msg: err.reason || err.message })
     }
   }
@@ -123,11 +127,11 @@ export default function RoomView({ wallet }) {
 
       setStatus({ type: 'info', msg: 'Approving USDC…' })
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
-      await waitForTx(wallet.provider, approveTx.hash, 30000)
+      await waitForTx(wallet.provider, approveTx.hash, 60000)
 
       setStatus({ type: 'info', msg: 'Funding room…' })
       const fundTx = await contract.fundRoom(id, ARC_GAS)
-      await waitForTx(wallet.provider, fundTx.hash, 60000)
+      await waitForTx(wallet.provider, fundTx.hash, 120000)
       setStatus({ type: 'ok', msg: 'Funded!' })
       loadRoom()
     } catch (e) {
