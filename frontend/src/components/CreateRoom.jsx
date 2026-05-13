@@ -39,7 +39,7 @@ export default function CreateRoom({ wallet }) {
       if (collateralWei > 0n) {
         setStep('Approving USDC…')
         try {
-          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei)
           console.log('approve tx:', approveTx.hash)
           await approveTx.wait(1)
         } catch (approveErr) {
@@ -50,7 +50,7 @@ export default function CreateRoom({ wallet }) {
 
       // Step 2: Create room (contract pulls collateral via transferFrom)
       setStep('Creating room…')
-      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, ARC_GAS)
+      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller)
       console.log('createRoom tx:', tx.hash)
       setStep('Waiting for confirmation…')
       const receipt = await tx.wait(1)
