@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { createAppKit } from '@reown/appkit/react'
 import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react'
@@ -46,9 +46,18 @@ export default function App() {
   const [wallet, setWallet] = useState(null)
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState(null)
+  const manualDisconnect = useRef(false)
 
   useEffect(() => {
-    if (!isConnected || !address) { setWallet(null); return }
+    if (!isConnected || !address) {
+      setWallet(null)
+      return
+    }
+    // Ignore reconnect right after manual disconnect
+    if (manualDisconnect.current) {
+      manualDisconnect.current = false
+      return
+    }
     let cancelled = false
     ;(async () => {
       setConnecting(true)
@@ -70,7 +79,9 @@ export default function App() {
   }, [isConnected, address, walletProvider])
 
   const handleConnect = useCallback(() => openAppKit(), [openAppKit])
+
   const handleDisconnect = useCallback(() => {
+    manualDisconnect.current = true
     disconnect()
     setWallet(null)
     localStorage.removeItem('bond_wallet_connected')
