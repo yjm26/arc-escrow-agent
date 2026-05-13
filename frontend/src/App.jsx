@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom'
 import { createAppKit } from '@reown/appkit/react'
 import { useAppKit, useAppKitAccount, useAppKitProvider } from '@reown/appkit/react'
 import { EthersAdapter } from '@reown/appkit-adapter-ethers'
+import { ethers } from 'ethers'
 import Navbar from './components/Navbar'
 import ErrorBoundary from './components/ErrorBoundary'
 import Hero from './components/Hero'
@@ -14,6 +15,7 @@ import Market from './components/Market'
 import Offers from './components/Offers'
 import Docs from './components/Docs'
 import { reconnectWallet } from './lib/wallet'
+import { USDC_ADDRESS, ERC20_ABI } from './lib/contract'
 
 const ARC_TESTNET = {
   id: 5042002,
@@ -53,7 +55,9 @@ function AppRoutes() {
       setLoading(true)
       try {
         const w = await reconnectWallet(walletProvider)
-        if (!cancelled) setWallet(w)
+        // Also create USDC token contract
+        const token = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, w.signer)
+        if (!cancelled) setWallet({ ...w, token })
       } catch (e) {
         console.error('Wallet reconnect failed:', e)
         if (!cancelled) setWallet(null)
@@ -75,7 +79,7 @@ function AppRoutes() {
         <Route path="/" element={<><Hero wallet={wallet} onConnect={handleConnect} /><HowItWorks /></>} />
         <Route path="/create" element={<CreatePage wallet={wallet} onConnect={handleConnect} loading={loading} />} />
         <Route path="/rooms" element={<RoomsPage wallet={wallet} />} />
-        <Route path="/room/:id" element={<RoomView wallet={wallet} />} />
+        <Route path="/room/:id" element={<RoomPageRoute wallet={wallet} />} />
         <Route path="/docs/:section?" element={<Docs />} />
         <Route path="/market" element={<Market wallet={wallet} />} />
         <Route path="/offers" element={<Offers wallet={wallet} />} />
@@ -118,7 +122,19 @@ function CreatePage({ wallet, onConnect, loading }) {
   return (
     <section className="pt-28 pb-32 px-6 min-h-screen">
       <div className="max-w-[480px] mx-auto">
-        <CreateRoom room={wallet.contract} token={null} signerAddress={wallet.address} />
+        <CreateRoom room={wallet.contract} token={wallet.token} signerAddress={wallet.address} />
+      </div>
+    </section>
+  )
+}
+
+function RoomPageRoute({ wallet }) {
+  const { id } = useParams()
+  if (!wallet) return <section className="pt-28 pb-32 px-6 min-h-screen"><p className="text-center text-stripe-body">Connect wallet first</p></section>
+  return (
+    <section className="pt-28 pb-32 px-6 min-h-screen">
+      <div className="max-w-[600px] mx-auto">
+        <RoomView roomId={id} room={wallet.contract} token={wallet.token} signerAddress={wallet.address} />
       </div>
     </section>
   )
