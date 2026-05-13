@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { useAppKitAccount, useAppKitProvider, useAppKit } from '@reown/appkit'
+import { useAppKitAccount, useAppKitProvider, useAppKit } from '@reown/appkit/react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import Features from './components/Features'
