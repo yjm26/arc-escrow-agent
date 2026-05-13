@@ -67,6 +67,7 @@ export default function Market({ wallet }) {
   const [loading, setLoading] = useState(true)
   const [offerTarget, setOfferTarget] = useState(null)
   const [showOffers, setShowOffers] = useState(false)
+  const [expandedListing, setExpandedListing] = useState(null)
   const [form, setForm] = useState({
     role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5,
     socials: { twitter: '', telegram: '', discord: '' },
@@ -396,6 +397,7 @@ export default function Market({ wallet }) {
                 wallet={wallet}
                 onOpenDeal={() => handleOpenDeal(listing)}
                 onDelete={() => handleDelete(listing.id)}
+                onExpand={() => setExpandedListing(listing)}
               />
             ))}
           </div>
@@ -416,19 +418,31 @@ export default function Market({ wallet }) {
             onSubmitted={() => { setOfferTarget(null); fetchListings() }}
           />
         )}
+        {/* Listing detail modal */}
+        {expandedListing && (
+          <ListingDetailModal
+            listing={expandedListing}
+            wallet={wallet}
+            onClose={() => setExpandedListing(null)}
+            onOpenDeal={() => { setExpandedListing(null); handleOpenDeal(expandedListing) }}
+            onDelete={() => { setExpandedListing(null); handleDelete(expandedListing.id) }}
+          />
+        )}
       </div>
     </section>
   )
 }
 
-function ListingCard({ listing, wallet, onOpenDeal, onDelete }) {
+function ListingCard({ listing, wallet, onOpenDeal, onDelete, onExpand }) {
   const isOwner = wallet && listing.creator?.toLowerCase() === wallet.address?.toLowerCase()
   const hasSocials = listing.socials && Object.keys(listing.socials).length > 0
   const catStyle = CATEGORY_STYLES[listing.category] || CATEGORY_STYLES.Other
   const isBuyerListing = listing.role === 'buyer'
 
   return (
-    <div className="listing-card relative rounded-[10px] border border-stripe-border dark:border-white/10 overflow-hidden transition-all duration-200 hover:shadow-stripe-md"
+    <div
+      onClick={onExpand}
+      className="listing-card relative rounded-[10px] border border-stripe-border dark:border-white/10 overflow-hidden transition-all duration-200 hover:shadow-stripe-md cursor-pointer"
       data-role={listing.role}
       style={{
         background: isBuyerListing
@@ -522,6 +536,161 @@ function ListingCard({ listing, wallet, onOpenDeal, onDelete }) {
             {listing.role === 'buyer' ? 'Sell to Them →' : 'Open Deal →'}
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   Listing Detail Modal — click card to expand
+   ═══════════════════════════════════════════ */
+function ListingDetailModal({ listing, wallet, onClose, onOpenDeal, onDelete }) {
+  const isOwner = wallet && listing.creator?.toLowerCase() === wallet.address?.toLowerCase()
+  const isBuyerListing = listing.role === 'buyer'
+  const catStyle = CATEGORY_STYLES[listing.category] || CATEGORY_STYLES.Other
+  const hasSocials = listing.socials && Object.keys(listing.socials).length > 0
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-[#1a1d2e] rounded-xl border border-zinc-200 dark:border-white/10 shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-5 border-b border-zinc-100 dark:border-white/10">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {/* Role badge */}
+              <span
+                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border ${
+                  isBuyerListing
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-white/5 dark:text-gray-300 dark:border-white/10'
+                }`}
+              >
+                {isBuyerListing ? '◈ BUYER LISTING' : '◆ SELLER LISTING'}
+              </span>
+              <span
+                className="inline-flex items-center gap-1 px-2 py-[3px] rounded-full text-[10px] font-semibold tracking-wide uppercase border"
+                style={{ background: catStyle.bg, color: catStyle.color, borderColor: catStyle.border }}
+              >
+                {CATEGORY_ICON[listing.category] || '▪'} {listing.category?.toUpperCase()}
+              </span>
+            </div>
+            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-xl leading-none">×</button>
+          </div>
+
+          <h2 className="text-[18px] font-semibold text-zinc-900 dark:text-white leading-snug">
+            {listing.title}
+          </h2>
+          <p className="text-[11px] text-zinc-400 dark:text-gray-500 font-mono mt-1">
+            Posted {timeAgo(listing.createdAt)} by {formatAddress(listing.creator)}
+          </p>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-5">
+          {/* Description */}
+          {listing.description ? (
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[2px] text-zinc-400 mb-1.5">Description</div>
+              <p className="text-[14px] text-zinc-700 dark:text-gray-300 leading-[1.6] whitespace-pre-wrap">
+                {listing.description}
+              </p>
+            </div>
+          ) : (
+            <div className="text-[13px] text-zinc-400 italic">No description provided.</div>
+          )}
+
+          {/* Price row */}
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="font-mono text-[10px] uppercase tracking-[2px] text-zinc-400 mb-1">Price</div>
+              <div className="text-[24px] font-semibold text-zinc-900 dark:text-white font-mono">{listing.price} <span className="text-[14px] text-zinc-400 font-normal">USDC</span></div>
+            </div>
+            <div className="flex-1">
+              <div className="font-mono text-[10px] uppercase tracking-[2px] text-zinc-400 mb-1">Collateral</div>
+              <div className={`text-[16px] font-semibold font-mono ${Number(listing.collateral) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-zinc-400 dark:text-gray-500'}`}>
+                {Number(listing.collateral) > 0 ? `🔒 ${listing.collateral} USDC` : 'None'}
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery */}
+          <div className="flex items-center gap-3 text-[13px] text-zinc-600 dark:text-gray-400">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Delivery within <span className="font-semibold text-zinc-900 dark:text-white font-mono">{listing.deliveryDays || 5} days</span>
+          </div>
+
+          {/* Creator + reputation */}
+          <div className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-white/5 rounded-lg border border-zinc-100 dark:border-white/5">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300 dark:from-zinc-700 dark:to-zinc-600 flex items-center justify-center text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+              0x
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-mono text-zinc-900 dark:text-white truncate">{listing.creator}</div>
+              <div className="text-[11px] text-zinc-400">Creator</div>
+            </div>
+            <ReputationBadge provider={wallet?.provider} address={listing.creator} />
+          </div>
+
+          {/* Socials */}
+          {hasSocials && (
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[2px] text-zinc-400 mb-2">Contact</div>
+              <div className="flex flex-wrap gap-2">
+                {SOCIAL_TYPES.map(s => {
+                  const val = listing.socials?.[s.key]
+                  if (!val) return null
+                  const link = socialLink(s.key, val)
+                  return link ? (
+                    <a
+                      key={s.key}
+                      href={link}
+                      target="_blank"
+                      rel="noopener"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 dark:border-white/10 text-[12px] text-zinc-700 dark:text-gray-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <span>{s.icon}</span> {val}
+                    </a>
+                  ) : (
+                    <span key={s.key} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 dark:border-white/10 text-[12px] text-zinc-500 dark:text-gray-400">
+                      <span>{s.icon}</span> {val}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="p-5 border-t border-zinc-100 dark:border-white/10">
+          {isOwner ? (
+            listing.taken ? (
+              <div className="text-center text-[13px] text-amber-600 dark:text-amber-400 font-medium">
+                ⏳ This listing is in progress
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button onClick={onDelete} className="flex-1 py-2.5 rounded-md border border-red-200 dark:border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition text-[13px] font-medium">
+                  Delete Listing
+                </button>
+              </div>
+            )
+          ) : listing.taken ? (
+            <div className="text-center text-[13px] text-amber-600 dark:text-amber-400 font-medium">
+              ⏳ Room in progress
+            </div>
+          ) : (
+            <button onClick={onOpenDeal} className="btn-primary w-full py-3 text-[15px]">
+              {listing.role === 'buyer' ? 'Sell to Them →' : 'Open Deal →'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
