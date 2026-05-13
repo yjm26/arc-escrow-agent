@@ -21,7 +21,7 @@ export default function Docs() {
     <section className="pt-24 pb-32 px-4 sm:px-6 min-h-screen">
       <div className="max-w-[900px] mx-auto">
 
-        {/* Mobile section nav — sticky, full bleed, scrollable */}
+        {/* Mobile section nav. sticky, full bleed, scrollable */}
         <div className="md:hidden sticky top-[60px] z-30 bg-[#faf9f7]/95 dark:bg-[#0c0f1a]/95 backdrop-blur-xl -mx-4 px-4 py-2 border-b border-stripe-border dark:border-white/10 mb-6">
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
             {SECTIONS.map((s) => (
@@ -41,7 +41,7 @@ export default function Docs() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Sidebar — desktop only */}
+          {/* Sidebar. desktop only */}
           <nav className="hidden md:block w-[180px] shrink-0 pt-2">
             <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4">Docs</div>
             <div className="flex flex-col gap-1">
@@ -160,30 +160,223 @@ function InfoBox({ title, children, color = 'blue' }) {
 
 // ════════════════════════════════════════════════════════
 
+
+function StateFlowDiagram() {
+  return (
+    <div className="border border-stripe-border dark:border-white/10 rounded-lg p-5 my-6 bg-stripe-surface dark:bg-white/5 overflow-x-auto">
+      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4 text-center">State Machine</div>
+      <svg viewBox="0 0 720 260" className="w-full min-w-[600px]" style={{ maxWidth: '720px', margin: '0 auto' }}>
+        {/* Main flow */}
+        <g>
+          <rect x="20" y="10" width="140" height="44" rx="8" fill="#f1f5f9" stroke="#64748b" strokeWidth={1.5} />
+          <text x="90" y="28" textAnchor="middle" fill="#334155" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Created</text>
+          <text x="90" y="42" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Room open, waiting</text>
+        </g>
+        <line x1="160" y1="32" x2="190" y2="32" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="190,32 185,29 185,35" fill="#94a3b8" />
+
+        <g>
+          <rect x="190" y="10" width="140" height="44" rx="8" fill="#f3e8ff" stroke="#7c3aed" strokeWidth={1.5} />
+          <text x="260" y="28" textAnchor="middle" fill="#5b21b6" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Joined</text>
+          <text x="260" y="42" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Buyer entered</text>
+        </g>
+        <line x1="330" y1="32" x2="360" y2="32" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="360,32 355,29 355,35" fill="#94a3b8" />
+
+        <g>
+          <rect x="360" y="10" width="140" height="44" rx="8" fill="#fef3c7" stroke="#d97706" strokeWidth={1.5} />
+          <text x="430" y="28" textAnchor="middle" fill="#92400e" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Funded</text>
+          <text x="430" y="42" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">USDC in escrow</text>
+        </g>
+        <line x1="500" y1="32" x2="530" y2="32" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="530,32 525,29 525,35" fill="#94a3b8" />
+
+        <g>
+          <rect x="530" y="10" width="140" height="44" rx="8" fill="#dcfce7" stroke="#16a34a" strokeWidth={1.5} />
+          <text x="600" y="28" textAnchor="middle" fill="#14532d" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Delivered</text>
+          <text x="600" y="42" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Seller marked given</text>
+        </g>
+
+        {/* Branches from Delivered */}
+        <line x1="600" y1="54" x2="600" y2="70" stroke="#94a3b8" strokeWidth={1.5} />
+
+        {/* Confirm branch */}
+        <line x1="600" y1="70" x2="140" y2="70" stroke="#94a3b8" strokeWidth={1.5} />
+        <line x1="140" y1="70" x2="140" y2="90" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="140,90 137,85 143,85" fill="#94a3b8" />
+        <g>
+          <rect x="70" y="90" width="140" height="44" rx="8" fill="#d1fae5" stroke="#059669" strokeWidth={1.5} />
+          <text x="140" y="108" textAnchor="middle" fill="#064e3b" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Released</text>
+          <text x="140" y="122" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Funds to seller</text>
+        </g>
+        <text x="140" y="82" textAnchor="middle" fill="#94a3b8" fontSize="7" fontFamily="Inter, sans-serif">Confirm</text>
+
+        {/* Dispute branch */}
+        <line x1="600" y1="70" x2="360" y2="70" stroke="#94a3b8" strokeWidth={1.5} />
+        <line x1="360" y1="70" x2="360" y2="90" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="360,90 357,85 363,85" fill="#94a3b8" />
+        <g>
+          <rect x="290" y="90" width="140" height="44" rx="8" fill="#fee2e2" stroke="#dc2626" strokeWidth={1.5} />
+          <text x="360" y="108" textAnchor="middle" fill="#7f1d1d" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Disputed</text>
+          <text x="360" y="122" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Frozen, arbiter</text>
+        </g>
+        <text x="360" y="82" textAnchor="middle" fill="#94a3b8" fontSize="7" fontFamily="Inter, sans-serif">Dispute</text>
+
+        {/* Cancel branch */}
+        <line x1="600" y1="70" x2="580" y2="70" stroke="#94a3b8" strokeWidth={1.5} />
+        <line x1="580" y1="70" x2="580" y2="90" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="580,90 577,85 583,85" fill="#94a3b8" />
+        <g>
+          <rect x="510" y="90" width="140" height="44" rx="8" fill="#fef2f2" stroke="#991b1b" strokeWidth={1.5} />
+          <text x="580" y="108" textAnchor="middle" fill="#450a0a" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Cancelled</text>
+          <text x="580" y="122" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Mutual cancel</text>
+        </g>
+        <text x="510" y="82" textAnchor="middle" fill="#94a3b8" fontSize="7" fontFamily="Inter, sans-serif">Mutual Cancel</text>
+
+        {/* Alt states row - dashed */}
+        {/* Refunded */}
+        <line x1="140" y1="134" x2="140" y2="150" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 2" />
+        <polygon points="140,150 137,145 143,145" fill="#94a3b8" />
+        <g>
+          <rect x="70" y="150" width="140" height="44" rx="8" fill="#fef3c7" stroke="#ca8a04" strokeWidth={1.5} strokeDasharray="4 2" />
+          <text x="140" y="168" textAnchor="middle" fill="#78350f" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Refunded</text>
+          <text x="140" y="182" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Buyer gets money back</text>
+        </g>
+        <text x="140" y="142" textAnchor="middle" fill="#94a3b8" fontSize="7" fontFamily="Inter, sans-serif">No delivery</text>
+
+        {/* Expired */}
+        <line x1="360" y1="134" x2="360" y2="150" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 2" />
+        <polygon points="360,150 357,145 363,145" fill="#94a3b8" />
+        <g>
+          <rect x="290" y="150" width="140" height="44" rx="8" fill="#f3f4f6" stroke="#6b7280" strokeWidth={1.5} strokeDasharray="4 2" />
+          <text x="360" y="168" textAnchor="middle" fill="#1f2937" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Expired</text>
+          <text x="360" y="182" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Deadline passed</text>
+        </g>
+        <text x="360" y="142" textAnchor="middle" fill="#94a3b8" fontSize="7" fontFamily="Inter, sans-serif">Timer runs out</text>
+
+        {/* Mutual cancel availability note */}
+        <line x1="600" y1="54" x2="600" y2="220" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 2" />
+        <line x1="600" y1="220" x2="650" y2="220" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 2" />
+        <text x="650" y="224" textAnchor="start" fill="#94a3b8" fontSize="8" fontFamily="Inter, sans-serif">Available after Join, Fund, or Deliver</text>
+      </svg>
+    </div>
+  )
+}
+
+function MutualCancelDiagram() {
+  return (
+    <div className="border border-stripe-border dark:border-white/10 rounded-lg p-5 my-6 bg-stripe-surface dark:bg-white/5 overflow-x-auto">
+      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4 text-center">Mutual Cancel Flow</div>
+      <svg viewBox="0 0 500 220" className="w-full" style={{ maxWidth: '500px', margin: '0 auto' }}>
+        {/* Step 1 */}
+        <rect x="180" y="10" width="140" height="44" rx="8" fill="#f1f5f9" stroke="#64748b" strokeWidth={1.5} />
+        <text x="250" y="30" textAnchor="middle" fill="#0f172a" fontSize="12" fontWeight="600" fontFamily="Inter, sans-serif">1. Request</text>
+        <text x="250" y="44" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Either party clicks</text>
+        
+        {/* Arrow down */}
+        <line x1="250" y1="54" x2="250" y2="74" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="250,74 247,69 253,69" fill="#94a3b8" />
+        
+        {/* Step 2 */}
+        <rect x="180" y="74" width="140" height="44" rx="8" fill="#f1f5f9" stroke="#7c3aed" strokeWidth={1.5} />
+        <text x="250" y="94" textAnchor="middle" fill="#7c3aed" fontSize="12" fontWeight="600" fontFamily="Inter, sans-serif">2. Approve</text>
+        <text x="250" y="108" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Other party clicks</text>
+        
+        {/* Arrow down */}
+        <line x1="250" y1="118" x2="250" y2="138" stroke="#94a3b8" strokeWidth={1.5} />
+        <polygon points="250,138 247,133 253,133" fill="#94a3b8" />
+        
+        {/* Step 3 */}
+        <rect x="180" y="138" width="140" height="44" rx="8" fill="#dcfce7" stroke="#16a34a" strokeWidth={1.5} />
+        <text x="250" y="158" textAnchor="middle" fill="#16a34a" fontSize="12" fontWeight="600" fontFamily="Inter, sans-serif">3. Execute</text>
+        <text x="250" y="172" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Anyone clicks, done</text>
+        
+        {/* Revoke loop */}
+        <path d="M 330 96 Q 400 96 400 50 Q 400 10 330 10" fill="none" stroke="#dc2626" strokeWidth={1} strokeDasharray="4 3" />
+        <polygon points="330,10 335,13 335,7" fill="#dc2626" />
+        <text x="400" y="55" textAnchor="middle" fill="#dc2626" fontSize="8" fontFamily="Inter, sans-serif">Revoke anytime</text>
+        <text x="400" y="65" textAnchor="middle" fill="#dc2626" fontSize="8" fontFamily="Inter, sans-serif">before execute</text>
+        
+        {/* Status indicators */}
+        <circle cx="160" cy="96" r="4" fill="#d1d5db" />
+        <text x="150" y="99" textAnchor="end" fill="#9ca3af" fontSize="8" fontFamily="Inter, sans-serif">0/2</text>
+        
+        <circle cx="160" cy="138" r="4" fill="#f59e0b" />
+        <text x="150" y="141" textAnchor="end" fill="#f59e0b" fontSize="8" fontFamily="Inter, sans-serif">1/2</text>
+        
+        <circle cx="340" cy="138" r="4" fill="#16a34a" />
+        <text x="355" y="141" textAnchor="start" fill="#16a34a" fontSize="8" fontFamily="Inter, sans-serif">2/2 ready</text>
+      </svg>
+    </div>
+  )
+}
+
+function CollateralDiagram() {
+  return (
+    <div className="border border-stripe-border dark:border-white/10 rounded-lg p-5 my-6 bg-stripe-surface dark:bg-white/5 overflow-x-auto">
+      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4 text-center">What Happens to the Money</div>
+      <svg viewBox="0 0 560 200" className="w-full min-w-[500px]" style={{ maxWidth: '560px', margin: '0 auto' }}>
+        {/* Seller box */}
+        <rect x="20" y="20" width="140" height="50" rx="8" fill="#e0e7ff" stroke="#4f46e5" strokeWidth={1.5} />
+        <text x="90" y="40" textAnchor="middle" fill="#4338ca" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Seller</text>
+        <text x="90" y="56" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Puts in collateral</text>
+        
+        {/* Contract box */}
+        <rect x="210" y="20" width="140" height="80" rx="8" fill="#f0fdf4" stroke="#16a34a" strokeWidth={1.5} />
+        <text x="280" y="40" textAnchor="middle" fill="#15803d" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Smart Contract</text>
+        <text x="280" y="56" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Holds buyer funds</text>
+        <text x="280" y="68" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">+ seller collateral</text>
+        
+        {/* Buyer box */}
+        <rect x="400" y="20" width="140" height="50" rx="8" fill="#dbeafe" stroke="#2563eb" strokeWidth={1.5} />
+        <text x="470" y="40" textAnchor="middle" fill="#1d4ed8" fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">Buyer</text>
+        <text x="470" y="56" textAnchor="middle" fill="#64748b" fontSize="8" fontFamily="Inter, sans-serif">Funds the escrow</text>
+        
+        {/* Arrows in */}
+        <line x1="160" y1="45" x2="210" y2="45" stroke="#4f46e5" strokeWidth={1.5} />
+        <polygon points="210,45 205,42 205,48" fill="#4f46e5" />
+        
+        <line x1="400" y1="45" x2="350" y2="45" stroke="#2563eb" strokeWidth={1.5} />
+        <polygon points="350,45 355,42 355,48" fill="#2563eb" />
+        
+        {/* Outcome paths */}
+        <text x="280" y="130" textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif">If deal succeeds</text>
+        <line x1="280" y1="100" x2="280" y2="120" stroke="#16a34a" strokeWidth={1.5} />
+        <line x1="280" y1="120" x2="90" y2="120" stroke="#16a34a" strokeWidth={1.5} />
+        <line x1="90" y1="120" x2="90" y2="145" stroke="#16a34a" strokeWidth={1.5} />
+        <polygon points="90,145 87,140 93,140" fill="#16a34a" />
+        <text x="90" y="165" textAnchor="middle" fill="#16a34a" fontSize="8" fontFamily="Inter, sans-serif">Seller gets paid +</text>
+        <text x="90" y="178" textAnchor="middle" fill="#16a34a" fontSize="8" fontFamily="Inter, sans-serif">collateral back</text>
+        
+        <text x="280" y="130" textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="600" fontFamily="Inter, sans-serif"></text>
+        <line x1="280" y1="120" x2="470" y2="120" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="4 3" />
+        <line x1="470" y1="120" x2="470" y2="145" stroke="#dc2626" strokeWidth={1.5} strokeDasharray="4 3" />
+        <polygon points="470,145 467,140 473,140" fill="#dc2626" />
+        <text x="470" y="165" textAnchor="middle" fill="#dc2626" fontSize="8" fontFamily="Inter, sans-serif">Buyer gets refund +</text>
+        <text x="470" y="178" textAnchor="middle" fill="#dc2626" fontSize="8" fontFamily="Inter, sans-serif">collateral if scam</text>
+      </svg>
+    </div>
+  )
+}
+
 function Overview() {
   return (
     <div>
       <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Overview</div>
       <H1>What is BOND</H1>
       <P>
-        BOND is a trustless escrow protocol built on Arc Testnet. It lets two people who don't know or trust each other 
-        make a deal safely — funds are locked in a smart contract and only released when both sides agree, or when an 
-        arbiter makes a decision.
+        BOND is an escrow protocol on Arc Testnet. Two strangers can make a deal without trusting each other. Funds get locked in a smart contract and only release when both agree, or an arbiter decides.
       </P>
       <P>
-        The idea came from watching the same problem repeat across Telegram groups and Discord servers: someone wants 
-        to sell a whitelist spot, an account, or a service. The buyer doesn't want to send money first. The seller 
-        doesn't want to hand over the goods first. Both sides are stuck.
+        We built this because the same problem keeps happening. Someone wants to sell a whitelist, an account, or a service. The buyer won't send money first. The seller won't hand over the goods first. Stalemate.
       </P>
       <P>
-        BOND removes that deadlock. Neither side has to trust the other. They both trust the code.
+        BOND breaks the stalemate. You don't trust the other person. You trust the code.
       </P>
 
       <H2>What Problem It Solves</H2>
       <P>
-        Every over-the-counter (OTC) deal faces the same chicken-and-egg problem. Traditional escrow services charge 
-        5–15% and require you to trust a company with your money. BOND replaces that with a smart contract that holds 
-        funds automatically, charges 1%, and can be verified by anyone.
+        Every OTC deal has the same problem. Traditional escrow takes 5-15% and makes you trust a company. BOND uses a smart contract instead. 1% fee. Verifiable by anyone.
       </P>
 
       <H2>How It's Different</H2>
@@ -192,14 +385,14 @@ function Overview() {
           ['No accounts needed', 'Just connect your wallet. No sign-up, no KYC, no email.'],
           ['Transparent by design', 'Every rule is in the smart contract, visible on-chain. No hidden clauses.'],
           ['Collateral protects buyers', 'Sellers can lock their own funds as a guarantee. Scam and they lose it.'],
-          ['Built for real deals', 'NFT whitelists, wallet transfers, account sales, freelance work — anything that needs trust.'],
-          ['Self-enforcing timeouts', 'Timers keep deals moving. No one can stall indefinitely.'],
+          ['Built for real deals', 'NFT whitelists, wallet transfers, account sales, freelance work. Anything that needs trust.'],
+          ['Timeouts', 'Timers keep deals moving. No one can stall forever.'],
         ].map(([title, desc], i) => (
           <li key={i} className="flex gap-3 text-[14px]">
-            <span className="text-stripe-navy dark:text-white font-medium shrink-0 mt-0.5">—</span>
+            <span className="text-stripe-navy dark:text-white font-medium shrink-0 mt-0.5">•</span>
             <div>
               <span className="text-stripe-navy dark:text-white font-medium">{title}</span>
-              <span className="text-stripe-body dark:text-gray-400"> — {desc}</span>
+              <span className="text-stripe-body dark:text-gray-400">. {desc}</span>
             </div>
           </li>
         ))}
@@ -269,8 +462,7 @@ function HowItWorks() {
         can enter the room.
       </P>
       <P>
-        The seller shares the invite link with the buyer through any channel — Telegram, Discord, Twitter DM, 
-        or even email. The join code is never exposed in the link; it's verified on-chain when the buyer joins.
+        The seller sends the invite link however they want. Telegram, Discord, Twitter DM, email. Doesn't matter. The join code is never exposed in the link; it's verified on-chain when the buyer joins.
       </P>
 
       <H3>2. Join the Room</H3>
@@ -291,8 +483,7 @@ function HowItWorks() {
         goes to the treasury.
       </P>
       <P>
-        Once funded, the room state changes to FUNDED. The seller now has the agreed delivery period 
-        (1 to 90 days, set at creation) to deliver. Neither side can withdraw unilaterally at this point.
+        Once funded, the room is FUNDED. The seller has the delivery window (1 to 90 days, set at creation) to deliver. No one can pull out alone at this point.
       </P>
       <InfoBox title="Fund Timer" color="blue">
         The buyer has 1 day to fund after joining. If they don't, anyone can expire the room.
@@ -300,8 +491,7 @@ function HowItWorks() {
 
       <H3>4. Seller Delivers</H3>
       <P>
-        The seller completes whatever was agreed — sends the NFT, transfers the account, finishes the work — 
-        then clicks "Mark as Delivered" in the app. They can attach an optional message or proof link.
+        The seller does what they agreed to. Sends the NFT, transfers the account, finishes the work. Then clicks "Mark as Delivered". They can attach an optional message or proof link.
       </P>
       <P>
         The room state changes to DELIVERED. This starts the 3-day auto-release timer. The buyer must 
@@ -318,71 +508,35 @@ function HowItWorks() {
       </P>
       <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Confirm</strong> — Everything checks out. 
-          Funds are released to the seller, collateral is returned, and the deal ends.
+          <strong className="text-stripe-navy dark:text-white">Confirm</strong>. Everything checks out. 
+          Funds go to the seller, collateral comes back, deal done.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Dispute</strong> — Something went wrong. 
-          Funds are frozen. The auto-release timer stops. The buyer opens a ticket in the BOND Discord 
-          for arbiter review.
+          <strong className="text-stripe-navy dark:text-white">Dispute</strong>. Something went wrong. 
+          Funds freeze. Auto-release stops. Buyer opens a Discord ticket for arbiter review.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Mutual Cancel</strong> — Both parties agree 
-          to walk away. No arbiter needed. All funds are returned.
+          <strong className="text-stripe-navy dark:text-white">Mutual Cancel</strong>. Both parties agree 
+          to walk away. No arbiter. All funds returned.
         </li>
       </ul>
 
       <H3>6. Auto-Release (Safety Net)</H3>
       <P>
-        If the buyer doesn't confirm or dispute within 3 days of delivery, funds automatically release 
-        to the seller. This prevents buyers from holding funds hostage by simply doing nothing.
+        If the buyer doesn't confirm or dispute within 3 days, funds auto-release to the seller. This prevents buyers from holding funds hostage by simply doing nothing.
       </P>
       <P>
-        The 3-day window is long enough to verify most digital goods (check an NFT transfer, log into 
-        an account, review work) but short enough that no one gets stuck waiting.
+        3 days is enough to verify most digital goods. Check an NFT transfer, log in, review work. Not so long that anyone gets stuck.
       </P>
 
-      {/* Flow diagram */}
-      <div className="border border-stripe-border dark:border-white/10 rounded-lg p-5 my-6 bg-stripe-surface dark:bg-white/5">
-        <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4 text-center">Normal Flow</div>
-        <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-mono">
-          <span className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 px-3 py-1.5 rounded">Create</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20 px-3 py-1.5 rounded">Join</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-3 py-1.5 rounded">Fund</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20 px-3 py-1.5 rounded">Deliver</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-3 py-1.5 rounded">Confirm → Release</span>
-        </div>
-        <div className="text-center text-stripe-body dark:text-gray-400 text-[12px] my-2">or</div>
-        <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-mono">
-          <span className="bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/20 px-3 py-1.5 rounded">Deliver</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 px-3 py-1.5 rounded">Dispute</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20 px-3 py-1.5 rounded">Discord Ticket → Arbiter</span>
-        </div>
-        <div className="text-center text-stripe-body dark:text-gray-400 text-[12px] my-2">or</div>
-        <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-mono">
-          <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-3 py-1.5 rounded">Any state</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 px-3 py-1.5 rounded">Mutual Cancel</span>
-          <span className="text-stripe-body dark:text-gray-400">→</span>
-          <span className="bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-500/20 px-3 py-1.5 rounded">All funds returned</span>
-        </div>
-      </div>
+      <StateFlowDiagram />
 
       <H2>Cancellation (Before Funding)</H2>
       <P>
-        Before the deal is funded, either side can walk away without penalty. The seller can cancel 
-        the room, or the buyer can leave. In both cases, any collateral returns to the seller and 
-        the room is closed. No fees are charged.
+        Before funding, anyone can walk away free. Seller cancels, or buyer leaves. Collateral goes back to the seller. Room closes. No fees.
       </P>
       <P>
-        This is useful when plans change, the buyer gets cold feet, or the seller realizes they 
-        can't deliver after all.
+        Useful when plans change, buyer gets cold feet, or seller realizes they can't deliver.
       </P>
     </div>
   )
@@ -395,13 +549,11 @@ function MarketDoc() {
       <H1>BOND Market</H1>
       <P>
         The Market is where sellers post listings and buyers discover deals. Think of it as a storefront 
-        for escrow-enabled transactions — each listing is a pre-configured deal that opens a trustless 
+        for escrow-enabled transactions. each listing is a pre-configured deal that opens a trustless 
         escrow room with one click.
       </P>
       <P>
-        Unlike general-purpose marketplaces, BOND listings are tightly integrated with the escrow contract. 
-        When a buyer clicks "Open Deal," the room is created automatically with the price, category, 
-        and delivery timeline already filled in.
+        Unlike regular marketplaces, BOND listings connect straight to the escrow. Click "Open Deal" and the room creates itself with price, category, and delivery timeline filled in.
       </P>
 
       <H2>Posting a Listing</H2>
@@ -414,7 +566,7 @@ function MarketDoc() {
         headers={['Field', 'Required', 'Description']}
         rows={[
           ['Title', 'Yes', 'Short, clear name of what you are selling. 100 characters max.'],
-          ['Description', 'No', 'Details the buyer should know — condition, restrictions, etc. 500 characters max.'],
+          ['Description', 'No', 'Details the buyer should know. condition, restrictions, etc. 500 characters max.'],
           ['Category', 'Yes', 'NFT, Wallet, Account, Service, or Other. Helps buyers filter.'],
           ['Price', 'Yes', 'Deal amount in USDC. Must be greater than 0.'],
           ['Collateral', 'No', 'Amount you lock as a guarantee. Defaults to 0.'],
@@ -425,9 +577,7 @@ function MarketDoc() {
 
       <H2>Buyer & Seller Listings</H2>
       <P>
-        Most listings are from sellers offering something. But buyers can post too — for example, 
-        "I want to buy a wallet with specific NFTs" or "Looking for a landing page designer." 
-        When a seller sees a buyer listing, they click "Sell to Them" to open the deal.
+        Most listings are sellers. But buyers can post too. "I want a wallet with specific NFTs." "Looking for a landing page designer." A seller sees it and clicks "Sell to Them."
       </P>
       <P>
         Buyer listings have a blue accent stripe. Seller listings have a gray one. This visual cue 
@@ -437,7 +587,7 @@ function MarketDoc() {
       <H2>Contact Before You Commit</H2>
       <P>
         We strongly recommend chatting with the other party before opening a deal. Every listing 
-        can include social media links — Twitter/X and Telegram are clickable, Discord shows the username.
+        can include social links. Twitter/X and Telegram are clickable. Discord shows the username.
       </P>
       <P>
         Use this pre-deal chat to verify availability, negotiate terms, and build enough comfort 
@@ -477,17 +627,15 @@ function Collateral() {
       <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Mechanism</div>
       <H1>Collateral System</H1>
       <P>
-        Collateral is the seller's own money that gets locked alongside the buyer's deposit. 
-        It serves one purpose: to make scamming more expensive than delivering honestly. 
-        If a seller takes the money and runs, they don't just keep the buyer's funds — they 
-        lose their own collateral too.
+        Collateral is the seller's own money locked with the buyer's deposit. One purpose: make scamming cost more than delivering. If a seller runs, they lose the buyer's funds AND their own collateral.
       </P>
+
+      <CollateralDiagram />
 
       <H2>How It Works</H2>
       <P>
         When creating a room, the seller can choose to lock any amount of USDC as collateral. 
-        This is sent in the same transaction as the room creation. The contract holds it until 
-        the deal resolves.
+        Sent in the same transaction as room creation. The contract holds it until the deal resolves.
       </P>
       <P>
         Collateral is completely optional. You can set it to 0. But for high-value deals or 
@@ -501,8 +649,8 @@ function Collateral() {
         rows={[
           [<><Badge color="green">Success</Badge> Buyer confirms</>, '→ Seller', '→ Returned to seller'],
           [<><Badge color="red">No delivery</Badge> Seller misses deadline</>, '→ Refunded to buyer', '→ Given to buyer as penalty'],
-          [<><Badge color="amber">Cancel</Badge> Before funding</>, '—', '→ Returned to seller'],
-          [<><Badge color="amber">Expire</Badge> No one joins or funds</>, '—', '→ Returned to seller'],
+          [<><Badge color="amber">Cancel</Badge> Before funding</>, 'N/A', '→ Returned to seller'],
+          [<><Badge color="amber">Expire</Badge> No one joins or funds</>, 'N/A', '→ Returned to seller'],
           [<><Badge color="red">Mutual Cancel</Badge> Both parties agree</>, '→ Refunded to buyer', '→ Returned to seller'],
           [<><Badge color="purple">Arbiter: Seller wins</Badge></>, '→ Seller', '→ Returned to seller'],
           [<><Badge color="purple">Arbiter: Buyer wins</Badge></>, '→ Refunded to buyer', '→ Given to buyer'],
@@ -516,15 +664,15 @@ function Collateral() {
       </P>
       <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Trusted counterparty</strong> — 0% to 5%. 
+          <strong className="text-stripe-navy dark:text-white">Trusted counterparty</strong>. 0% to 5%. 
           You know them from a community or past deals.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Stranger, low risk</strong> — 5% to 15%. 
+          <strong className="text-stripe-navy dark:text-white">Stranger, low risk</strong>. 5% to 15%. 
           Small amounts, reversible goods, or services with clear deliverables.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Stranger, high risk</strong> — 15% to 50%. 
+          <strong className="text-stripe-navy dark:text-white">Stranger, high risk</strong>. 15% to 50%. 
           Wallet sales, expensive NFTs, or anything involving account credentials.
         </li>
       </ul>
@@ -534,9 +682,7 @@ function Collateral() {
       </P>
 
       <InfoBox title="Important" color="amber">
-        Collateral is locked for the entire duration of the deal. If the buyer takes the full 
-        delivery window, your collateral is unavailable until the deal resolves. Factor this into 
-        your capital planning.
+        Collateral stays locked the whole deal. If the buyer uses the full delivery window, your collateral is stuck until it resolves. Plan accordingly.
       </InfoBox>
     </div>
   )
@@ -548,30 +694,29 @@ function MutualCancel() {
       <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Mechanism</div>
       <H1>Mutual Cancel</H1>
       <P>
-        Both buyer and seller can agree to cancel the transaction and recover their funds. No arbiter needed. 
-        This is useful when plans change, expectations shift, or both sides simply want to walk away cleanly.
+        Both parties can agree to cancel and get their funds back. No arbiter. Useful when plans change or both want out.
       </P>
+
+      <MutualCancelDiagram />
 
       <H2>How It Works</H2>
       <P>
-        Mutual cancel is available after the buyer joins and before the deal is resolved. Either party 
-        can request it, the other party must approve, and then either party can execute. Both approvals 
-        are required — one-sided cancellation is not possible.
+        Mutual cancel works after the buyer joins and before the deal ends. Either party requests, the other approves, then anyone executes. Both need to agree. No one-sided cancel.
       </P>
 
       <H3>Step by Step</H3>
       <ol className="list-decimal pl-6 space-y-3 mb-6 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Request</strong> — Either party clicks 
-          "Request Mutual Cancel" in the room. This records their approval on-chain.
+          <strong className="text-stripe-navy dark:text-white">Request</strong>. Either party clicks 
+          "Request Mutual Cancel". Recorded on-chain.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Approve</strong> — The other party clicks 
-          "Approve Mutual Cancel" to record their approval too.
+          <strong className="text-stripe-navy dark:text-white">Approve</strong>. The other party clicks 
+          "Approve Mutual Cancel" to confirm.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Execute</strong> — Once both parties have 
-          approved, anyone can click "Execute Mutual Cancel" to finalize. Funds are returned immediately.
+          <strong className="text-stripe-navy dark:text-white">Execute</strong>. Once both approved, 
+          anyone clicks "Execute Mutual Cancel". Funds return immediately.
         </li>
       </ol>
 
@@ -600,16 +745,16 @@ function MutualCancel() {
       <H2>Why Use It</H2>
       <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Faster than dispute</strong> — No waiting for an arbiter. 
-          Both parties agree and it's done in minutes.
+          <strong className="text-stripe-navy dark:text-white">Faster than dispute</strong>. No waiting for an arbiter. 
+          Both agree and it's done in minutes.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">No fees</strong> — Unlike disputes which may take time, 
-          mutual cancel returns everything without extra charges.
+          <strong className="text-stripe-navy dark:text-white">No fees</strong>. No extra charges. 
+          Everything comes back as-is.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Preserves reputation</strong> — A mutual cancel doesn't 
-          count as a failed deal on either party's record.
+          <strong className="text-stripe-navy dark:text-white">Preserves reputation</strong>. Mutual cancel 
+          doesn't count as a failed deal.
         </li>
       </ul>
     </div>
@@ -645,34 +790,30 @@ function Disputes() {
 
       <H2>When a Dispute Happens</H2>
       <P>
-        A dispute is triggered when the buyer clicks "Dispute" after the seller marks delivery. 
-        This freezes the funds immediately — the auto-release timer stops, and no one can touch 
-        the money until the arbiter makes a decision.
+        A dispute starts when the buyer clicks "Dispute" after delivery. Funds freeze immediately. Auto-release stops. No one touches the money until the arbiter decides.
       </P>
 
       <H3>The Dispute Process</H3>
       <ol className="list-decimal pl-6 space-y-3 mb-6 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Buyer disputes</strong> — Clicking "Dispute" 
-          in the room immediately freezes all funds and stops the auto-release timer.
+          <strong className="text-stripe-navy dark:text-white">Buyer disputes</strong>. Clicking "Dispute" 
+          freezes all funds and stops auto-release.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Open a ticket</strong> — The buyer opens 
-          a support ticket in the BOND Discord server. Include the room number and a brief description 
-          of what went wrong.
+          <strong className="text-stripe-navy dark:text-white">Open a ticket</strong>. Buyer opens 
+          a Discord ticket. Include room number and what went wrong.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Present evidence</strong> — Both parties 
-          share screenshots, transaction hashes, chat logs, or any proof that supports their case. 
-          The arbiter reviews everything before deciding.
+          <strong className="text-stripe-navy dark:text-white">Present evidence</strong>. Both parties 
+          share screenshots, tx hashes, chat logs. Arbiter reviews before deciding.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Arbiter investigates</strong> — The arbiter 
-          evaluates the evidence, asks follow-up questions if needed, and determines the fairest outcome.
+          <strong className="text-stripe-navy dark:text-white">Arbiter investigates</strong>. Arbiter 
+          checks evidence, asks questions if needed, decides the outcome.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">On-chain execution</strong> — The arbiter 
-          calls one of three resolution functions on the contract. The result is immediate and irreversible.
+          <strong className="text-stripe-navy dark:text-white">On-chain execution</strong>. Arbiter 
+          calls one of three resolution functions. Immediate and irreversible.
         </li>
       </ol>
 
@@ -695,8 +836,7 @@ function Disputes() {
       <H2>Arbiter Limitations</H2>
       <P>
         The arbiter address is set at contract deployment and can be updated by the contract owner if needed. 
-        They can only execute the three predefined resolutions — they cannot steal funds, send money to a third party, 
-        or modify the deal terms. Their power is strictly bounded by the contract code.
+        They can only execute the three predefined resolutions. They cannot steal funds, send money elsewhere, or modify deal terms. Their power is strictly bounded by the contract code.
       </P>
     </div>
   )
@@ -708,8 +848,7 @@ function Timers() {
       <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Reference</div>
       <H1>Timers & Deadlines</H1>
       <P>
-        BOND uses timeouts to keep deals moving and prevent either side from stalling indefinitely. 
-        Every timer is enforced on-chain by the smart contract — no one can override or extend them.
+        BOND uses timeouts to keep deals moving. No one can stall forever. Every timer is on-chain. No one can override or extend them.
       </P>
 
       <Table
@@ -726,7 +865,7 @@ function Timers() {
       <H2>Who Can Call expireRoom()?</H2>
       <P>
         After a timer expires, <strong className="text-stripe-navy dark:text-white">anyone</strong> can 
-        call <Code>expireRoom()</Code> to close the room and return collateral. This is intentional — 
+        call <Code>expireRoom()</Code> to close the room and return collateral. This is intentional. 
         it doesn't require the seller or buyer to take action, which is useful if one party has gone 
         offline.
       </P>
@@ -738,20 +877,20 @@ function Timers() {
       <H2>Timer Strategy Tips</H2>
       <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Share the invite link immediately</strong> — 
+          <strong className="text-stripe-navy dark:text-white">Share the invite link immediately</strong>. 
           The 1-day join timer starts when you create the room, not when you send the link.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Fund promptly after joining</strong> — 
+          <strong className="text-stripe-navy dark:text-white">Fund promptly after joining</strong>. 
           1 day is generous, but don't cut it close if you're serious about the deal.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Set realistic delivery days</strong> — 
+          <strong className="text-stripe-navy dark:text-white">Set realistic delivery days</strong>. 
           The Market lets you specify 1 to 90 days for delivery. Set a timeline that matches 
           the actual work needed.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Check delivery within 3 days</strong> — 
+          <strong className="text-stripe-navy dark:text-white">Check delivery within 3 days</strong>. 
           Once the seller marks delivered, you have 3 days to verify and respond. Set a reminder.
         </li>
       </ul>
@@ -780,7 +919,7 @@ function Fees() {
           ['Dispute', 'FREE (gas only)'],
           ['Cancel / Leave (before funding)', 'FREE (gas only)'],
           ['Expire room', 'FREE (gas only)'],
-          ['Mutual cancel', 'FREE (gas only) — full refund'],
+          ['Mutual cancel', 'FREE (gas only). full refund'],
         ]}
       />
 
@@ -792,7 +931,7 @@ function Fees() {
       </P>
       <P>
         The fee is paid by the buyer at funding time. The seller receives the full deal price 
-        (minus nothing) upon release. Collateral is never touched by fees — it always goes back 
+        (minus nothing) upon release. Collateral is never touched by fees. it always goes back 
         to the seller or to the buyer depending on the outcome.
       </P>
 
@@ -825,25 +964,25 @@ function Security() {
       <H2>Smart Contract Guarantees</H2>
       <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
-          <strong className="text-stripe-navy dark:text-white">Funds are locked</strong> — Once deposited, 
+          <strong className="text-stripe-navy dark:text-white">Funds are locked</strong>. Once deposited, 
           USDC sits in the contract. Neither the buyer nor the seller can withdraw it unilaterally.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">No admin withdrawal</strong> — The contract 
+          <strong className="text-stripe-navy dark:text-white">No admin withdrawal</strong>. The contract 
           owner cannot drain funds. The only way money leaves is through the defined resolution paths.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Arbiter is bounded</strong> — The arbiter 
+          <strong className="text-stripe-navy dark:text-white">Arbiter is bounded</strong>. The arbiter 
           can only call three functions: release to seller, refund to buyer, or 50/50 split. They cannot 
           send funds to themselves or any other address.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">State machine is strict</strong> — Every 
+          <strong className="text-stripe-navy dark:text-white">State machine is strict</strong>. Every 
           action checks the current room state. You can't fund a room that's already funded, or dispute 
           a room that hasn't been delivered.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Join codes are hashed</strong> — The actual 
+          <strong className="text-stripe-navy dark:text-white">Join codes are hashed</strong>. The actual 
           code is never stored on-chain. Only its hash is stored. This means even if someone reads the 
           blockchain, they can't reconstruct the join code.
         </li>
@@ -870,7 +1009,7 @@ function Security() {
       <H2>Wallet Security</H2>
       <P>
         BOND never asks for your private key or seed phrase. All transactions are signed by your own 
-        wallet (MetaMask or any WalletConnect-compatible wallet). The app is a pure frontend — it 
+        wallet (MetaMask or any WalletConnect-compatible wallet). The app is a pure frontend. it 
         doesn't hold keys, passwords, or personal data.
       </P>
     </div>
@@ -887,12 +1026,12 @@ function FAQ() {
         <FaqItem q="What happens if the seller never delivers?">
           If the seller doesn't mark delivery before the deadline (1–90 days), the buyer can call 
           <Code>buyerRefund()</Code> at any time. The buyer gets their full payment back, plus 
-          the seller's collateral as compensation. This is automatic — no arbiter needed.
+          the seller's collateral as compensation. This is automatic. no arbiter needed.
         </FaqItem>
 
         <FaqItem q="Can I cancel after funding?">
           No. Once the escrow is funded, the deal must play out through the normal flow or dispute 
-          process. This is intentional — it prevents either side from backing out at the last second 
+          process. This is intentional. it prevents either side from backing out at the last second 
           after the other party has already committed time or resources.
         </FaqItem>
 
