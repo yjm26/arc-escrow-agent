@@ -18,28 +18,9 @@ export default function Docs() {
 
   return (
     <section className="pt-24 pb-32 px-4 sm:px-6 min-h-screen">
-      <div className="max-w-[900px] mx-auto flex gap-8">
-        {/* Sidebar */}
-        <nav className="hidden md:block w-[180px] shrink-0 pt-2">
-          <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4">Docs</div>
-          <div className="flex flex-col gap-1">
-            {SECTIONS.map((s) => (
-              <Link
-                key={s.id}
-                to={`/docs/${s.id}`}
-                className={`text-[13px] px-3 py-1.5 rounded transition no-underline ${
-                  active === s.id
-                    ? 'bg-stripe-navy text-white font-medium'
-                    : 'text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:text-white hover:bg-stripe-surface dark:bg-white/5'
-                }`}
-              >
-                {s.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
+      <div className="max-w-[900px] mx-auto">
 
-        {/* Mobile nav */}
+        {/* Mobile nav — full width, above content */}
         <div className="md:hidden flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4">
           {SECTIONS.map((s) => (
             <Link
@@ -56,17 +37,39 @@ export default function Docs() {
           ))}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {active === 'overview' && <Overview />}
-          {active === 'how-it-works' && <HowItWorks />}
-          {active === 'market' && <MarketDoc />}
-          {active === 'collateral' && <Collateral />}
-          {active === 'disputes' && <Disputes />}
-          {active === 'timers' && <Timers />}
-          {active === 'fees' && <Fees />}
-          {active === 'security' && <Security />}
-          {active === 'faq' && <FAQ />}
+        <div className="flex gap-8">
+          {/* Sidebar */}
+          <nav className="hidden md:block w-[180px] shrink-0 pt-2">
+            <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4">Docs</div>
+            <div className="flex flex-col gap-1">
+              {SECTIONS.map((s) => (
+                <Link
+                  key={s.id}
+                  to={`/docs/${s.id}`}
+                  className={`text-[13px] px-3 py-1.5 rounded transition no-underline ${
+                    active === s.id
+                      ? 'bg-stripe-navy text-white font-medium'
+                      : 'text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:text-white hover:bg-stripe-surface dark:bg-white/5'
+                  }`}
+                >
+                  {s.label}
+                </Link>
+              ))}
+            </div>
+          </nav>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {active === 'overview' && <Overview />}
+            {active === 'how-it-works' && <HowItWorks />}
+            {active === 'market' && <MarketDoc />}
+            {active === 'collateral' && <Collateral />}
+            {active === 'disputes' && <Disputes />}
+            {active === 'timers' && <Timers />}
+            {active === 'fees' && <Fees />}
+            {active === 'security' && <Security />}
+            {active === 'faq' && <FAQ />}
+          </div>
         </div>
       </div>
     </section>
