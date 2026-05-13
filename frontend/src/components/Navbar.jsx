@@ -30,28 +30,14 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
         <span className="font-semibold text-[17px] tracking-tight text-stripe-navy dark:text-white">BOND</span>
       </Link>
 
-      {/* Mobile menu button */}
-        <button className="md:hidden p-2 text-stripe-navy dark:text-white" onClick={() => document.getElementById('mobile-menu')?.classList.toggle('hidden')}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-        </button>
-        <div className="hidden md:flex items-center gap-7">
+      {/* Desktop nav — slim: How it works, Docs, Market only */}
+      <button className="md:hidden p-2 text-stripe-navy dark:text-white" onClick={() => document.getElementById('mobile-menu')?.classList.toggle('hidden')}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+      </button>
+      <div className="hidden md:flex items-center gap-7">
         <Link to="/#how" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">How it works</Link>
         <Link to="/docs" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Docs</Link>
         <Link to="/market" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Market</Link>
-        <a
-          href={`https://testnet.arcscan.io/address/${CONTRACT_ADDRESS}`}
-          target="_blank" rel="noopener"
-          className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors"
-        >
-          Contract
-        </a>
-        <a
-          href="https://github.com/yjm26/arc-escrow-agent"
-          target="_blank" rel="noopener"
-          className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors"
-        >
-          GitHub
-        </a>
 
         <ThemeToggle />
 

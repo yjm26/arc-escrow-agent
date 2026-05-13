@@ -2,8 +2,26 @@ import { Link } from 'react-router-dom'
 
 export default function Hero({ wallet, onConnect }) {
   return (
-    <section className="pt-28 pb-20 px-4 sm:px-6">
-      <div className="max-w-[1100px] mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+    <section className="relative pt-28 pb-20 px-4 sm:px-6 overflow-hidden">
+      {/* Subtle gradient blobs — behind content, very low opacity */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-[0.06] blur-[100px]"
+          style={{ background: 'radial-gradient(circle, rgba(83,58,253,1), transparent 70%)', animation: 'float 18s ease-in-out infinite' }} />
+        <div className="absolute top-1/3 -left-20 w-[400px] h-[400px] rounded-full opacity-[0.04] blur-[100px]"
+          style={{ background: 'radial-gradient(circle, rgba(37,99,235,1), transparent 70%)', animation: 'float 22s ease-in-out infinite 6s' }} />
+        <div className="absolute bottom-0 right-1/4 w-[350px] h-[350px] rounded-full opacity-[0.04] blur-[100px]"
+          style={{ background: 'radial-gradient(circle, rgba(139,92,246,1), transparent 70%)', animation: 'float 20s ease-in-out infinite 12s' }} />
+      </div>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(20px, -20px) scale(1.03); }
+          66% { transform: translate(-15px, 15px) scale(0.97); }
+        }
+      `}</style>
+
+      <div className="relative z-10 max-w-[1100px] mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
         {/* Left — Text */}
         <div className="flex-1 text-center lg:text-left">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white dark:bg-white/5 border border-stripe-border dark:border-white/10 rounded-md text-[12px] font-medium text-stripe-body dark:text-gray-400 mb-8">
@@ -32,6 +50,21 @@ export default function Hero({ wallet, onConnect }) {
             {!wallet && (
               <button onClick={onConnect} className="btn-ghost px-5 py-3 text-[15px]">Connect Wallet</button>
             )}
+          </div>
+
+          {/* Stats row */}
+          <div className="flex gap-8 mt-10 justify-center lg:justify-start">
+            {[
+              { val: '$0.01', label: 'Per tx' },
+              { val: '1%', label: 'Fee only' },
+              { val: '<1s', label: 'Finality' },
+              { val: '0', label: 'Middleman' },
+            ].map(s => (
+              <div key={s.label} className="text-center lg:text-left">
+                <div className="text-[20px] font-semibold text-stripe-navy dark:text-white font-mono leading-none tracking-tight">{s.val}</div>
+                <div className="text-[10px] text-stripe-body dark:text-gray-500 uppercase tracking-wider mt-1">{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
