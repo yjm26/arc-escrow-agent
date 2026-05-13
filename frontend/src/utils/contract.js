@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 
-export const CONTRACT_ADDRESS = '0xE2d1d8438245F80f213f413f7e4F84e8EfBe9D55'; // BondRoomV16 (join collateral + per-room deadline)
+export const CONTRACT_ADDRESS = '0x1Ed87FEa4B319044CD4DdcEf08f32D7465F7DbA1'; // BondRoomV17 (reputation + arbiter fee)
 export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc USDC precompile
 
 /// Arc minimum gas params — transactions below 20 Gwei maxFeePerGas stay pending forever
@@ -89,6 +89,11 @@ export const CONTRACT_ABI = [
   "function AUTO_RELEASE() external view returns (uint256)",
   "function MIN_DELIVERY_DAYS() external view returns (uint256)",
   "function MAX_DELIVERY_DAYS() external view returns (uint256)",
+  "function ARBITER_FEE_BPS() external view returns (uint256)",
+  "function successCount(address) external view returns (uint256)",
+  "function disputeCount(address) external view returns (uint256)",
+  "function refundedCount(address) external view returns (uint256)",
+  "function collateralMultiplier(address _seller) external view returns (uint256)",
   // Events
   "event RoomCreated(uint256 indexed id, address indexed creator, string item, uint256 price, uint256 collateral, bool creatorIsSeller, uint32 deliveryDeadline)",
   "event RoomJoined(uint256 indexed id, address indexed who)",

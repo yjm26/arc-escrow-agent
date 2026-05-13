@@ -11,7 +11,7 @@ export default function CreateRoom({ wallet }) {
   const [price, setPrice] = useState(searchParams.get('price') || '')
   const [collateral, setCollateral] = useState(searchParams.get('collateral') || '')
   const [noCollateral, setNoCollateral] = useState(searchParams.get('collateral') === '0')
-  const [deliveryDays, setDeliveryDays] = useState(5)
+  const [deliveryDays, setDeliveryDays] = useState(Number(searchParams.get('deliveryDays')) || 5)
   const counterparty = searchParams.get('counterparty') || ''
   const fromMarket = !!searchParams.get('listingId') || !!searchParams.get('item')
   const [creatorIsSeller, setCreatorIsSeller] = useState(searchParams.get('creatorIsSeller') !== 'false')

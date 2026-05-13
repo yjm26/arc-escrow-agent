@@ -60,7 +60,7 @@ export default function Market({ wallet }) {
   const [offerTarget, setOfferTarget] = useState(null) // listing being offered on
   const [showOffers, setShowOffers] = useState(false)
   const [form, setForm] = useState({
-    role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '',
+    role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5,
     socials: { twitter: '', telegram: '', discord: '' },
   })
 
@@ -102,12 +102,13 @@ export default function Market({ wallet }) {
           category: form.category,
           price: form.price,
           collateral: form.collateral || '0',
+          deliveryDays: Number(form.deliveryDays) || 5,
           creator: wallet.address,
           socials: Object.keys(socials).length > 0 ? socials : undefined,
         }),
       })
       if (!res.ok) throw new Error('Failed to post')
-      setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', socials: { twitter: '', telegram: '', discord: '' } })
+      setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, socials: { twitter: '', telegram: '', discord: '' } })
       setShowForm(false)
       fetchListings()
     } catch (err) {
@@ -218,16 +219,25 @@ export default function Market({ wallet }) {
                 </div>
               </div>
               <div>
-                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Collateral {form.role === 'buyer' ? '(N/A)' : ''}</label>
-                {form.role === 'seller' ? (
-                  <div className="relative">
-                    <input className="stripe-input w-full" type="number" placeholder="0 (optional)" min="0" step="0.01" value={form.collateral} onChange={(e) => setForm({ ...form, collateral: e.target.value })} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">USDC</span>
-                  </div>
-                ) : (
-                  <div className="stripe-input w-full text-[13px] text-stripe-body dark:text-gray-500 bg-stripe-surface dark:bg-white/5">Buyers don't pay collateral</div>
-                )}
+                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Delivery</label>
+                <div className="relative">
+                  <input className="stripe-input w-full" type="number" min={1} max={90} step={1} value={form.deliveryDays} onChange={(e) => setForm({ ...form, deliveryDays: Math.max(1, Math.min(90, Number(e.target.value) || 1)) })} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">days</span>
+                </div>
               </div>
+            </div>
+
+            {/* Collateral */}
+            <div className="mb-4">
+              <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Collateral {form.role === 'buyer' ? '(N/A)' : ''}</label>
+              {form.role === 'seller' ? (
+                <div className="relative">
+                  <input className="stripe-input w-full" type="number" placeholder="0 (optional)" min="0" step="0.01" value={form.collateral} onChange={(e) => setForm({ ...form, collateral: e.target.value })} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">USDC</span>
+                </div>
+              ) : (
+                <div className="stripe-input w-full text-[13px] text-stripe-body dark:text-gray-500 bg-stripe-surface dark:bg-white/5">Buyers don't pay collateral</div>
+              )}
             </div>
 
             {/* Social contacts */}
@@ -373,6 +383,14 @@ function ListingCard({ listing, wallet, expanded, onToggle, onOpenDeal, onDelete
             <div className="bg-zinc-50 border border-zinc-200 rounded p-3">
               <div className="font-mono text-[9px] uppercase tracking-[2px] text-zinc-400 mb-1">collateral</div>
               <div className="text-[15px] font-semibold text-amber-700 dark:text-amber-400 font-mono">{Number(listing.collateral) > 0 ? `${listing.collateral} USDC` : 'none'}</div>
+            </div>
+            <div className="bg-zinc-50 border border-zinc-200 rounded p-3">
+              <div className="font-mono text-[9px] uppercase tracking-[2px] text-zinc-400 mb-1">delivery</div>
+              <div className="text-[15px] font-semibold text-zinc-900 dark:text-white font-mono">{listing.deliveryDays || 5} <span className="text-[11px] text-zinc-500">days</span></div>
+            </div>
+            <div className="bg-zinc-50 border border-zinc-200 rounded p-3">
+              <div className="font-mono text-[9px] uppercase tracking-[2px] text-zinc-400 mb-1">seller</div>
+              <div className="text-[13px] font-semibold text-zinc-500 dark:text-gray-400 font-mono">{formatAddress(listing.creator)}</div>
             </div>
           </div>
 
