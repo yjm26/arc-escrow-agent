@@ -5,7 +5,7 @@ const ARC_TESTNET = {
   chainId: 5042002,
   hex: '0x4cef52',
   name: 'Arc Testnet',
-  rpcUrl: 'https://testnet.arcscan.app/api/eth-rpc',
+  rpcUrl: 'https://rpc.testnet.arc.network',
   explorer: 'https://testnet.arcscan.io',
   nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
 }

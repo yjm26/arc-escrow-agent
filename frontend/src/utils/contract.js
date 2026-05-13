@@ -3,11 +3,22 @@ import { ethers } from 'ethers';
 export const CONTRACT_ADDRESS = '0x59Ab8013D4e65d938Ab83b235956e1881046BfB4'; // BondRoomV15 (ERC-20 approve+transferFrom)
 export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc USDC precompile
 
+/// Arc minimum gas params — transactions below 20 Gwei maxFeePerGas stay pending forever
+/// See https://docs.arc.network/arc/references/gas-and-fees
+export const ARC_GAS = {
+  maxFeePerGas: 20000000000n,       // 20 Gwei minimum per Arc docs
+  maxPriorityFeePerGas: 1000000000n, // 1 Gwei tip for faster inclusion
+}
+export const ARC_GAS_APPROVE = {
+  maxFeePerGas: 20000000000n,
+  maxPriorityFeePerGas: 1000000000n,
+}
+
 /// Poll for tx receipt — bypass MetaMask provider, use Arc RPC directly
 /// MetaMask's injected provider sometimes returns tx hashes that never land on Arc
 export async function waitForTx(walletProvider, txHash, timeoutMs = 120000) {
   // Use direct Arc RPC for reliable receipt polling
-  const rpcProvider = new ethers.JsonRpcProvider("https://testnet.arcscan.app/api/eth-rpc", 5042002)
+  const rpcProvider = new ethers.JsonRpcProvider("https://rpc.testnet.arc.network", 5042002)
   const start = Date.now()
   let attempts = 0
   while (Date.now() - start < timeoutMs) {
