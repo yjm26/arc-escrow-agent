@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 3001
 const DATA_FILE = path.join(__dirname, 'listings.json')
 const NOTIF_FILE = path.join(__dirname, 'notifications.json')
 const OFFERS_FILE = path.join(__dirname, 'offers.json')
-const EVIDENCE_FILE = path.join(__dirname, 'evidence.json')
+const ROOM_CODES_FILE = path.join(__dirname, 'room_codes.json')
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -126,16 +126,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     // PUT /api/listings/:id/taken — mark listing as taken
-    if (pathname.match(/^\/api\/listings\/\d+\/taken$/) && req.method === 'PUT') {
+    if (pathname.startsWith('/api/listings/') && pathname.endsWith('/taken') && req.method === 'PUT') {
       const id = parseInt(pathname.split('/')[3])
+      const body = await parseBody(req)
       const listings = readJSON(DATA_FILE, [])
       const listing = listings.find(l => l.id === id)
       if (!listing) return json(res, { error: 'Not found' }, 404)
       listing.taken = true
-      listing.takenBy = (await parseBody(req).catch(() => ({}))).creator || ''
+      listing.takenBy = body.creator || ''
+      listing.takenRoomId = body.roomId || ''
       listing.takenAt = Date.now()
       writeJSON(DATA_FILE, listings)
-      return json(res, { ok: true })
+      return json(res, listing)
     }
 
     // ── NOTIFICATIONS ──
@@ -197,7 +199,6 @@ const server = http.createServer(async (req, res) => {
         offerPrice: body.offerPrice || '0',
         collateral: body.collateral || '0',
         message: body.message || '',
-        type: body.type || 'counter', // 'accept' = same price, 'counter' = different price
         status: 'pending',
         counterPrice: null,
         counterMessage: null,
@@ -211,9 +212,7 @@ const server = http.createServer(async (req, res) => {
       if (!notifs[to]) notifs[to] = []
       notifs[to].unshift({
         id: Date.now(),
-        message: newOffer.type === 'accept'
-          ? `${newOffer.offererWallet.slice(0, 6)}…${newOffer.offererWallet.slice(-4)} accepted your listing at ${newOffer.offerPrice} USDC`
-          : `${newOffer.offererWallet.slice(0, 6)}…${newOffer.offererWallet.slice(-4)} offered ${newOffer.offerPrice} USDC on "${newOffer.listingTitle}"`,
+        message: `${newOffer.offererWallet.slice(0, 6)}…${newOffer.offererWallet.slice(-4)} offered ${newOffer.offerPrice} USDC on "${newOffer.listingTitle}"`,
         type: 'offer',
         offerId: newOffer.id,
         listingId: newOffer.listingId,
@@ -314,82 +313,38 @@ const server = http.createServer(async (req, res) => {
       return json(res, offer)
     }
 
-    // ── ROOM CODES (for auto-join when buyer creates from market) ──
+    // ── ROOM CODES (for auto-join) ──
 
-    // POST /api/room-codes — store join code so seller can auto-join
-    const ROOM_CODES_FILE = path.join(__dirname, 'room-codes.json')
+    // POST /api/room-codes — store join code after room creation
     if (pathname === '/api/room-codes' && req.method === 'POST') {
       const body = await parseBody(req)
-      if (!body.roomId || !body.joinCode || !body.counterparty) return json(res, { error: 'roomId, joinCode, counterparty required' }, 400)
-      const codes = readJSON(ROOM_CODES_FILE, [])
-      const entry = {
-        id: Date.now(),
-        roomId: body.roomId,
-        joinCode: body.joinCode,
-        creator: (body.creator || '').toLowerCase(),
-        counterparty: body.counterparty.toLowerCase(),
-        item: body.item || '',
-        price: body.price || '0',
-        createdAt: Date.now(),
+      if (!body.roomId || !body.joinCode || !body.creator || !body.counterparty) {
+        return json(res, { error: 'Missing fields' }, 400)
       }
-      codes.unshift(entry)
-      writeJSON(ROOM_CODES_FILE, codes)
-      // notify seller/counterparty
-      const notifs = readJSON(NOTIF_FILE, {})
-      const to = entry.counterparty
-      if (!notifs[to]) notifs[to] = []
-      notifs[to].unshift({
-        id: Date.now(),
-        message: `Someone bought "${entry.item}" at ${entry.price} USDC! Join the room to complete the deal.`,
-        type: 'room_ready',
-        roomId: entry.roomId,
-        from: entry.creator,
-        read: false,
-        createdAt: Date.now(),
-      })
-      writeJSON(NOTIF_FILE, notifs)
-      return json(res, entry, 201)
+      const codes = readJSON(ROOM_CODES_FILE, [])
+      // Don't duplicate
+      if (!codes.find(c => c.roomId === body.roomId)) {
+        codes.push({
+          roomId: body.roomId,
+          joinCode: body.joinCode,
+          creator: body.creator.toLowerCase(),
+          counterparty: body.counterparty.toLowerCase(),
+          item: body.item || '',
+          price: body.price || '',
+          createdAt: Date.now(),
+        })
+        writeJSON(ROOM_CODES_FILE, codes)
+      }
+      return json(res, { ok: true })
     }
 
-    // GET /api/room-codes/:wallet — get pending room codes for a wallet
-    if (pathname.startsWith('/api/room-codes/') && req.method === 'GET') {
-      const wallet = pathname.split('/')[3]?.toLowerCase()
-      if (!wallet) return json(res, { error: 'wallet required' }, 400)
+    // GET /api/room-codes?wallet=0x... OR /api/room-codes/:wallet — get pending rooms
+    if ((pathname === '/api/room-codes' || pathname.startsWith('/api/room-codes/')) && req.method === 'GET') {
+      const wallet = url.searchParams.get('wallet') || pathname.split('/')[3]
+      if (!wallet) return json(res, [])
       const codes = readJSON(ROOM_CODES_FILE, [])
-      const pending = codes.filter(c => c.counterparty === wallet)
+      const pending = codes.filter(c => c.counterparty === wallet.toLowerCase())
       return json(res, pending)
-    }
-
-    // ── EVIDENCE ──
-
-    // POST /api/evidence/:roomId — submit evidence
-    if (pathname.match(/^\/api\/evidence\/\d+$/) && req.method === 'POST') {
-      const roomId = parseInt(pathname.split('/')[3])
-      const body = await parseBody(req)
-      if (!body.submitter || !body.evidenceType || !body.evidenceRef) {
-        return json(res, { error: 'submitter, evidenceType, evidenceRef required' }, 400)
-      }
-      const evidence = readJSON(EVIDENCE_FILE, {})
-      if (!evidence[roomId]) evidence[roomId] = []
-      const entry = {
-        id: Date.now(),
-        roomId,
-        submitter: body.submitter.toLowerCase(),
-        evidenceType: body.evidenceType,
-        description: body.description || '',
-        evidenceRef: body.evidenceRef,
-        timestamp: Date.now(),
-      }
-      evidence[roomId].push(entry)
-      writeJSON(EVIDENCE_FILE, evidence)
-      return json(res, entry, 201)
-    }
-
-    // GET /api/evidence/:roomId — list evidence for a room
-    if (pathname.match(/^\/api\/evidence\/\d+$/) && req.method === 'GET') {
-      const roomId = parseInt(pathname.split('/')[3])
-      const evidence = readJSON(EVIDENCE_FILE, {})
-      return json(res, evidence[roomId] || [])
     }
 
     // ── HEALTH ──
