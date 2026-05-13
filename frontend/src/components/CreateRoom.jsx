@@ -11,6 +11,7 @@ export default function CreateRoom({ wallet }) {
   const [price, setPrice] = useState(searchParams.get('price') || '')
   const [collateral, setCollateral] = useState(searchParams.get('collateral') || '')
   const [noCollateral, setNoCollateral] = useState(searchParams.get('collateral') === '0')
+  const [deliveryDays, setDeliveryDays] = useState(5)
   const counterparty = searchParams.get('counterparty') || ''
   const fromMarket = !!searchParams.get('listingId') || !!searchParams.get('item')
   const [creatorIsSeller, setCreatorIsSeller] = useState(searchParams.get('creatorIsSeller') !== 'false')
@@ -45,8 +46,8 @@ export default function CreateRoom({ wallet }) {
       const joinCode = generateJoinCode()
       const joinCodeHash = hashJoinCode(joinCode)
 
-      // Step 1: Approve USDC for collateral (if needed)
-      if (collateralWei > 0n) {
+      // Step 1: Approve USDC for collateral (only if creator is seller and collateral > 0)
+      if (creatorIsSeller && collateralWei > 0n) {
         setStep('Approving USDC…')
         try {
           const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
@@ -60,7 +61,7 @@ export default function CreateRoom({ wallet }) {
 
       // Step 2: Create room (contract pulls collateral via transferFrom)
       setStep('Creating room…')
-      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, ARC_GAS)
+      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, ARC_GAS)
       console.log('createRoom tx:', tx.hash)
       setStep('Waiting for confirmation…')
       const receipt = await tx.wait(1, 180000)
@@ -273,7 +274,7 @@ export default function CreateRoom({ wallet }) {
                   <div className="flex-1 text-center">
                     <div className="w-6 h-6 mx-auto rounded-full border border-stripe-border dark:border-white/20 text-stripe-body dark:text-gray-500 flex items-center justify-center text-[10px] font-bold mb-1">2</div>
                     <div className="text-stripe-navy dark:text-white font-medium">Seller joins</div>
-                    <div className="text-stripe-body dark:text-gray-500 mt-0.5">no cost</div>
+                    <div className="text-stripe-body dark:text-gray-500 mt-0.5">+ collateral locked</div>
                   </div>
                   <div className="text-stripe-border dark:text-white/10 mt-2">→</div>
                   <div className="flex-1 text-center">
@@ -309,53 +310,75 @@ export default function CreateRoom({ wallet }) {
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] text-stripe-body dark:text-gray-400 font-medium">USDC</span>
           </div>
 
-          {/* Collateral section — only for sellers */}
-          {creatorIsSeller && (
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400">
-                  Collateral
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={noCollateral}
-                    onChange={(e) => {
-                      setNoCollateral(e.target.checked)
-                      if (e.target.checked) setCollateral('')
-                    }}
-                    className="w-3.5 h-3.5 rounded border-stripe-border dark:border-white/20 accent-stripe-navy"
-                  />
-                  <span className="text-[11px] text-stripe-body dark:text-gray-400">No collateral</span>
-                </label>
-              </div>
-              {!noCollateral && (
-                <>
-                  <div className="relative">
-                    <input
-                      className="stripe-input"
-                      type="number"
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
-                      value={collateral}
-                      onChange={(e) => !fromMarket && setCollateral(e.target.value)}
-                      readOnly={fromMarket}
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] text-stripe-body dark:text-gray-400 font-medium">USDC</span>
-                  </div>
-                  <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
-                    Your "skin in the game." Lost if you scam.
-                  </p>
-                </>
-              )}
-              {noCollateral && (
-                <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
-                  No collateral — buyer trusts you based on reputation only.
-                </p>
-              )}
+          {/* Collateral section */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400">
+                {creatorIsSeller ? 'Collateral' : 'Required Seller Collateral'}
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noCollateral}
+                  onChange={(e) => {
+                    setNoCollateral(e.target.checked)
+                    if (e.target.checked) setCollateral('')
+                  }}
+                  className="w-3.5 h-3.5 rounded border-stripe-border dark:border-white/20 accent-stripe-navy"
+                />
+                <span className="text-[11px] text-stripe-body dark:text-gray-400">No collateral</span>
+              </label>
             </div>
-          )}
+            {!noCollateral && (
+              <>
+                <div className="relative">
+                  <input
+                    className="stripe-input"
+                    type="number"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    value={collateral}
+                    onChange={(e) => !fromMarket && setCollateral(e.target.value)}
+                    readOnly={fromMarket}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] text-stripe-body dark:text-gray-400 font-medium">USDC</span>
+                </div>
+                <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
+                  {creatorIsSeller
+                    ? "Your \"skin in the game.\" Lost if you scam."
+                    : "Seller must lock this when joining. Lost if they don't deliver."}
+                </p>
+              </>
+            )}
+            {noCollateral && (
+              <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
+                No collateral — {creatorIsSeller ? 'buyer trusts you based on reputation only.' : 'seller joins without locking funds.'}
+              </p>
+            )}
+          </div>
+
+          {/* Delivery days */}
+          <div className="mb-4">
+            <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 block mb-1.5">
+              Delivery Window
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                className="stripe-input flex-1"
+                type="number"
+                min={1}
+                max={90}
+                step={1}
+                value={deliveryDays}
+                onChange={(e) => setDeliveryDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
+              />
+              <span className="text-[13px] text-stripe-body dark:text-gray-400 font-medium">days</span>
+            </div>
+            <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
+              Seller must deliver within this window or buyer can refund + claim collateral.
+            </p>
+          </div>
 
 
 

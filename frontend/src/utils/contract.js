@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 
-export const CONTRACT_ADDRESS = '0x59Ab8013D4e65d938Ab83b235956e1881046BfB4'; // BondRoomV15 (ERC-20 approve+transferFrom)
+export const CONTRACT_ADDRESS = '0xE2d1d8438245F80f213f413f7e4F84e8EfBe9D55'; // BondRoomV16 (join collateral + per-room deadline)
 export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc USDC precompile
 
 /// Arc minimum gas params — transactions below 20 Gwei maxFeePerGas stay pending forever
@@ -56,7 +56,7 @@ export const USDC_ABI = [
 
 export const CONTRACT_ABI = [
   // Room
-  "function createRoom(string _item, uint256 _price, uint256 _collateral, bytes32 _joinCodeHash, bool _creatorIsSeller) external",
+  "function createRoom(string _item, uint256 _price, uint256 _collateral, bytes32 _joinCodeHash, bool _creatorIsSeller, uint32 _deliveryDays) external",
   "function joinRoom(uint256 _roomId, bytes _joinCode) external",
   "function fundRoom(uint256 _roomId) external",
   "function markDelivered(uint256 _roomId, bytes32 _proofHash) external",
@@ -70,7 +70,7 @@ export const CONTRACT_ABI = [
   "function leaveRoom(uint256 _roomId) external",
   "function expireRoom(uint256 _roomId) external",
   // View
-  "function getRoom(uint256 _roomId) external view returns (address creator, address counterparty, bool creatorIsSeller, string itemDescription, uint256 priceUSD, uint256 collateralAmount, uint32 createdAt, uint32 joinedAt, uint32 deliveredAt, uint32 disputedAt, uint8 state, uint256 fundedAmount, uint256 platformFee, bytes32 deliveryProofHash)",
+  "function getRoom(uint256 _roomId) external view returns (address creator, address counterparty, bool creatorIsSeller, string itemDescription, uint256 priceUSD, uint256 collateralAmount, uint32 createdAt, uint32 joinedAt, uint32 deliveredAt, uint32 disputedAt, uint32 deliveryDeadline, uint8 state, uint256 fundedAmount, uint256 platformFee, bytes32 deliveryProofHash)",
   "function verifyJoinCode(uint256 _roomId, bytes _joinCode) external view returns (bool)",
   "function roomCount() external view returns (uint256)",
   "function usdc() external view returns (address)",
@@ -87,8 +87,10 @@ export const CONTRACT_ABI = [
   "function FUND_DL() external view returns (uint256)",
   "function DELIVER_DL() external view returns (uint256)",
   "function AUTO_RELEASE() external view returns (uint256)",
+  "function MIN_DELIVERY_DAYS() external view returns (uint256)",
+  "function MAX_DELIVERY_DAYS() external view returns (uint256)",
   // Events
-  "event RoomCreated(uint256 indexed id, address indexed creator, string item, uint256 price, uint256 collateral, bool creatorIsSeller)",
+  "event RoomCreated(uint256 indexed id, address indexed creator, string item, uint256 price, uint256 collateral, bool creatorIsSeller, uint32 deliveryDeadline)",
   "event RoomJoined(uint256 indexed id, address indexed who)",
   "event RoomFunded(uint256 indexed id, uint256 amount, uint256 fee)",
   "event RoomDelivered(uint256 indexed id, bytes32 proof)",

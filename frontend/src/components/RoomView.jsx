@@ -118,9 +118,29 @@ export default function RoomView({ wallet }) {
     }
   }
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!joinCode) { setStatus({ type: 'err', msg: 'Invite link missing join code' }); return }
-    doAction((c) => c.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS), 'Joining…', 'Joined!')
+    try {
+      const signer = await wallet.provider.getSigner()
+      const contract = getContract(signer)
+
+      // If joining as seller on a buyer-created room, must lock collateral
+      if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
+        const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
+        const usdc = getUsdc(signer)
+        setStatus({ type: 'info', msg: 'Approving collateral…' })
+        const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+        await approveTx.wait(1, 180000)
+      }
+
+      setStatus({ type: 'info', msg: 'Joining…' })
+      const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
+      await tx.wait(1, 180000)
+      setStatus({ type: 'ok', msg: 'Joined!' })
+      loadRoom()
+    } catch (e) {
+      setStatus({ type: 'err', msg: e.reason || e.message })
+    }
   }
   const handleFund = async () => {
     const BPS = 10000n
