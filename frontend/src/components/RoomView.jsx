@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
+import RoomHistory from './room/RoomHistory'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -144,6 +145,7 @@ export default function RoomView({ wallet }) {
         joinedAt: Number(data.joinedAt),
         deliveredAt: Number(data.deliveredAt),
         disputedAt: Number(data.disputedAt),
+        deliveryDeadline: Number(data.deliveryDeadline),
         state: STATE_NAMES[Number(data.state)],
         value: ethers.formatUnits(data.fundedAmount, 6),
         collateralLocked: data.collateralAmount,
@@ -209,18 +211,28 @@ export default function RoomView({ wallet }) {
   }, [id, wallet])
 
   useEffect(() => {
-    if (!room || room.state !== 'Delivered' || !room.deliveredAt) return
-    const AUTO_RELEASE = 2 * 3600
-    const interval = setInterval(() => {
-      const remaining = (room.deliveredAt + AUTO_RELEASE) - Math.floor(Date.now() / 1000)
-      if (remaining <= 0) { setCountdown('Ready for auto-release!'); clearInterval(interval); return }
+    if (!room) return
+    let target = 0
+    let label = ''
+    if (room.state === 'Created' && room.createdAt) { target = room.createdAt + 3600; label = 'Join deadline' }
+    else if (room.state === 'Joined' && room.joinedAt) { target = room.joinedAt + 1800; label = 'Fund deadline' }
+    else if (room.state === 'Funded' && room.deliveryDeadline) { target = room.deliveryDeadline; label = 'Deliver deadline' }
+    else if (room.state === 'Delivered' && room.deliveredAt) { target = room.deliveredAt + 7200; label = 'Auto-release' }
+    else if (room.state === 'Disputed' && room.disputedAt) { target = room.disputedAt + 21600; label = 'Arbiter deadline' }
+    else { return }
+
+    const tick = () => {
+      const remaining = target - Math.floor(Date.now() / 1000)
+      if (remaining <= 0) { setCountdown(`${label}: expired`); return }
       const h = Math.floor(remaining / 3600)
       const m = Math.floor((remaining % 3600) / 60)
       const s = remaining % 60
-      setCountdown(`${h}h ${m}m ${s}s`)
-    }, 1000)
+      setCountdown(`${label}: ${h}h ${m}m ${s}s`)
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [room?.state, room?.deliveredAt])
+  }, [room?.state, room?.createdAt, room?.joinedAt, room?.deliveryDeadline, room?.deliveredAt, room?.disputedAt])
 
   const isCreator = account === room?.creator?.toLowerCase()
   const isCounter = account === room?.counterparty?.toLowerCase()
@@ -241,14 +253,16 @@ export default function RoomView({ wallet }) {
       ])
       if (receipt.status === 0) {
         setStatus({ type: 'err', msg: 'TX reverted on-chain' })
-      } else {
-        setStatus({ type: 'ok', msg: successMsg })
-        loadRoom()
-        loadEvidence()
+        return false
       }
+      setStatus({ type: 'ok', msg: successMsg })
+      loadRoom()
+      loadEvidence()
+      return true
     } catch (err) {
       console.error('TX failed:', err)
       setStatus({ type: 'err', msg: err.reason || err.message })
+      return false
     }
   }
 
@@ -256,7 +270,11 @@ export default function RoomView({ wallet }) {
     if (!joinCode) { setStatus({ type: 'err', msg: 'Invite link missing join code' }); return }
     try {
       const signer = await wallet.provider.getSigner()
+      await ensureArcChain(signer)
       const contract = getContract(signer)
+      // Pre-verify join code to avoid wasting gas
+      const isValid = await contract.verifyJoinCode(id, ethers.toUtf8Bytes(joinCode))
+      if (!isValid) { setStatus({ type: 'err', msg: 'Invalid invite code' }); return }
       if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
         const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
         const usdc = getUsdc(signer)
@@ -275,12 +293,12 @@ export default function RoomView({ wallet }) {
   }
 
   const handleFund = async () => {
-    const BPS = 10000n
-    const TAX = 100n
     const priceWei = ethers.parseUnits(room.price, 6)
-    const exactNeeded = (priceWei * BPS) / (BPS - TAX)
+    const feeWei = (priceWei * 100n) / 10000n
+    const exactNeeded = priceWei + feeWei
     try {
       const signer = await wallet.provider.getSigner()
+      await ensureArcChain(signer)
       const contract = getContract(signer)
       const usdc = getUsdc(signer)
       setStatus({ type: 'info', msg: 'Approving USDC…' })
@@ -298,14 +316,35 @@ export default function RoomView({ wallet }) {
 
   const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
   const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
+  const handleBuyerRefund = () => doAction((c) => c.buyerRefund(id, ARC_GAS), 'Requesting refund…', 'Refunded! You receive price + seller collateral.')
 
   const handleDispute = async () => {
     if (!disputeReason.trim()) { setStatus({ type: 'err', msg: 'Reason required' }); return }
-    await doAction(
+    const ok = await doAction(
       (c) => c.dispute(id, ARC_GAS),
       'Opening dispute…',
       'Disputed! Open a Discord ticket for arbiter review.'
     )
+    if (!ok) return
+    // Post evidence to backend after successful dispute TX
+    try {
+      if (evidenceRef.trim()) {
+        const body = {
+          submitter: wallet.address,
+          evidenceType: evidenceType || 'link',
+          description: disputeReason.trim() + (evidenceDesc.trim() ? ' | ' + evidenceDesc.trim() : ''),
+          evidenceRef: evidenceRef.trim(),
+        }
+        await fetch(`${API_URL}/api/evidence/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        loadEvidence()
+      }
+    } catch (err) {
+      console.error('Evidence POST failed:', err)
+    }
     setShowDisputeForm(false)
     setDisputeReason('')
     setEvidenceDesc('')
@@ -314,9 +353,28 @@ export default function RoomView({ wallet }) {
 
   const handleSubmitEvidence = async () => {
     if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required' }); return }
-    setStatus({ type: 'ok', msg: 'Evidence noted — share it in your Discord ticket for the arbiter.' })
-    setEvidenceDesc('')
-    setEvidenceRef('')
+    setStatus({ type: 'info', msg: 'Submitting evidence…' })
+    try {
+      const body = {
+        submitter: wallet.address,
+        evidenceType: evidenceType || 'link',
+        description: evidenceDesc.trim(),
+        evidenceRef: evidenceRef.trim(),
+      }
+      const res = await fetch(`${API_URL}/api/evidence/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error('Server rejected evidence')
+      setStatus({ type: 'ok', msg: 'Evidence submitted — share your Discord ticket link with the arbiter.' })
+      setEvidenceDesc('')
+      setEvidenceRef('')
+      loadEvidence()
+    } catch (err) {
+      console.error('Evidence POST failed:', err)
+      setStatus({ type: 'err', msg: 'Failed to submit evidence. Please copy-paste it into your Discord ticket instead.' })
+    }
   }
 
   const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling…', 'Cancelled. Collateral returned.')
@@ -343,6 +401,7 @@ export default function RoomView({ wallet }) {
     (room.state === 'Created' && (Date.now() / 1000 - room.createdAt) > 3600) ||
     (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 1800)
   )
+  const canBuyerRefund = room?.state === 'Funded' && room?.deliveryDeadline && (Date.now() / 1000) > room.deliveryDeadline
   const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 7200
 
   const role = isCreator ? (room?.creatorIsSeller ? 'seller' : 'buyer') : isCounter ? (room?.creatorIsSeller ? 'buyer' : 'seller') : null
@@ -493,6 +552,9 @@ export default function RoomView({ wallet }) {
                 </div>
               </div>
             )}
+
+            {/* Room History */}
+            <RoomHistory roomId={id} provider={wallet.provider} />
           </div>
 
           {/* RIGHT COLUMN — Actions (2/5) */}
@@ -513,11 +575,28 @@ export default function RoomView({ wallet }) {
             )}
 
             {/* Countdown */}
-            {room.state === 'Delivered' && countdown && (
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="text-[10px] font-mono uppercase tracking-[2px] text-purple-600 mb-1">Auto-Release Timer</div>
-                <div className="text-[18px] font-semibold text-purple-800 font-mono">{countdown}</div>
-                <div className="text-[11px] text-purple-600 mt-1">No action = funds released to seller</div>
+            {countdown && (
+              <div className={`rounded-lg p-4 border ${
+                countdown.includes('expired')
+                  ? 'bg-red-50 border-red-200'
+                  : room.state === 'Disputed'
+                  ? 'bg-red-50 border-red-200'
+                  : room.state === 'Funded'
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-purple-50 border-purple-200'
+              }`}>
+                <div className={`text-[10px] font-mono uppercase tracking-[2px] mb-1 ${
+                  countdown.includes('expired') ? 'text-red-600' : room.state === 'Disputed' ? 'text-red-600' : room.state === 'Funded' ? 'text-amber-600' : 'text-purple-600'
+                }`}>Deadline</div>
+                <div className={`text-[18px] font-semibold font-mono ${
+                  countdown.includes('expired') ? 'text-red-800' : room.state === 'Disputed' ? 'text-red-800' : room.state === 'Funded' ? 'text-amber-800' : 'text-purple-800'
+                }`}>{countdown}</div>
+                {room.state === 'Funded' && (
+                  <div className="text-[11px] text-amber-600 mt-1">Seller must deliver before deadline</div>
+                )}
+                {room.state === 'Delivered' && (
+                  <div className="text-[11px] text-purple-600 mt-1">No action = funds released to seller</div>
+                )}
               </div>
             )}
 
@@ -559,7 +638,13 @@ export default function RoomView({ wallet }) {
                 <button onClick={handleDeliver} className="btn-primary w-full py-3">Item Given ✓</button>
               )}
               {room.state === 'Funded' && isCounter && (
-                <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for seller to give item…</div>
+                <>
+                  {canBuyerRefund ? (
+                    <button onClick={handleBuyerRefund} className="btn-primary w-full py-3">Refund — Seller didn't deliver</button>
+                  ) : (
+                    <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for seller to give item…</div>
+                  )}
+                </>
               )}
 
               {/* DELIVERED */}

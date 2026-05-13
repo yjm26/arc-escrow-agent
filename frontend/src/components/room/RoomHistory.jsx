@@ -7,7 +7,6 @@ const EVENT_CONFIG = {
   RoomCreated: { label: 'Room created', color: 'bg-blue-500', textColor: 'text-blue-700' },
   RoomJoined: { label: 'Counterparty joined', color: 'bg-purple-500', textColor: 'text-purple-700' },
   RoomFunded: { label: 'Escrow funded', color: 'bg-amber-500', textColor: 'text-amber-700' },
-  CollateralLocked: { label: 'Collateral locked', color: 'bg-teal-500', textColor: 'text-teal-700' },
   RoomDelivered: { label: 'Item delivered', color: 'bg-green-500', textColor: 'text-green-700' },
   RoomReleased: { label: 'Funds released', color: 'bg-emerald-500', textColor: 'text-emerald-700' },
   RoomDisputed: { label: 'Dispute opened', color: 'bg-red-500', textColor: 'text-red-700' },
@@ -32,11 +31,11 @@ function getEventDetail(name, args) {
     case 'RoomCreated':
       return `${formatAddress(args.creator)} — ${args.creatorIsSeller ? 'Seller' : 'Buyer'}`
     case 'RoomJoined':
-      return formatAddress(args.counterparty)
+      return formatAddress(args.who)
     case 'RoomFunded':
       return `${Number(ethers.formatUnits(args.amount, 6)).toFixed(2)} USDC`
-    case 'CollateralLocked':
-      return `${Number(ethers.formatUnits(args.amount, 6)).toFixed(2)} USDC locked by seller`
+    case 'RoomDelivered':
+      return args.proof && args.proof !== ethers.ZeroHash ? `proof: ${args.proof.slice(0, 10)}…` : 'no proof'
     case 'RoomReleased':
       return `${Number(ethers.formatUnits(args.amount, 6)).toFixed(2)} USDC → seller`
     case 'RoomRefunded':
@@ -48,8 +47,6 @@ function getEventDetail(name, args) {
       const winner = formatAddress(args.winner)
       return args.winner === ethers.ZeroAddress ? `${amount} USDC → 50/50 split` : `${amount} USDC → ${winner}`
     }
-    case 'RoomDelivered':
-      return args.proofHash && args.proofHash !== ethers.ZeroHash ? `proof: ${args.proofHash.slice(0, 10)}…` : 'no proof'
     default:
       return ''
   }
