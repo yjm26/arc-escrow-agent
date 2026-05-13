@@ -4,7 +4,7 @@ import { ethers } from 'ethers'
 import { getContract, STATE_NAMES } from '../utils/contract'
 import { STATE_BADGE, formatAddress, TIMERS } from '../utils/constants'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
+const API_URL = import.meta.env.VITE_API_URL || 'https://bond-market-backend-production.up.railway.app'
 
 export default function RoomsPage({ wallet }) {
   const [rooms, setRooms] = useState([])
@@ -36,7 +36,7 @@ export default function RoomsPage({ wallet }) {
   async function fetchPendingRooms() {
     if (!wallet) return
     try {
-      const res = await fetch(`${API_URL}/api/room-codes?wallet=${wallet.address}`)
+      const res = await fetch(`${API_URL}/api/room-codes/${wallet.address}`)
       const data = await res.json()
       // Filter out rooms we've already joined (check on-chain)
       const contract = getContract(wallet.provider)

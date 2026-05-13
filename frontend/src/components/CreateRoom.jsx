@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS } from '../utils/contract'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
+const API_URL = import.meta.env.VITE_API_URL || 'https://bond-market-backend-production.up.railway.app'
 
 export default function CreateRoom({ wallet }) {
   const [searchParams] = useSearchParams()
