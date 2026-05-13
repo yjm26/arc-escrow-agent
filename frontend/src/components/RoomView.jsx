@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, waitForTx, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
+import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS } from '../utils/contract'
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 
 const STATE_BADGE = {
@@ -14,6 +14,82 @@ const STATE_BADGE = {
   Refunded: 'text-orange-700 bg-orange-50 border-orange-200',
   Expired: 'text-gray-600 bg-gray-50 border-gray-200',
   Cancelled: 'text-gray-600 bg-gray-50 border-gray-200',
+}
+
+const STATE_GUIDES = {
+  Created: {
+    seller: [
+      'Share the invite link with your buyer.',
+      'Room expires in 1 hour if no one joins.',
+      'You can cancel anytime before someone joins.',
+    ],
+    buyer: [
+      'Waiting for seller to share the invite link.',
+      'Once you receive it, click Join Room.',
+      'No funds are locked yet.',
+    ],
+  },
+  Joined: {
+    seller: [
+      'Buyer has joined. Waiting for them to fund.',
+      'Your collateral is locked as guarantee.',
+      'You can leave now (collateral returned).',
+    ],
+    buyer: [
+      'Fund the room with the total amount shown.',
+      'Seller collateral is locked — your funds are protected.',
+      'After funding, seller must deliver the item.',
+    ],
+  },
+  Funded: {
+    seller: [
+      'Funds are now in escrow.',
+      'Deliver the item, then click "Item Given".',
+      'Buyer will confirm receipt to release funds.',
+    ],
+    buyer: [
+      'Funds locked in escrow.',
+      'Waiting for seller to deliver and mark "Item Given".',
+      'You will confirm receipt once satisfied.',
+    ],
+  },
+  Delivered: {
+    seller: [
+      'Waiting for buyer to confirm receipt.',
+      'Auto-release happens 2 hours after delivery.',
+      'If buyer disputes, evidence will be reviewed.',
+    ],
+    buyer: [
+      'Seller marked item as delivered.',
+      'If satisfied, click "Confirm Received".',
+      'If there is an issue, open a dispute with evidence.',
+      'Auto-release to seller happens in 2 hours if no action.',
+    ],
+  },
+  Disputed: {
+    seller: [
+      'Dispute is open. Funds are frozen.',
+      'Submit evidence to support your case.',
+      'Arbiter will review and resolve on-chain.',
+    ],
+    buyer: [
+      'Dispute is open. Funds are frozen.',
+      'Submit evidence to support your case.',
+      'Arbiter will review and resolve on-chain.',
+    ],
+  },
+  Released: {
+    both: ['Deal completed. Funds released to seller.'],
+  },
+  Refunded: {
+    both: ['Deal closed. Buyer refunded.'],
+  },
+  Expired: {
+    both: ['Room expired due to inactivity.'],
+  },
+  Cancelled: {
+    both: ['Room cancelled by creator.'],
+  },
 }
 
 const TREASURY = '0xB8b4e8E7Ad2651d36b8E0D24B5EF1ae06EE2cC4a'
@@ -39,11 +115,9 @@ export default function RoomView({ wallet }) {
   const [copied, setCopied] = useState(false)
   const [ownerAddr, setOwnerAddr] = useState('')
 
-  // Reputation state
   const [creatorRep, setCreatorRep] = useState(null)
   const [counterpartyRep, setCounterpartyRep] = useState(null)
 
-  // Evidence state
   const [evidence, setEvidence] = useState([])
   const [disputeReason, setDisputeReason] = useState('')
   const [evidenceType, setEvidenceType] = useState('link')
@@ -78,7 +152,6 @@ export default function RoomView({ wallet }) {
       try { setArbiterName(await contract.arbiterName()) } catch {}
       try { setArbiterAddr(await contract.arbiter()) } catch {}
       try { setOwnerAddr(await contract.owner()) } catch {}
-      // Fetch reputation for both parties
       try {
         const [cRep, cpRep] = await Promise.all([
           fetchReputation(provider, data.creator),
@@ -98,7 +171,6 @@ export default function RoomView({ wallet }) {
       if (!wallet || !id) return
       const provider = wallet.provider
       const contract = getContract(provider)
-      // Try on-chain first
       const chainEvidence = await contract.getAllEvidence(id)
       const formatted = chainEvidence.map((e, i) => ({
         id: `chain-${i}`,
@@ -109,7 +181,6 @@ export default function RoomView({ wallet }) {
         timestamp: Number(e.timestamp) * 1000,
         source: 'chain',
       }))
-      // Also fetch from backend (for any off-chain extras)
       const res = await fetch(`${API_URL}/api/evidence/${id}`)
       const backendEvidence = res.ok ? await res.json() : []
       const backendFormatted = backendEvidence.map(e => ({
@@ -117,7 +188,6 @@ export default function RoomView({ wallet }) {
         id: `backend-${e.id}`,
         source: 'backend',
       }))
-      // Merge and dedupe by evidenceRef
       const seen = new Set()
       const merged = [...formatted, ...backendFormatted].filter(e => {
         if (seen.has(e.evidenceRef)) return false
@@ -189,7 +259,6 @@ export default function RoomView({ wallet }) {
     try {
       const signer = await wallet.provider.getSigner()
       const contract = getContract(signer)
-
       if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
         const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
         const usdc = getUsdc(signer)
@@ -197,7 +266,6 @@ export default function RoomView({ wallet }) {
         const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
         await approveTx.wait(1, 180000)
       }
-
       setStatus({ type: 'info', msg: 'Joining…' })
       const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
       await tx.wait(1, 180000)
@@ -207,6 +275,7 @@ export default function RoomView({ wallet }) {
       setStatus({ type: 'err', msg: e.reason || e.message })
     }
   }
+
   const handleFund = async () => {
     const BPS = 10000n
     const TAX = 100n
@@ -216,11 +285,9 @@ export default function RoomView({ wallet }) {
       const signer = await wallet.provider.getSigner()
       const contract = getContract(signer)
       const usdc = getUsdc(signer)
-
       setStatus({ type: 'info', msg: 'Approving USDC…' })
       const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
       await approveTx.wait(1, 180000)
-
       setStatus({ type: 'info', msg: 'Funding room…' })
       const fundTx = await contract.fundRoom(id, ARC_GAS)
       await fundTx.wait(1, 180000)
@@ -230,6 +297,7 @@ export default function RoomView({ wallet }) {
       setStatus({ type: 'err', msg: e.reason || e.message })
     }
   }
+
   const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
   const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
 
@@ -254,7 +322,6 @@ export default function RoomView({ wallet }) {
       'Submitting evidence…',
       'Evidence submitted!'
     )
-    // Also store in backend for redundancy
     try {
       await fetch(`${API_URL}/api/evidence/${id}`, {
         method: 'POST',
@@ -298,8 +365,28 @@ export default function RoomView({ wallet }) {
   )
   const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 7200
 
-  if (loading) return <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen"><div className="max-w-full sm:max-w-[500px] mx-auto"><div className="card-3d p-8 text-center"><div className="text-stripe-body dark:text-gray-400 text-[14px]">Loading room…</div></div></div></section>
-  if (!room) return <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen"><div className="max-w-full sm:max-w-[500px] mx-auto"><div className="card-3d p-8 text-center"><div className="text-red-600 text-[14px]">Room not found</div></div></div></section>
+  const role = isCreator ? (room?.creatorIsSeller ? 'seller' : 'buyer') : isCounter ? (room?.creatorIsSeller ? 'buyer' : 'seller') : null
+  const guide = room && STATE_GUIDES[room.state] ? (STATE_GUIDES[room.state][role || 'both'] || STATE_GUIDES[room.state].both) : []
+
+  if (loading) return (
+    <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
+      <div className="max-w-5xl mx-auto">
+        <div className="card-3d p-8 text-center">
+          <div className="text-stripe-body dark:text-gray-400 text-[14px]">Loading room…</div>
+        </div>
+      </div>
+    </section>
+  )
+
+  if (!room) return (
+    <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
+      <div className="max-w-5xl mx-auto">
+        <div className="card-3d p-8 text-center">
+          <div className="text-red-600 text-[14px]">Room not found</div>
+        </div>
+      </div>
+    </section>
+  )
 
   const priceUSDC = room.price
   const taxUSDC = (Number(room.price) * 0.01).toFixed(2)
@@ -308,276 +395,286 @@ export default function RoomView({ wallet }) {
 
   return (
     <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
-      <div className="max-w-full sm:max-w-[500px] mx-auto">
-        <button onClick={() => navigate(-1)} className="text-[13px] text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:text-white transition mb-4">← Back</button>
+      <div className="max-w-5xl mx-auto">
+        <button onClick={() => navigate(-1)} className="text-[13px] text-stripe-body dark:text-gray-400 hover:text-stripe-navy dark:hover:text-white transition mb-4">← Back</button>
 
-        <div className="card-3d p-6">
-          <div className="flex items-center justify-between mb-6">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <div className="text-[18px] font-semibold text-stripe-navy dark:text-white mb-1">{room.item}</div>
-              <div className="text-[13px] text-stripe-body dark:text-gray-400 font-mono">Room #{id}</div>
+              <h1 className="text-[22px] sm:text-[26px] font-semibold text-stripe-navy dark:text-white leading-tight">{room.item}</h1>
+              <div className="text-[13px] text-stripe-body dark:text-gray-400 font-mono mt-1">Room #{id}</div>
             </div>
-            <span className={`px-2.5 py-1 rounded text-[11px] font-semibold tracking-wider border ${STATE_BADGE[room.state] || 'text-gray-600 bg-gray-50 border-gray-200'}`}>
+            <span className={`px-3 py-1.5 rounded text-[12px] font-semibold tracking-wider border shrink-0 ${STATE_BADGE[room.state] || 'text-gray-600 bg-gray-50 border-gray-200'}`}>
               {room.state}
             </span>
           </div>
+        </div>
 
-          {/* Price breakdown */}
-          <div className="border border-stripe-border dark:border-white/10 rounded p-4 mb-5">
-            <PriceRow label="Item price" value={`${priceUSDC} USDC`} />
-            <PriceRow label="Tax (1%)" value={`${taxUSDC} USDC`} />
-            <PriceRow label="Total to fund" value={`${totalUSDC} USDC`} bold />
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* LEFT COLUMN — Info (3/5) */}
+          <div className="lg:col-span-3 space-y-5">
+            {/* Price */}
+            <div className="card-3d p-5">
+              <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-3">Price Breakdown</div>
+              <PriceRow label="Item price" value={`${priceUSDC} USDC`} />
+              <PriceRow label="Tax (1%)" value={`${taxUSDC} USDC`} />
+              <PriceRow label="Total to fund" value={`${totalUSDC} USDC`} bold />
+              {hasCollateral && <PriceRow label="Seller collateral" value={`${room.collateralAmount} USDC`} bold />}
+            </div>
+
+            {/* Escrow & Collateral */}
+            {Number(room.value) > 0 && (
+              <div className="card-3d p-5">
+                <div className="text-[10px] font-mono uppercase tracking-[2px] text-green-600 mb-2">In Escrow</div>
+                <div className="text-[24px] font-semibold text-green-700 font-mono">{room.value} USDC</div>
+                <div className="text-[12px] text-stripe-body dark:text-gray-400 mt-1">Locked on-chain until deal completes</div>
+              </div>
+            )}
+
             {hasCollateral && (
-              <PriceRow label="Seller collateral" value={`${room.collateralAmount} USDC`} bold />
+              <div className="card-3d p-5">
+                <div className="text-[10px] font-mono uppercase tracking-[2px] text-amber-600 mb-2">Collateral Locked</div>
+                <div className="text-[20px] font-semibold text-amber-700 font-mono">{room.collateralAmount} USDC</div>
+                <div className="text-[12px] text-stripe-body dark:text-gray-400 mt-1">
+                  {isCreator ? 'Your collateral. Refunded on success/cancel/expire.' : 'Seller collateral acts as guarantee. Refunded to seller on success.'}
+                </div>
+              </div>
             )}
-          </div>
 
-          {/* Collateral status */}
-          {hasCollateral && Number(room.collateralAmount) > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-5">
-              <div className="text-[10px] font-mono uppercase tracking-[2px] text-amber-600 mb-1">Collateral Locked</div>
-              <div className="text-[18px] font-semibold text-amber-700 font-mono">{room.collateralAmount} USDC</div>
-              <div className="text-[11px] text-amber-600 mt-1">
-                {isCreator ? 'Your collateral is locked. Refunded on success/cancel.' : 'Seller has locked collateral as guarantee.'}
+            {/* Parties */}
+            <div className="card-3d p-5">
+              <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-4">Parties</div>
+              <div className="space-y-4">
+                <PartyCard
+                  label="Creator"
+                  address={room.creator}
+                  role={room.creatorIsSeller ? 'Seller' : 'Buyer'}
+                  isYou={isCreator}
+                  reputation={creatorRep}
+                />
+                {room.counterparty !== '0x0000000000000000000000000000000000000000' ? (
+                  <PartyCard
+                    label="Counterparty"
+                    address={room.counterparty}
+                    role={room.creatorIsSeller ? 'Buyer' : 'Seller'}
+                    isYou={isCounter}
+                    reputation={counterpartyRep}
+                  />
+                ) : (
+                  <div className="text-[13px] text-stripe-body dark:text-gray-400 py-3 border border-dashed border-stripe-border dark:border-white/10 rounded px-3">
+                    Waiting for counterparty to join…
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 pt-4 border-t border-stripe-border dark:border-white/10">
+                <div className="text-[13px] text-stripe-body dark:text-gray-400">
+                  You are: <span className="font-medium text-stripe-navy dark:text-white">{isCreator ? (room.creatorIsSeller ? 'Seller' : 'Buyer') : isCounter ? (room.creatorIsSeller ? 'Buyer' : 'Seller') : 'Viewer'}</span>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Auto-release countdown */}
-          {room.state === 'Delivered' && countdown && (
-            <div className="bg-purple-50 border border-purple-200 rounded p-3 mb-5 text-[13px] text-purple-800">
-              ⏰ Auto-release: <span className="font-mono font-semibold">{countdown}</span>
-              <br/>No action = funds + collateral released to seller after 2h
-            </div>
-          )}
-
-          {/* In escrow */}
-          {Number(room.value) > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded p-3 mb-5">
-              <div className="text-[10px] font-mono uppercase tracking-[2px] text-green-600 mb-1">In Escrow</div>
-              <div className="text-[18px] font-semibold text-green-700 font-mono">{room.value} USDC</div>
-            </div>
-          )}
-
-          {/* Parties */}
-          <div className="border border-stripe-border dark:border-white/10 rounded p-4 mb-5">
-            <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-3">Parties</div>
-            <PartyRow label="Creator" address={room.creator} role={room.creatorIsSeller ? 'Seller' : 'Buyer'} isYou={isCreator} reputation={creatorRep} />
-            {room.counterparty !== '0x0000000000000000000000000000000000000000' ? (
-              <PartyRow label="Counter" address={room.counterparty} role={room.creatorIsSeller ? 'Buyer' : 'Seller'} isYou={isCounter} reputation={counterpartyRep} />
-            ) : (
-              <div className="text-[13px] text-stripe-body dark:text-gray-400 py-2">Waiting for counter party…</div>
+            {/* Evidence (if disputed) */}
+            {room.state === 'Disputed' && evidence.length > 0 && (
+              <div className="card-3d p-5">
+                <div className="text-[10px] font-mono uppercase tracking-[2px] text-red-600 mb-3">Submitted Evidence</div>
+                <div className="space-y-2">
+                  {evidence.map((ev) => (
+                    <div key={ev.id} className="border border-red-100 rounded p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <span className="text-[11px] font-medium text-red-700 uppercase">{ev.evidenceType}</span>
+                        <span className="text-[10px] text-gray-400 shrink-0">{formatAddress(ev.submitter)}</span>
+                      </div>
+                      {ev.description && <div className="text-[12px] text-gray-600 mt-1">{ev.description}</div>}
+                      <div className="text-[11px] text-blue-600 mt-1 break-all">
+                        {ev.evidenceRef.startsWith('http') ? (
+                          <a href={ev.evidenceRef} target="_blank" rel="noopener noreferrer" className="hover:underline">🔗 {ev.evidenceRef}</a>
+                        ) : (
+                          <span className="font-mono">{ev.evidenceRef}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-            <div className="text-[13px] text-stripe-body dark:text-gray-400 py-2">
-              You are: <span className="font-medium text-stripe-navy dark:text-white">{isCreator ? (room.creatorIsSeller ? 'Seller' : 'Buyer') : isCounter ? (room.creatorIsSeller ? 'Buyer' : 'Seller') : 'Viewer'}</span>
-            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-3 mb-4">
-            {/* CREATED */}
-            {room.state === 'Created' && !isCreator && (
-              <button onClick={handleJoin} disabled={!joinCode} className="btn-primary w-full py-3">
-                {!joinCode ? '⚠️ Need invite link' : 'Join Room (FREE)'}
-              </button>
+          {/* RIGHT COLUMN — Actions (2/5) */}
+          <div className="lg:col-span-2 space-y-5">
+            {/* State Guide */}
+            {guide.length > 0 && (
+              <div className="card-3d p-5">
+                <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-3">What to do</div>
+                <ul className="space-y-2">
+                  {guide.map((g, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[13px] text-stripe-body dark:text-gray-300">
+                      <span className="text-blue-500 mt-0.5 shrink-0">•</span>
+                      {g}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-            {room.state === 'Created' && isCreator && (
-              <>
-                <button onClick={copyInvite} className="btn-primary w-full py-3">
-                  {copied ? '✓ Copied!' : 'Copy Invite Link'}
+
+            {/* Countdown */}
+            {room.state === 'Delivered' && countdown && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="text-[10px] font-mono uppercase tracking-[2px] text-purple-600 mb-1">Auto-Release Timer</div>
+                <div className="text-[18px] font-semibold text-purple-800 font-mono">{countdown}</div>
+                <div className="text-[11px] text-purple-600 mt-1">No action = funds released to seller</div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="card-3d p-5 space-y-3">
+              <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-1">Actions</div>
+
+              {/* CREATED */}
+              {room.state === 'Created' && !isCreator && (
+                <button onClick={handleJoin} disabled={!joinCode} className="btn-primary w-full py-3">
+                  {!joinCode ? '⚠️ Need invite link' : 'Join Room (FREE)'}
                 </button>
-                <button onClick={handleCancel} className="btn-ghost w-full py-3">Cancel Room</button>
-              </>
-            )}
+              )}
+              {room.state === 'Created' && isCreator && (
+                <>
+                  <button onClick={copyInvite} className="btn-primary w-full py-3">
+                    {copied ? '✓ Copied!' : 'Copy Invite Link'}
+                  </button>
+                  <button onClick={handleCancel} className="btn-ghost w-full py-3">Cancel Room</button>
+                </>
+              )}
 
-            {/* JOINED */}
-            {room.state === 'Joined' && isCounter && (
-              <>
-                <button onClick={handleFund} className="btn-primary w-full py-3">Fund {totalUSDC} USDC</button>
-                <button onClick={handleLeave} className="btn-ghost w-full py-3">Leave Room</button>
-              </>
-            )}
-            {room.state === 'Joined' && isCreator && (
-              <>
-                <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to fund…</div>
-                <button onClick={handleLeave} className="btn-ghost w-full py-3">Leave Room</button>
-              </>
-            )}
+              {/* JOINED */}
+              {room.state === 'Joined' && isCounter && (
+                <>
+                  <button onClick={handleFund} className="btn-primary w-full py-3">Fund {totalUSDC} USDC</button>
+                  <button onClick={handleLeave} className="btn-ghost w-full py-3">Leave Room</button>
+                </>
+              )}
+              {room.state === 'Joined' && isCreator && (
+                <>
+                  <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for buyer to fund…</div>
+                  <button onClick={handleLeave} className="btn-ghost w-full py-3">Leave Room</button>
+                </>
+              )}
 
-            {/* FUNDED */}
-            {room.state === 'Funded' && isCreator && (
-              <button onClick={handleDeliver} className="btn-primary w-full py-3">Item Given ✓</button>
-            )}
-            {room.state === 'Funded' && isCounter && (
-              <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for seller to give item…</div>
-            )}
+              {/* FUNDED */}
+              {room.state === 'Funded' && isCreator && (
+                <button onClick={handleDeliver} className="btn-primary w-full py-3">Item Given ✓</button>
+              )}
+              {room.state === 'Funded' && isCounter && (
+                <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for seller to give item…</div>
+              )}
 
-            {/* DELIVERED */}
-            {room.state === 'Delivered' && isCounter && (
-              <>
-                <button onClick={handleRelease} className="btn-primary w-full py-3">Confirm Received</button>
-                <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">⚖️ Open Dispute + Evidence</button>
-              </>
-            )}
-            {room.state === 'Delivered' && isCreator && canAutoRelease && (
-              <button onClick={handleAutoRelease} className="btn-ghost w-full py-3">⏰ Claim Auto-Release</button>
-            )}
-            {room.state === 'Delivered' && isCreator && !canAutoRelease && (
-              <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to confirm receipt…</div>
-            )}
+              {/* DELIVERED */}
+              {room.state === 'Delivered' && isCounter && (
+                <>
+                  <button onClick={handleRelease} className="btn-primary w-full py-3">Confirm Received</button>
+                  <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">⚖️ Open Dispute + Evidence</button>
+                </>
+              )}
+              {room.state === 'Delivered' && isCreator && canAutoRelease && (
+                <button onClick={handleAutoRelease} className="btn-primary w-full py-3">⏰ Claim Auto-Release</button>
+              )}
+              {room.state === 'Delivered' && isCreator && !canAutoRelease && (
+                <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for buyer to confirm…</div>
+              )}
 
-            {/* Dispute Form */}
-            {showDisputeForm && room.state === 'Delivered' && (
-              <div className="bg-red-50 border border-red-200 rounded p-4 space-y-3">
-                <div className="text-[13px] font-medium text-red-700">⚖️ Open Dispute</div>
-                <div className="text-[11px] text-red-500">Explain the problem and attach evidence (screenshot link, tx hash, etc.)</div>
-                <input
-                  type="text"
-                  placeholder="Reason for dispute"
-                  value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
-                />
-                <select
-                  value={evidenceType}
-                  onChange={(e) => setEvidenceType(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
-                >
-                  <option value="link">Link / URL</option>
-                  <option value="screenshot">Screenshot</option>
-                  <option value="tx_hash">Transaction Hash</option>
-                  <option value="text">Text / Description</option>
-                  <option value="other">Other</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Description (optional)"
-                  value={evidenceDesc}
-                  onChange={(e) => setEvidenceDesc(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Evidence URL / link / hash"
-                  value={evidenceRef}
-                  onChange={(e) => setEvidenceRef(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white"
-                />
-                <div className="flex gap-2">
-                  <button onClick={handleDispute} className="btn-primary flex-1 py-2.5 text-[13px]">Submit Dispute</button>
-                  <button onClick={() => setShowDisputeForm(false)} className="btn-ghost flex-1 py-2.5 text-[13px]">Cancel</button>
+              {/* Dispute Form */}
+              {showDisputeForm && room.state === 'Delivered' && (
+                <div className="bg-red-50 border border-red-200 rounded p-4 space-y-3">
+                  <div className="text-[13px] font-medium text-red-700">⚖️ Open Dispute</div>
+                  <div className="text-[11px] text-red-500">Explain the problem and attach evidence (screenshot link, tx hash, etc.)</div>
+                  <input type="text" placeholder="Reason for dispute" value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white" />
+                  <select value={evidenceType} onChange={(e) => setEvidenceType(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white">
+                    <option value="link">Link / URL</option>
+                    <option value="screenshot">Screenshot</option>
+                    <option value="tx_hash">Transaction Hash</option>
+                    <option value="text">Text / Description</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white" />
+                  <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white" />
+                  <div className="flex gap-2">
+                    <button onClick={handleDispute} className="btn-primary flex-1 py-2.5 text-[13px]">Submit Dispute</button>
+                    <button onClick={() => setShowDisputeForm(false)} className="btn-ghost flex-1 py-2.5 text-[13px]">Cancel</button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* DISPUTED */}
-            {room.state === 'Disputed' && (
-              <div className="bg-red-50 border border-red-200 rounded p-4">
-                <div className="text-[13px] text-red-700 font-medium text-center mb-1">⚖️ Under Dispute — Fund Frozen</div>
-                <div className="text-[12px] text-red-500 text-center mb-3">
-                  {arbiterName} will review evidence and decide on-chain
+              {/* DISPUTED */}
+              {room.state === 'Disputed' && (
+                <div className="bg-red-50 border border-red-200 rounded p-4">
+                  <div className="text-[13px] text-red-700 font-medium text-center mb-1">⚖️ Under Dispute</div>
+                  <div className="text-[12px] text-red-500 text-center mb-3">{arbiterName} will review evidence and decide on-chain</div>
+
+                  {isParticipant && (
+                    <>
+                      <button onClick={() => setShowEvidenceForm(!showEvidenceForm)} className="btn-ghost w-full py-2 text-[12px] mb-2">+ Add More Evidence</button>
+                      {showEvidenceForm && (
+                        <div className="bg-white border border-red-100 rounded p-3 space-y-2">
+                          <select value={evidenceType} onChange={(e) => setEvidenceType(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px]">
+                            <option value="link">Link / URL</option>
+                            <option value="screenshot">Screenshot</option>
+                            <option value="tx_hash">Transaction Hash</option>
+                            <option value="text">Text / Description</option>
+                            <option value="other">Other</option>
+                          </select>
+                          <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px]" />
+                          <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px]" />
+                          <div className="flex gap-2">
+                            <button onClick={handleSubmitEvidence} className="btn-primary flex-1 py-2 text-[12px]">Submit</button>
+                            <button onClick={() => setShowEvidenceForm(false)} className="btn-ghost flex-1 py-2 text-[12px]">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {isAdmin && (
+                    <div className="flex flex-col gap-2 mt-3">
+                      <button onClick={handleArbRelease} className="btn-primary w-full py-2.5 text-[13px]">Release to Seller</button>
+                      <button onClick={handleArbRefund} className="btn-ghost w-full py-2.5 text-[13px]">Refund to Buyer</button>
+                      <button onClick={handleArbSplit} className="btn-ghost w-full py-2.5 text-[13px]">50/50 Split</button>
+                    </div>
+                  )}
+                  {!isAdmin && (
+                    <div className="text-[12px] text-red-500 text-center mt-2">Awaiting arbiter decision. Funds are safe.</div>
+                  )}
                 </div>
+              )}
 
-                {/* Evidence List */}
-                {evidence.length > 0 && (
-                  <div className="mb-4 space-y-2">
-                    <div className="text-[11px] font-mono uppercase tracking-[2px] text-red-600">Submitted Evidence</div>
-                    {evidence.map((ev) => (
-                      <div key={ev.id} className="bg-white border border-red-100 rounded p-2.5">
-                        <div className="flex justify-between items-start">
-                          <div className="text-[11px] font-medium text-red-700">{ev.evidenceType}</div>
-                          <div className="text-[10px] text-gray-400">{formatAddress(ev.submitter)}</div>
-                        </div>
-                        {ev.description && <div className="text-[12px] text-gray-600 mt-1">{ev.description}</div>}
-                        <div className="text-[11px] text-blue-600 mt-1 break-all">
-                          {ev.evidenceRef.startsWith('http') ? (
-                            <a href={ev.evidenceRef} target="_blank" rel="noopener noreferrer" className="hover:underline">🔗 {ev.evidenceRef}</a>
-                          ) : (
-                            <span className="font-mono">{ev.evidenceRef}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* EXPIRE */}
+              {canExpire && (
+                <button onClick={handleExpire} className="btn-ghost w-full py-2.5 text-[12px]">⏰ Expire Stale Room</button>
+              )}
 
-                {/* Submit more evidence */}
-                {isParticipant && (
-                  <>
-                    <button onClick={() => setShowEvidenceForm(!showEvidenceForm)} className="btn-ghost w-full py-2 text-[12px] mb-2">
-                      + Add More Evidence
-                    </button>
-                    {showEvidenceForm && (
-                      <div className="bg-white border border-red-100 rounded p-3 space-y-2">
-                        <select
-                          value={evidenceType}
-                          onChange={(e) => setEvidenceType(e.target.value)}
-                          className="w-full px-3 py-2 rounded border border-red-200 text-[13px]"
-                        >
-                          <option value="link">Link / URL</option>
-                          <option value="screenshot">Screenshot</option>
-                          <option value="tx_hash">Transaction Hash</option>
-                          <option value="text">Text / Description</option>
-                          <option value="other">Other</option>
-                        </select>
-                        <input
-                          type="text"
-                          placeholder="Description (optional)"
-                          value={evidenceDesc}
-                          onChange={(e) => setEvidenceDesc(e.target.value)}
-                          className="w-full px-3 py-2 rounded border border-red-200 text-[13px]"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Evidence URL / link / hash"
-                          value={evidenceRef}
-                          onChange={(e) => setEvidenceRef(e.target.value)}
-                          className="w-full px-3 py-2 rounded border border-red-200 text-[13px]"
-                        />
-                        <div className="flex gap-2">
-                          <button onClick={handleSubmitEvidence} className="btn-primary flex-1 py-2 text-[12px]">Submit</button>
-                          <button onClick={() => setShowEvidenceForm(false)} className="btn-ghost flex-1 py-2 text-[12px]">Cancel</button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {isAdmin && (
-                  <div className="flex flex-col gap-2 mt-3">
-                    <button onClick={handleArbRelease} className="btn-primary w-full py-2.5 text-[13px]">Release to Seller (price + collateral)</button>
-                    <button onClick={handleArbRefund} className="btn-ghost w-full py-2.5 text-[13px]">Refund to Buyer (price + collateral)</button>
-                    <button onClick={handleArbSplit} className="btn-ghost w-full py-2.5 text-[13px]">50/50 Split</button>
-                  </div>
-                )}
-                {!isAdmin && (
-                  <div className="text-[12px] text-red-500 text-center mt-2">
-                    Awaiting arbiter decision. Funds are safe.
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* EXPIRE */}
-            {canExpire && (
-              <button onClick={handleExpire} className="btn-ghost w-full py-2.5 text-[12px]">⏰ Expire Stale Room</button>
-            )}
-
-            {/* TERMINAL */}
-            {['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room.state) && (
-              <div className="text-stripe-body dark:text-gray-400 text-[13px] text-center py-2">This deal is closed.</div>
-            )}
-          </div>
-
-          {status && (
-            <div className={`mt-1 px-4 py-2.5 rounded text-[13px] font-medium border ${
-              status.type === 'ok' ? 'bg-green-50 text-green-700 border-green-100'
-              : status.type === 'err' ? 'bg-red-50 text-red-600 border-red-100'
-              : 'bg-blue-50 text-blue-700 border-blue-100'
-            }`}>
-              {status.msg}
+              {/* TERMINAL */}
+              {['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room.state) && (
+                <div className="text-stripe-body dark:text-gray-400 text-[13px] text-center py-2 bg-gray-50 dark:bg-white/5 rounded">This deal is closed.</div>
+              )}
             </div>
-          )}
+
+            {/* Status */}
+            {status && (
+              <div className={`px-4 py-3 rounded text-[13px] font-medium border ${
+                status.type === 'ok' ? 'bg-green-50 text-green-700 border-green-100'
+                : status.type === 'err' ? 'bg-red-50 text-red-600 border-red-100'
+                : 'bg-blue-50 text-blue-700 border-blue-100'
+              }`}>
+                {status.msg}
+              </div>
+            )}
+
+            {/* Arbiter Info */}
+            <div className="card-3d p-4">
+              <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Arbiter</div>
+              <div className="text-[13px] text-stripe-navy dark:text-white font-medium">{arbiterName}</div>
+              <div className="text-[11px] text-stripe-body dark:text-gray-400 font-mono mt-0.5">{formatAddress(arbiterAddr)}</div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -586,49 +683,88 @@ export default function RoomView({ wallet }) {
 
 function PriceRow({ label, value, bold }) {
   return (
-    <div className={`flex justify-between text-[13px] py-1.5 ${bold ? 'font-medium' : ''} border-b border-stripe-border dark:border-white/10 last:border-b-0`}>
+    <div className={`flex justify-between text-[13px] py-2 ${bold ? 'font-medium' : ''} border-b border-stripe-border dark:border-white/10 last:border-b-0`}>
       <span className="text-stripe-body dark:text-gray-400">{label}</span>
       <span className="text-stripe-navy dark:text-white font-mono" style={{ fontFeatureSettings: '"tnum"' }}>{value}</span>
     </div>
   )
 }
 
-function PartyRow({ label, address, role, isYou, reputation }) {
+function PartyCard({ label, address, role, isYou, reputation }) {
   const badge = reputation ? getReputationBadge(reputation) : null
   const collBadge = reputation ? getCollateralBadge(reputation.multiplier) : null
   return (
-    <div className="flex justify-between items-start py-2 border-b border-stripe-border dark:border-white/10 last:border-b-0">
-      <div className="flex flex-col gap-1">
+    <div className="border border-stripe-border dark:border-white/10 rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] text-stripe-navy dark:text-white font-mono">{formatAddress(address)}</span>
-          {isYou && <span className="text-[10px] text-purple-600 font-medium">(you)</span>}
-          {badge && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${badge.color} font-medium`}>
-              {badge.label}
-            </span>
+          <span className="text-[11px] font-mono uppercase tracking-wider text-stripe-body dark:text-gray-400">{label}</span>
+          {isYou && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 border border-purple-200 font-medium">YOU</span>}
+        </div>
+        <span className="text-[12px] text-stripe-body dark:text-gray-400 shrink-0">{role}</span>
+      </div>
+
+      <div className="text-[14px] font-mono text-stripe-navy dark:text-white mb-3">{formatAddress(address)}</div>
+
+      {reputation && reputation.totalDeals > 0 ? (
+        <div className="space-y-2">
+          {/* Reputation Badge */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {badge && (
+              <span className={`text-[11px] px-2 py-1 rounded border ${badge.color} font-medium`}>
+                {badge.label}
+              </span>
+            )}
+            {collBadge && (
+              <span className={`text-[11px] px-2 py-1 rounded border ${collBadge.color} font-medium`}>
+                Collateral {collBadge.label}
+              </span>
+            )}
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-4 gap-2 mt-2">
+            <div className="text-center p-2 bg-gray-50 dark:bg-white/5 rounded">
+              <div className="text-[14px] font-semibold text-stripe-navy dark:text-white">{reputation.totalDeals}</div>
+              <div className="text-[10px] text-stripe-body dark:text-gray-400">Deals</div>
+            </div>
+            <div className="text-center p-2 bg-green-50 rounded">
+              <div className="text-[14px] font-semibold text-green-700">{reputation.success}</div>
+              <div className="text-[10px] text-green-600">Success</div>
+            </div>
+            <div className="text-center p-2 bg-red-50 rounded">
+              <div className="text-[14px] font-semibold text-red-700">{reputation.dispute}</div>
+              <div className="text-[10px] text-red-600">Dispute</div>
+            </div>
+            <div className="text-center p-2 bg-gray-50 dark:bg-white/5 rounded">
+              <div className="text-[14px] font-semibold text-stripe-navy dark:text-white">{reputation.successRate}%</div>
+              <div className="text-[10px] text-stripe-body dark:text-gray-400">Rate</div>
+            </div>
+          </div>
+
+          {/* Success Rate Bar */}
+          <div className="mt-2">
+            <div className="flex justify-between text-[10px] text-stripe-body dark:text-gray-400 mb-1">
+              <span>Success rate</span>
+              <span>{reputation.successRate}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${reputation.successRate}%`,
+                  backgroundColor: reputation.successRate >= 90 ? '#10b981' : reputation.successRate >= 70 ? '#f59e0b' : '#ef4444',
+                }}
+              />
+            </div>
+          </div>
+
+          {collBadge && (
+            <div className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">{collBadge.desc}</div>
           )}
         </div>
-        {reputation && reputation.totalDeals > 0 && (
-          <div className="flex items-center gap-2 text-[11px] text-gray-500">
-            <span>{reputation.success} success</span>
-            <span>·</span>
-            <span>{reputation.dispute} dispute</span>
-            <span>·</span>
-            <span>{reputation.refunded} refunded</span>
-            <span>·</span>
-            <span>{reputation.successRate}% rate</span>
-          </div>
-        )}
-        {collBadge && (
-          <div className="flex items-center gap-1">
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${collBadge.color} font-medium`}>
-              Collateral: {collBadge.label}
-            </span>
-            <span className="text-[10px] text-gray-400">{collBadge.desc}</span>
-          </div>
-        )}
-      </div>
-      <span className="text-[12px] text-stripe-body dark:text-gray-400 shrink-0">{role}</span>
+      ) : (
+        <div className="text-[12px] text-stripe-body dark:text-gray-400">No reputation history yet</div>
+      )}
     </div>
   )
 }
