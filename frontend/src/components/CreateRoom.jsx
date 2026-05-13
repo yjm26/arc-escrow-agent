@@ -24,10 +24,20 @@ export default function CreateRoom({ wallet }) {
     if (!wallet || !item || !price) return
     setLoading(true)
     setError('')
-    setStep('Creating room…')
+    setStep('Checking limits…')
     try {
       const signer = await wallet.provider.getSigner()
       const contract = getContract(signer)
+
+      // Check active room limit before spending gas
+      const [active, maxActive] = await Promise.all([
+        contract.activeRooms(wallet.address),
+        contract.MAX_ACTIVE(),
+      ])
+      if (active >= maxActive) {
+        throw new Error(`You have ${active} active room(s) (max ${maxActive}). Complete, release, or cancel one first.`)
+      }
+
       const usdc = getUsdc(signer)
       const priceWei = ethers.parseUnits(price, 6)
       const collateralValue = noCollateral ? '0' : collateral
