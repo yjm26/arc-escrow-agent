@@ -3,3 +3,7 @@ node_modules/
 artifacts/
 cache/
 typechain-types/
+
+__pycache__/
+*.pyc
+apply-refactor.py
