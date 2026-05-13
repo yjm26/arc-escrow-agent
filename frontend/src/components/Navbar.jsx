@@ -1,54 +1,102 @@
-import { BONDROOM_ADDRESS } from '../lib/contract'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { BONDROOM_ADDRESS as CONTRACT_ADDRESS } from '../lib/contract'
+import NotificationBell from './NotificationBell'
+import ThemeToggle from './ThemeToggle'
 
-export default function Navbar({ onConnect, wallet, connecting }) {
+export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) {
+  const [showWalletMenu, setShowWalletMenu] = useState(false)
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-white/95 backdrop-blur-xl border-b border-stripe-border">
-      <a href="/" className="flex items-center gap-2.5">
-        <div className="w-7 h-7 bg-stripe-navy rounded flex items-center justify-center">
-          <span className="text-white text-xs font-bold font-mono">B</span>
+    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-[#faf9f7]/95 dark:bg-[#0c0f1a]/95 backdrop-blur-xl border-b border-stripe-border dark:border-white/10">
+      <Link to="/" className="flex items-center gap-2.5">
+        <div className="w-7 h-7 bg-stripe-navy dark:bg-white rounded-md flex items-center justify-center">
+          <span className="text-white dark:text-[#0c0f1a] text-xs font-bold font-mono">B</span>
         </div>
-        <span className="font-semibold text-[17px] tracking-tight text-stripe-navy">BOND</span>
-      </a>
+        <span className="font-semibold text-[17px] tracking-tight text-stripe-navy dark:text-white">BOND</span>
+      </Link>
 
-      <div className="hidden md:flex items-center gap-7">
-        <a href="/#how" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy transition-colors">How it works</a>
+      {/* Mobile menu button */}
+        <button className="md:hidden p-2 text-stripe-navy dark:text-white" onClick={() => document.getElementById('mobile-menu')?.classList.toggle('hidden')}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+        </button>
+        <div className="hidden md:flex items-center gap-7">
+        <Link to="/#how" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">How it works</Link>
+        <Link to="/docs" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Docs</Link>
+        <Link to="/market" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Market</Link>
         <a
-          href={`https://testnet.arcscan.app/address/${BONDROOM_ADDRESS}`}
-          target="_blank"
-          rel="noopener"
-          className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy transition-colors"
+          href={`https://testnet.arcscan.io/address/${CONTRACT_ADDRESS}`}
+          target="_blank" rel="noopener"
+          className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors"
         >
           Contract
         </a>
         <a
           href="https://github.com/yjm26/arc-escrow-agent"
-          target="_blank"
-          rel="noopener"
-          className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy transition-colors"
+          target="_blank" rel="noopener"
+          className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors"
         >
           GitHub
         </a>
 
+        <ThemeToggle />
+
         {wallet ? (
           <>
-            <a href="/rooms" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy transition-colors">
+            <Link to="/rooms" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">
               My Rooms
-            </a>
-            <div
-              className="flex items-center gap-2 px-4 py-2 bg-stripe-surface border border-stripe-border rounded text-[13px] font-mono"
-              style={{ boxShadow: '0 2px 8px rgba(50,50,93,0.12)' }}
-            >
-              <span className="w-2 h-2 bg-stripe-success rounded-full" />
-              <span className="text-stripe-purple font-medium">
-                {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
-              </span>
+            </Link>
+            <Link to="/offers" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">
+              Offers
+            </Link>
+            <div className="relative">
+              <button onClick={() => setShowWalletMenu(!showWalletMenu)} className="flex items-center gap-2 px-4 py-2 bg-stripe-surface dark:bg-white/5 border border-stripe-border dark:border-white/10 rounded-md text-[13px] font-mono hover:border-stripe-navy dark:hover:border-white/20 transition">
+                <span className="w-2 h-2 bg-stripe-success rounded-full" />
+                <span className="text-stripe-navy dark:text-gray-200">
+                  {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
+                </span>
+                <svg className="w-3 h-3 text-zinc-400 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {showWalletMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowWalletMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-[#1a1d2e] border border-stripe-border dark:border-white/10 rounded-md shadow-lg z-50 overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-stripe-border dark:border-white/10">
+                      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 mb-0.5">Connected</div>
+                      <div className="font-mono text-[12px] text-stripe-navy dark:text-gray-200">{wallet.address.slice(0, 10)}…{wallet.address.slice(-6)}</div>
+                    </div>
+                    <a href={`https://testnet.arcscan.io/address/${wallet.address}`} target="_blank" rel="noopener" className="block px-4 py-2.5 text-[13px] text-stripe-body hover:bg-stripe-surface hover:text-stripe-navy dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white transition">
+                      View on Explorer
+                    </a>
+                    <button onClick={() => { onDisconnect(); setShowWalletMenu(false) }} className="w-full text-left px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition">
+                      Disconnect
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-            <a href="/create" className="btn-primary text-[14px]">
+            <NotificationBell wallet={wallet} />
+            <Link to="/create" className="btn-primary text-[14px]">
               Create Room
-            </a>
+            </Link>
           </>
         ) : (
           <button onClick={onConnect} disabled={connecting} className="btn-primary">
+            {connecting ? 'Connecting…' : 'Connect Wallet'}
+          </button>
+        )}
+      </div>
+          {/* Mobile menu */}
+      <div id="mobile-menu" className="hidden md:hidden fixed top-[60px] left-0 right-0 bg-[#faf9f7] dark:bg-[#0c0f1a] border-b border-stripe-border dark:border-white/10 p-6 space-y-4 z-40">
+        <Link to="/#how" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">How it works</Link>
+        <ThemeToggle />
+        {wallet ? (
+          <>
+            <Link to="/rooms" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400">My Rooms</Link>
+            <Link to="/create" className="btn-primary block text-center text-[14px]">Create Room</Link>
+          </>
+        ) : (
+          <button onClick={onConnect} disabled={connecting} className="btn-primary w-full">
             {connecting ? 'Connecting…' : 'Connect Wallet'}
           </button>
         )}
