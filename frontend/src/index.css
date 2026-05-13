@@ -153,4 +153,28 @@
   .dark .tab-btn:not(.active):hover {
     @apply text-white border-white/30;
   }
+
+  /* ── Listing Card Grid ── */
+  .listing-card {
+    background: #ffffff;
+    box-shadow: none;
+  }
+  .listing-card:hover {
+    box-shadow: rgba(23,23,23,0.08) 0px 15px 35px;
+    transform: translateY(-1px);
+  }
+  .dark .listing-card {
+    background: rgba(255,255,255,0.03);
+  }
+  .dark .listing-card:hover {
+    box-shadow: rgba(0,0,0,0.2) 0px 15px 35px;
+  }
+
+  /* line-clamp fallback */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
