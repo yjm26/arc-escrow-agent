@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 
-export const CONTRACT_ADDRESS = '0x1Ed87FEa4B319044CD4DdcEf08f32D7465F7DbA1'; // BondRoomV17 (reputation + arbiter fee)
+export const CONTRACT_ADDRESS = '0x019A88470A1989eE0b13f53b65C0Fe7194b219c0'; // BondRoomV18 (owner+arbiter dispute resolution)
 export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc USDC precompile
 
 /// Arc minimum gas params — transactions below 20 Gwei maxFeePerGas stay pending forever
@@ -73,6 +73,7 @@ export const CONTRACT_ABI = [
   "function getRoom(uint256 _roomId) external view returns (address creator, address counterparty, bool creatorIsSeller, string itemDescription, uint256 priceUSD, uint256 collateralAmount, uint32 createdAt, uint32 joinedAt, uint32 deliveredAt, uint32 disputedAt, uint32 deliveryDeadline, uint8 state, uint256 fundedAmount, uint256 platformFee, bytes32 deliveryProofHash)",
   "function verifyJoinCode(uint256 _roomId, bytes _joinCode) external view returns (bool)",
   "function roomCount() external view returns (uint256)",
+  "function owner() external view returns (address)",
   "function usdc() external view returns (address)",
   "function treasury() external view returns (address)",
   "function arbiter() external view returns (address)",

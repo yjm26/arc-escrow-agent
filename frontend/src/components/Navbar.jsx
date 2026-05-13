@@ -1,11 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CONTRACT_ADDRESS } from '../utils/contract'
+import { getContract, CONTRACT_ADDRESS } from '../utils/contract'
 import NotificationBell from './NotificationBell'
 import ThemeToggle from './ThemeToggle'
 
 export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) {
   const [showWalletMenu, setShowWalletMenu] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    if (!wallet) { setIsAdmin(false); return }
+    const provider = wallet.provider
+    const contract = getContract(provider)
+    Promise.all([
+      contract.owner().catch(() => ''),
+      contract.arbiter().catch(() => ''),
+    ]).then(([owner, arbiter]) => {
+      const addr = wallet.address.toLowerCase()
+      setIsAdmin(addr === owner.toLowerCase() || addr === arbiter.toLowerCase())
+    })
+  }, [wallet])
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-[#faf9f7]/95 dark:bg-[#0c0f1a]/95 backdrop-blur-xl border-b border-stripe-border dark:border-white/10">
@@ -52,6 +66,7 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
             <div className="relative">
               <button onClick={() => setShowWalletMenu(!showWalletMenu)} className="flex items-center gap-2 px-4 py-2 bg-stripe-surface dark:bg-white/5 border border-stripe-border dark:border-white/10 rounded-md text-[13px] font-mono hover:border-stripe-navy dark:hover:border-white/20 transition">
                 <span className="w-2 h-2 bg-stripe-success rounded-full" />
+                {isAdmin && <span className="text-[9px] bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold tracking-wider">ADMIN</span>}
                 <span className="text-stripe-navy dark:text-gray-200">
                   {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
                 </span>

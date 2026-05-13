@@ -7,7 +7,7 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
-contract BondRoomV17 {
+contract BondRoomV18 {
     // ─── State ───
     address public owner;
     IERC20 public usdc;

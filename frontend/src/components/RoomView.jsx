@@ -91,6 +91,19 @@ export default function RoomView({ wallet }) {
   const isCreator = account === room?.creator?.toLowerCase()
   const isCounter = account === room?.counterparty?.toLowerCase()
   const isArbiter = account === arbiterAddr?.toLowerCase()
+  const isOwner = account === room?.creator?.toLowerCase() && false // we need owner addr from contract
+
+  // Fetch owner from contract
+  const [ownerAddr, setOwnerAddr] = useState('')
+
+  useEffect(() => {
+    if (!wallet) return
+    const provider = wallet.provider
+    const contract = getContract(provider)
+    contract.owner().then(setOwnerAddr).catch(() => {})
+  }, [wallet])
+
+  const isAdmin = account === ownerAddr?.toLowerCase() || account === arbiterAddr?.toLowerCase()
 
   async function doAction(fn, label, successMsg) {
     setStatus({ type: 'info', msg: label })
@@ -331,14 +344,14 @@ export default function RoomView({ wallet }) {
                 <div className="text-[12px] text-red-500 text-center mb-3">
                   {arbiterName} will review via Discord ticket and decide on-chain
                 </div>
-                {isArbiter && (
+                {isAdmin && (
                   <div className="flex flex-col gap-2">
                     <button onClick={handleArbRelease} className="btn-primary w-full py-2.5 text-[13px]">Release to Seller (price + collateral)</button>
                     <button onClick={handleArbRefund} className="btn-ghost w-full py-2.5 text-[13px]">Refund to Buyer (price + collateral)</button>
                     <button onClick={handleArbSplit} className="btn-ghost w-full py-2.5 text-[13px]">50/50 Split</button>
                   </div>
                 )}
-                {!isArbiter && (
+                {!isAdmin && (
                   <div className="text-[12px] text-red-500 text-center">
                     Awaiting arbiter decision. Funds are safe.
                   </div>
