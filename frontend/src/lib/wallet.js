@@ -11,9 +11,10 @@ const ARC_TESTNET = {
 }
 
 // Silent reconnect — no popup, uses already-authorized account
-export async function reconnectWallet() {
-  if (!window.ethereum) throw new Error('No wallet detected')
-  const provider = new ethers.BrowserProvider(window.ethereum)
+export async function reconnectWallet(reownProvider) {
+  const ethereum = reownProvider || window.ethereum
+  if (!ethereum) throw new Error('No wallet detected')
+  const provider = new ethers.BrowserProvider(ethereum)
   const accounts = await provider.send('eth_accounts', [])
   if (accounts.length === 0) throw new Error('No connected account')
   const signer = await provider.getSigner()
@@ -24,8 +25,9 @@ export async function reconnectWallet() {
   return { provider, signer, address, balance, contract }
 }
 
-export async function connectWallet() {
-  if (!window.ethereum) throw new Error('No wallet detected')
+export async function connectWallet(reownProvider) {
+  const ethereum = reownProvider || window.ethereum
+  if (!ethereum) throw new Error('No wallet detected')
 
   // Step 1: Add Arc Testnet chain
   const chainParams = {
@@ -37,7 +39,7 @@ export async function connectWallet() {
   }
 
   try {
-    await window.ethereum.request({
+    await ethereum.request({
       method: 'wallet_addEthereumChain',
       params: [chainParams],
     })
@@ -47,18 +49,18 @@ export async function connectWallet() {
 
   // Step 2: Switch to Arc Testnet
   try {
-    await window.ethereum.request({
+    await ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: ARC_TESTNET.hex }],
     })
   } catch (e) {
     if (e.code === 4001) throw new Error('User rejected chain switch')
     if (e.code === 4902) {
-      await window.ethereum.request({
+      await ethereum.request({
         method: 'wallet_addEthereumChain',
         params: [chainParams],
       })
-      await window.ethereum.request({
+      await ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: ARC_TESTNET.hex }],
       })
