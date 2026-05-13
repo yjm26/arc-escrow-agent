@@ -21,7 +21,7 @@ const STATE_GUIDES = {
   Created: {
     seller: [
       'Share the invite link with your buyer.',
-      'Room expires in 1 hour if no one joins.',
+      'Room expires in 1 day if no one joins.',
       'You can cancel anytime before someone joins.',
     ],
     buyer: [
@@ -60,7 +60,7 @@ const STATE_GUIDES = {
   Delivered: {
     seller: [
       'Waiting for buyer to confirm receipt.',
-      'Auto-release happens 2 hours after delivery.',
+      'Auto-release happens 3 days after delivery.',
       'If buyer disputes, evidence will be reviewed.',
       'Both parties can still agree to mutual cancel.',
     ],
@@ -68,7 +68,7 @@ const STATE_GUIDES = {
       'Seller marked item as delivered.',
       'If satisfied, click "Confirm Received".',
       'If there is an issue, open a dispute with evidence.',
-      'Auto-release to seller happens in 2 hours if no action.',
+      'Auto-release to seller happens in 3 days if no action.',
       'Both parties can agree to mutual cancel.',
     ],
   },
@@ -227,11 +227,11 @@ export default function RoomView({ wallet }) {
     if (!room) return
     let target = 0
     let label = ''
-    if (room.state === 'Created' && room.createdAt) { target = room.createdAt + 3600; label = 'Join deadline' }
-    else if (room.state === 'Joined' && room.joinedAt) { target = room.joinedAt + 1800; label = 'Fund deadline' }
+    if (room.state === 'Created' && room.createdAt) { target = room.createdAt + 86400; label = 'Join deadline' }
+    else if (room.state === 'Joined' && room.joinedAt) { target = room.joinedAt + 86400; label = 'Fund deadline' }
     else if (room.state === 'Funded' && room.deliveryDeadline) { target = room.deliveryDeadline; label = 'Deliver deadline' }
-    else if (room.state === 'Delivered' && room.deliveredAt) { target = room.deliveredAt + 7200; label = 'Auto-release' }
-    else if (room.state === 'Disputed' && room.disputedAt) { target = room.disputedAt + 21600; label = 'Arbiter deadline' }
+    else if (room.state === 'Delivered' && room.deliveredAt) { target = room.deliveredAt + 259200; label = 'Auto-release' }
+    else if (room.state === 'Disputed' && room.disputedAt) { label = 'Pending arbiter'; setCountdown('Pending arbiter'); return }
     else { return }
 
     const tick = () => {
@@ -415,11 +415,11 @@ export default function RoomView({ wallet }) {
   }
 
   const canExpire = room && (
-    (room.state === 'Created' && (Date.now() / 1000 - room.createdAt) > 3600) ||
-    (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 1800)
+    (room.state === 'Created' && (Date.now() / 1000 - room.createdAt) > 86400) ||
+    (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 86400)
   )
   const canBuyerRefund = room?.state === 'Funded' && room?.deliveryDeadline && (Date.now() / 1000) > room.deliveryDeadline
-  const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 7200
+  const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 259200
 
   const canMutualCancel = isParticipant && ['Joined', 'Funded', 'Delivered'].includes(room?.state)
   const hasApprovedMutualCancel = isCreator ? mutualCancelStatus.creatorApproved : isCounter ? mutualCancelStatus.counterpartyApproved : false
@@ -442,12 +442,17 @@ export default function RoomView({ wallet }) {
   if (!wallet) return (
     <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
       <div className="max-w-5xl mx-auto">
-        <div className="card-3d p-8 text-center">
+        <div className="card-3d p-8 text-center max-w-[500px] mx-auto">
           <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-stripe-surface dark:bg-white/5 border border-stripe-border dark:border-white/10 flex items-center justify-center">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 15v2m0 0v2m0-2h2m-2 0H9m12-2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round"/></svg>
           </div>
-          <h2 className="text-[18px] font-medium text-stripe-navy dark:text-white mb-2">Connect your wallet</h2>
-          <p className="text-[14px] text-stripe-body dark:text-gray-400">Use the "Connect Wallet" button in the top navigation.</p>
+          <h2 className="text-[18px] font-medium text-stripe-navy dark:text-white mb-2">Connect Your Wallet</h2>
+          <p className="text-[14px] text-stripe-body dark:text-gray-400 mb-6">Use the "Connect Wallet" button in the top navigation to get started.</p>
+          <div className="text-left bg-stripe-surface dark:bg-white/5 rounded-lg p-4 space-y-2 text-[13px] text-stripe-body dark:text-gray-400">
+            <div className="flex items-start gap-2"><span className="text-green-600 mt-0.5">✓</span> Switch to <strong className="text-stripe-navy dark:text-white">Arc Testnet</strong> (chain ID 5042002)</div>
+            <div className="flex items-start gap-2"><span className="text-green-600 mt-0.5">✓</span> You need <strong className="text-stripe-navy dark:text-white">test USDC</strong> to create or join rooms</div>
+            <div className="flex items-start gap-2"><span className="text-green-600 mt-0.5">✓</span> Need test USDC? Ask in Discord or check the docs</div>
+          </div>
         </div>
       </div>
     </section>

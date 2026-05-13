@@ -72,7 +72,7 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
                       <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 mb-0.5">Connected</div>
                       <div className="font-mono text-[12px] text-stripe-navy dark:text-gray-200">{wallet.address.slice(0, 10)}…{wallet.address.slice(-6)}</div>
                     </div>
-                    <a href={`https://testnet.arcscan.io/address/${wallet.address}`} target="_blank" rel="noopener" className="block px-4 py-2.5 text-[13px] text-stripe-body hover:bg-stripe-surface hover:text-stripe-navy dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white transition">
+                    <a href={`https://testnet.arcscan.app/address/${wallet.address}`} target="_blank" rel="noopener" className="block px-4 py-2.5 text-[13px] text-stripe-body hover:bg-stripe-surface hover:text-stripe-navy dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white transition">
                       View on Explorer
                     </a>
                     <button onClick={() => { onDisconnect(); setShowWalletMenu(false) }} className="w-full text-left px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition">

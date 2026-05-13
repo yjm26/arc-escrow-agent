@@ -119,12 +119,12 @@ export default function HowItWorks() {
           </h2>
 
           <div className="space-y-0">
-            <FaqItem q="What happens if the seller doesn't deliver?" a="After 4 hours without delivery, the buyer can call a refund and get their USDC back. The 1% platform fee is not refunded." />
-            <FaqItem q="What if I receive a damaged or wrong item?" a="After the seller marks the item as delivered, you have 2 hours to dispute. An arbiter will review and decide — full refund, release to seller, or 50/50 split." />
+            <FaqItem q="What happens if the seller doesn't deliver?" a="If the seller misses the delivery deadline, the buyer can call a refund and get their USDC back plus collateral. The 1% platform fee is not refunded." />
+            <FaqItem q="What if I receive a damaged or wrong item?" a="After the seller marks the item as delivered, you have 3 days to dispute. An arbiter will review and decide — full refund, release to seller, or 50/50 split." />
             <FaqItem q="Who is the arbiter?" a="The deployer wallet acts as arbiter. For testnet this is a single address. On mainnet, this should be a multi-sig or governance contract." />
-            <FaqItem q="What if the arbiter never responds?" a="If no arbiter action within 6 hours of dispute, funds auto-resolve to the seller. This prevents funds from being stuck forever." />
+            <FaqItem q="What if the arbiter never responds?" a="Disputes have no automatic timeout. Funds stay frozen until the arbiter acts. This prevents griefers from exploiting timers, but it also means disputes require patience. The arbiter typically responds within 24 hours." />
             <FaqItem q="Is the contract verified?" a="Yes. The source code is on GitHub and the contract is deployed on Arc Testnet. You can verify it on the block explorer." />
-            <FaqItem q="What are the timers?" a="Join: 1h, Fund: 30min, Seller deliver: 4h, Auto-release after delivery: 2h, Dispute timeout: 6h. All enforced by the smart contract." />
+            <FaqItem q="What are the timers?" a="Join: 1 day, Fund: 1 day, Delivery: 1–90 days (set at creation), Auto-release after delivery: 3 days, Dispute: no timeout. All enforced by the smart contract." />
           </div>
         </div>
       </div>

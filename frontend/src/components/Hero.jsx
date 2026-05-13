@@ -102,14 +102,17 @@ export default function Hero({ wallet, onConnect }) {
               <div className="border border-stripe-border dark:border-white/10 rounded-md mb-4">
                 {[
                   { label: 'Item price', value: '500.0 USDC' },
-                  { label: 'Tax (1%)', value: '5.0 USDC' },
-                  { label: 'Total in escrow', value: '505.0 USDC', bold: true },
+                  { label: 'Fee (1%)', value: '5.0 USDC' },
+                  { label: 'Total to fund', value: '505.0 USDC', bold: true },
                 ].map((item, i) => (
                   <div key={item.label} className={`flex justify-between text-[13px] px-4 py-2.5 ${i < 2 ? 'border-b border-stripe-border dark:border-white/10' : ''} ${item.bold ? 'font-medium' : ''}`}>
                     <span className="text-stripe-body dark:text-gray-500">{item.label}</span>
                     <span className="text-stripe-navy dark:text-gray-200 font-mono">{item.value}</span>
                   </div>
                 ))}
+              </div>
+              <div className="text-[11px] text-stripe-body dark:text-gray-500 text-center mt-2">
+                Escrow: 500.0 USDC | Fee to treasury: 5.0 USDC
               </div>
 
               {/* Parties */}

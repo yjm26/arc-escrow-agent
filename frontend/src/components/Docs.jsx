@@ -5,6 +5,7 @@ const SECTIONS = [
   { id: 'how-it-works', label: 'How It Works' },
   { id: 'market', label: 'Market' },
   { id: 'collateral', label: 'Collateral' },
+  { id: 'mutual-cancel', label: 'Mutual Cancel' },
   { id: 'disputes', label: 'Disputes' },
   { id: 'timers', label: 'Timers & Deadlines' },
   { id: 'fees', label: 'Fees' },
@@ -66,6 +67,7 @@ export default function Docs() {
             {active === 'how-it-works' && <HowItWorks />}
             {active === 'market' && <MarketDoc />}
             {active === 'collateral' && <Collateral />}
+            {active === 'mutual-cancel' && <MutualCancel />}
             {active === 'disputes' && <Disputes />}
             {active === 'timers' && <Timers />}
             {active === 'fees' && <Fees />}
@@ -205,13 +207,13 @@ function Overview() {
 
       <H2>Smart Contract</H2>
       <P>
-        BondRoomV18 is deployed on Arc Testnet. The source code is on GitHub and the contract is verified 
+        BondRoomV21 is deployed on Arc Testnet. The source code is on GitHub and the contract is verified 
         on the block explorer.
       </P>
       <div className="flex flex-col gap-2 mb-4">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500">Address</span>
-          <Code>0x019A88470A1989eE0b13f53b65C0Fe7194b219c0</Code>
+          <Code>0x7630A99188C5B4199c8ABd06b9462A6eC502AC2C</Code>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500">Network</span>
@@ -242,16 +244,19 @@ function HowItWorks() {
         what happens at every step.
       </P>
 
-      <H2>The Six States</H2>
+      <H2>The States</H2>
       <Table
         headers={['State', 'Who Acts', 'What Happens']}
         rows={[
-          [<><Badge color="slate">CREATED</Badge></>, 'Seller', 'Room is open. Waiting for buyer to join. 1-hour timer.'],
-          [<><Badge color="purple">JOINED</Badge></>, 'Buyer', 'Buyer entered with the correct code. 30-minute timer to fund.'],
-          [<><Badge color="amber">FUNDED</Badge></>, 'Buyer', 'USDC deposited. Seller must deliver within 4 hours.'],
-          [<><Badge color="green">DELIVERED</Badge></>, 'Seller', 'Item marked delivered. Buyer confirms or disputes within 2 hours.'],
+          [<><Badge color="slate">CREATED</Badge></>, 'Seller', 'Room is open. Waiting for buyer to join. 1-day timer.'],
+          [<><Badge color="purple">JOINED</Badge></>, 'Buyer', 'Buyer entered with the correct code. 1-day timer to fund.'],
+          [<><Badge color="amber">FUNDED</Badge></>, 'Seller', 'USDC deposited. Seller must deliver before the deadline (1–90 days).'],
+          [<><Badge color="green">DELIVERED</Badge></>, 'Seller', 'Item marked delivered. Buyer confirms or disputes within 3 days.'],
           [<><Badge color="blue">RELEASED</Badge></>, 'Auto / Buyer', 'Funds sent to seller. Deal complete.'],
           [<><Badge color="red">DISPUTED</Badge></>, 'Arbiter', 'Frozen. Arbiter decides: release, refund, or split.'],
+          [<><Badge color="amber">REFUNDED</Badge></>, 'Auto / Buyer', 'Buyer refunded. Seller missed deadline or deal expired.'],
+          [<><Badge color="slate">EXPIRED</Badge></>, 'Anyone', 'Deadline passed without action. Collateral returned.'],
+          [<><Badge color="red">CANCELLED</Badge></>, 'Mutual', 'Both parties agreed to cancel. All funds returned.'],
         ]}
       />
 
@@ -275,7 +280,7 @@ function HowItWorks() {
         from CREATED to JOINED.
       </P>
       <InfoBox title="Join Timer" color="blue">
-        The buyer has 1 hour from room creation to join. After that, anyone can call expireRoom() to close 
+        The buyer has 1 day from room creation to join. After that, anyone can call expireRoom() to close 
         it and return the seller's collateral.
       </InfoBox>
 
@@ -286,11 +291,11 @@ function HowItWorks() {
         goes to the treasury.
       </P>
       <P>
-        Once funded, the room state changes to FUNDED. The seller now has a 4-hour window to deliver. 
-        Neither side can withdraw unilaterally at this point.
+        Once funded, the room state changes to FUNDED. The seller now has the agreed delivery period 
+        (1 to 90 days, set at creation) to deliver. Neither side can withdraw unilaterally at this point.
       </P>
       <InfoBox title="Fund Timer" color="blue">
-        The buyer has 30 minutes to fund after joining. If they don't, anyone can expire the room.
+        The buyer has 1 day to fund after joining. If they don't, anyone can expire the room.
       </InfoBox>
 
       <H3>4. Seller Delivers</H3>
@@ -299,12 +304,12 @@ function HowItWorks() {
         then clicks "Mark as Delivered" in the app. They can attach an optional message or proof link.
       </P>
       <P>
-        The room state changes to DELIVERED. This starts the 2-hour auto-release timer. The buyer must 
+        The room state changes to DELIVERED. This starts the 3-day auto-release timer. The buyer must 
         check what they received and respond.
       </P>
       <InfoBox title="Delivery Timer" color="blue">
-        The seller has 4 hours to mark as delivered after funding. If they don't, the buyer can call 
-        buyerRefund() to get their money back plus the seller's collateral as compensation.
+        The seller must deliver before the delivery deadline (1–90 days from creation, default 7 days). 
+        If they miss it, the buyer can call buyerRefund() to get their money back plus the seller's collateral.
       </InfoBox>
 
       <H3>5. Buyer Responds</H3>
@@ -321,15 +326,19 @@ function HowItWorks() {
           Funds are frozen. The auto-release timer stops. The buyer opens a ticket in the BOND Discord 
           for arbiter review.
         </li>
+        <li>
+          <strong className="text-stripe-navy dark:text-white">Mutual Cancel</strong> — Both parties agree 
+          to walk away. No arbiter needed. All funds are returned.
+        </li>
       </ul>
 
       <H3>6. Auto-Release (Safety Net)</H3>
       <P>
-        If the buyer doesn't confirm or dispute within 2 hours of delivery, funds automatically release 
+        If the buyer doesn't confirm or dispute within 3 days of delivery, funds automatically release 
         to the seller. This prevents buyers from holding funds hostage by simply doing nothing.
       </P>
       <P>
-        The 2-hour window is long enough to verify most digital goods (check an NFT transfer, log into 
+        The 3-day window is long enough to verify most digital goods (check an NFT transfer, log into 
         an account, review work) but short enough that no one gets stuck waiting.
       </P>
 
@@ -354,6 +363,14 @@ function HowItWorks() {
           <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 px-3 py-1.5 rounded">Dispute</span>
           <span className="text-stripe-body dark:text-gray-400">→</span>
           <span className="bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20 px-3 py-1.5 rounded">Discord Ticket → Arbiter</span>
+        </div>
+        <div className="text-center text-stripe-body dark:text-gray-400 text-[12px] my-2">or</div>
+        <div className="flex flex-wrap items-center justify-center gap-2 text-[12px] font-mono">
+          <span className="bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 px-3 py-1.5 rounded">Any state</span>
+          <span className="text-stripe-body dark:text-gray-400">→</span>
+          <span className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 px-3 py-1.5 rounded">Mutual Cancel</span>
+          <span className="text-stripe-body dark:text-gray-400">→</span>
+          <span className="bg-slate-50 dark:bg-slate-500/10 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-500/20 px-3 py-1.5 rounded">All funds returned</span>
         </div>
       </div>
 
@@ -486,6 +503,7 @@ function Collateral() {
           [<><Badge color="red">No delivery</Badge> Seller misses deadline</>, '→ Refunded to buyer', '→ Given to buyer as penalty'],
           [<><Badge color="amber">Cancel</Badge> Before funding</>, '—', '→ Returned to seller'],
           [<><Badge color="amber">Expire</Badge> No one joins or funds</>, '—', '→ Returned to seller'],
+          [<><Badge color="red">Mutual Cancel</Badge> Both parties agree</>, '→ Refunded to buyer', '→ Returned to seller'],
           [<><Badge color="purple">Arbiter: Seller wins</Badge></>, '→ Seller', '→ Returned to seller'],
           [<><Badge color="purple">Arbiter: Buyer wins</Badge></>, '→ Refunded to buyer', '→ Given to buyer'],
           [<><Badge color="purple">Arbiter: 50/50</Badge></>, 'Split evenly', '→ Given to buyer'],
@@ -517,9 +535,83 @@ function Collateral() {
 
       <InfoBox title="Important" color="amber">
         Collateral is locked for the entire duration of the deal. If the buyer takes the full 
-        4 hours to fund, then the full delivery window, your collateral is unavailable until 
-        the deal resolves. Factor this into your capital planning.
+        delivery window, your collateral is unavailable until the deal resolves. Factor this into 
+        your capital planning.
       </InfoBox>
+    </div>
+  )
+}
+
+function MutualCancel() {
+  return (
+    <div>
+      <div className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Mechanism</div>
+      <H1>Mutual Cancel</H1>
+      <P>
+        Both buyer and seller can agree to cancel the transaction and recover their funds. No arbiter needed. 
+        This is useful when plans change, expectations shift, or both sides simply want to walk away cleanly.
+      </P>
+
+      <H2>How It Works</H2>
+      <P>
+        Mutual cancel is available after the buyer joins and before the deal is resolved. Either party 
+        can request it, the other party must approve, and then either party can execute. Both approvals 
+        are required — one-sided cancellation is not possible.
+      </P>
+
+      <H3>Step by Step</H3>
+      <ol className="list-decimal pl-6 space-y-3 mb-6 text-[14px] text-stripe-body dark:text-gray-400">
+        <li>
+          <strong className="text-stripe-navy dark:text-white">Request</strong> — Either party clicks 
+          "Request Mutual Cancel" in the room. This records their approval on-chain.
+        </li>
+        <li>
+          <strong className="text-stripe-navy dark:text-white">Approve</strong> — The other party clicks 
+          "Approve Mutual Cancel" to record their approval too.
+        </li>
+        <li>
+          <strong className="text-stripe-navy dark:text-white">Execute</strong> — Once both parties have 
+          approved, anyone can click "Execute Mutual Cancel" to finalize. Funds are returned immediately.
+        </li>
+      </ol>
+
+      <InfoBox title="Revoke" color="blue">
+        Either party can revoke their approval anytime before execution. After execution, the cancel 
+        is final and cannot be undone.
+      </InfoBox>
+
+      <H2>What Gets Returned</H2>
+      <Table
+        headers={['Party', 'What They Get Back']}
+        rows={[
+          ['Buyer', 'Full funded amount (price + fee already deducted)'],
+          ['Seller', 'Collateral locked at creation'],
+        ]}
+      />
+
+      <H2>When It's Available</H2>
+      <P>
+        Mutual cancel is available in these states: <strong className="text-stripe-navy dark:text-white">Joined</strong>, 
+        <strong className="text-stripe-navy dark:text-white"> Funded</strong>, and 
+        <strong className="text-stripe-navy dark:text-white"> Delivered</strong>. Once the deal is Released, 
+        Refunded, Expired, Disputed, or Cancelled, mutual cancel is no longer available.
+      </P>
+
+      <H2>Why Use It</H2>
+      <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
+        <li>
+          <strong className="text-stripe-navy dark:text-white">Faster than dispute</strong> — No waiting for an arbiter. 
+          Both parties agree and it's done in minutes.
+        </li>
+        <li>
+          <strong className="text-stripe-navy dark:text-white">No fees</strong> — Unlike disputes which may take time, 
+          mutual cancel returns everything without extra charges.
+        </li>
+        <li>
+          <strong className="text-stripe-navy dark:text-white">Preserves reputation</strong> — A mutual cancel doesn't 
+          count as a failed deal on either party's record.
+        </li>
+      </ul>
     </div>
   )
 }
@@ -542,12 +634,12 @@ function Disputes() {
       <Table
         headers={['Situation', 'Who Calls', 'Result']}
         rows={[
-          ['Seller never delivers within 4 hours', 'Buyer', 'Full refund + collateral to buyer'],
+          ['Seller never delivers within deadline', 'Buyer', 'Full refund + collateral to buyer'],
           ['Buyer confirms receipt', 'Buyer', 'Funds + collateral released to seller'],
           ['Seller cancels before funding', 'Seller', 'Collateral returned, room closed'],
           ['Buyer leaves before funding', 'Buyer', 'Collateral returned, room closed'],
-          ['No one joins within 1 hour', 'Anyone', 'Collateral returned, room expired'],
-          ['Buyer never funds within 30 min', 'Anyone', 'Collateral returned, room expired'],
+          ['No one joins within 1 day', 'Anyone', 'Collateral returned, room expired'],
+          ['Buyer never funds within 1 day', 'Anyone', 'Collateral returned, room expired'],
         ]}
       />
 
@@ -602,8 +694,8 @@ function Disputes() {
 
       <H2>Arbiter Limitations</H2>
       <P>
-        The arbiter address is hardcoded at contract deployment and cannot be changed. They can only 
-        execute the three predefined resolutions — they cannot steal funds, send money to a third party, 
+        The arbiter address is set at contract deployment and can be updated by the contract owner if needed. 
+        They can only execute the three predefined resolutions — they cannot steal funds, send money to a third party, 
         or modify the deal terms. Their power is strictly bounded by the contract code.
       </P>
     </div>
@@ -623,10 +715,10 @@ function Timers() {
       <Table
         headers={['Phase', 'Duration', 'What Triggers It', 'What Happens If Expired']}
         rows={[
-          ['Join', '1 hour', 'Room is created', 'Anyone can expire the room; collateral returns to seller'],
-          ['Fund', '30 minutes', 'Buyer joins the room', 'Anyone can expire the room; collateral returns to seller'],
-          ['Deliver', '4 hours', 'Buyer funds the escrow', 'Buyer can call buyerRefund() for full refund + collateral'],
-          ['Auto-Release', '2 hours', 'Seller marks as delivered', 'Funds automatically release to seller'],
+          ['Join', '1 day', 'Room is created', 'Anyone can expire the room; collateral returns to seller'],
+          ['Fund', '1 day', 'Buyer joins the room', 'Anyone can expire the room; collateral returns to seller'],
+          ['Deliver', '1–90 days', 'Buyer funds the escrow', 'Buyer can call buyerRefund() for full refund + collateral'],
+          ['Auto-Release', '3 days', 'Seller marks as delivered', 'Funds automatically release to seller'],
           ['Dispute Arbiter', 'No timeout', 'Buyer clicks Dispute', 'Frozen until arbiter resolves'],
         ]}
       />
@@ -647,20 +739,20 @@ function Timers() {
       <ul className="list-disc pl-6 space-y-2 mb-4 text-[14px] text-stripe-body dark:text-gray-400">
         <li>
           <strong className="text-stripe-navy dark:text-white">Share the invite link immediately</strong> — 
-          The 1-hour join timer starts when you create the room, not when you send the link.
+          The 1-day join timer starts when you create the room, not when you send the link.
         </li>
         <li>
           <strong className="text-stripe-navy dark:text-white">Fund promptly after joining</strong> — 
-          30 minutes is generous, but don't cut it close if you're serious about the deal.
+          1 day is generous, but don't cut it close if you're serious about the deal.
         </li>
         <li>
           <strong className="text-stripe-navy dark:text-white">Set realistic delivery days</strong> — 
-          The Market lets you specify up to 90 days, but the on-chain timer is always 4 hours for 
-          marking delivery. Use the delivery days field to communicate realistic timelines to buyers.
+          The Market lets you specify 1 to 90 days for delivery. Set a timeline that matches 
+          the actual work needed.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Check delivery within 2 hours</strong> — 
-          Once the seller marks delivered, you have 2 hours to verify and respond. Set a reminder.
+          <strong className="text-stripe-navy dark:text-white">Check delivery within 3 days</strong> — 
+          Once the seller marks delivered, you have 3 days to verify and respond. Set a reminder.
         </li>
       </ul>
     </div>
@@ -688,6 +780,7 @@ function Fees() {
           ['Dispute', 'FREE (gas only)'],
           ['Cancel / Leave (before funding)', 'FREE (gas only)'],
           ['Expire room', 'FREE (gas only)'],
+          ['Mutual cancel', 'FREE (gas only) — full refund'],
         ]}
       />
 
@@ -792,7 +885,7 @@ function FAQ() {
 
       <div className="space-y-4">
         <FaqItem q="What happens if the seller never delivers?">
-          If the seller doesn't mark delivery within 4 hours of funding, the buyer can call 
+          If the seller doesn't mark delivery before the deadline (1–90 days), the buyer can call 
           <Code>buyerRefund()</Code> at any time. The buyer gets their full payment back, plus 
           the seller's collateral as compensation. This is automatic — no arbiter needed.
         </FaqItem>
@@ -840,7 +933,7 @@ function FAQ() {
         </FaqItem>
 
         <FaqItem q="What if the buyer never confirms?">
-          After the seller marks delivery, the buyer has 2 hours to confirm or dispute. If they do 
+          After the seller marks delivery, the buyer has 3 days to confirm or dispute. If they do 
           nothing, funds automatically release to the seller. This prevents buyers from holding funds 
           hostage by simply going silent.
         </FaqItem>
