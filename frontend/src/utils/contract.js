@@ -182,3 +182,18 @@ export function hashJoinCode(code) {
 export function createInviteLink(roomId, joinCode) {
   return `${window.location.origin}/room/${roomId}?code=${joinCode}`;
 }
+
+/// Override wallet nonce with on-chain nonce to prevent MetaMask/AppKit desync.
+/// Some wallet caches stale nonces after dropped txs, causing all future txs to hang.
+/// This patches signer.populateTransaction to use RPC's latest nonce + auto-increment.
+export async function fixSignerNonce(signer, provider) {
+  const addr = await signer.getAddress()
+  let nextNonce = await provider.getTransactionCount(addr, 'latest')
+  const originalPopulate = signer.populateTransaction.bind(signer)
+  signer.populateTransaction = async (tx) => {
+    const populated = await originalPopulate(tx)
+    populated.nonce = nextNonce++
+    return populated
+  }
+  return () => { signer.populateTransaction = originalPopulate }
+}

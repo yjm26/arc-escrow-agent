@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS, waitForTx , parseRoom} from '../utils/contract'
+import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS, waitForTx , parseRoom, fixSignerNonce } from '../utils/contract'
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 import RoomHistory from './room/RoomHistory'
 import ActionPanel from './room/ActionPanel'
@@ -266,18 +266,6 @@ export default function RoomView({ wallet }) {
   const isParticipant = isCreator || isCounter
   const isAdmin = account === ownerAddr?.toLowerCase() || account === arbiterAddr?.toLowerCase()
 
-  async function fixSignerNonce(signer) {
-    const addr = await signer.getAddress()
-    let nextNonce = await wallet.provider.getTransactionCount(addr, 'latest')
-    const originalPopulate = signer.populateTransaction.bind(signer)
-    signer.populateTransaction = async (tx) => {
-      const populated = await originalPopulate(tx)
-      populated.nonce = nextNonce++
-      return populated
-    }
-    return () => { signer.populateTransaction = originalPopulate }
-  }
-
   async function doAction(fn, label, successMsg) {
     setTxPending(true)
     setStatus({ type: 'info', msg: label })
@@ -289,7 +277,7 @@ export default function RoomView({ wallet }) {
         try {
           const signer = await wallet.provider.getSigner()
           await ensureArcChain(signer)
-          const restore = await fixSignerNonce(signer)
+          const restore = await fixSignerNonce(signer, wallet.provider)
           try {
             const contract = getContract(signer)
             const tx = await fn(contract)

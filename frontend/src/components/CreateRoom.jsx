@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS, ensureArcChain } from '../utils/contract'
+import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS, ensureArcChain, fixSignerNonce } from '../utils/contract'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
@@ -43,102 +43,106 @@ export default function CreateRoom({ wallet }) {
     }
     setLoading(true)
     setError('')
-    setStep('Checking limits…')
+    setStep('Checking limits\u2026')
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
       const contract = getContract(signer)
-
-      // Check active room limit before spending gas
-      const [active, maxActive] = await Promise.all([
-        contract.activeRooms(wallet.address),
-        contract.MAX_ACTIVE(),
-      ])
-      if (active >= maxActive) {
-        throw new Error(`You have ${active} active room(s) (max ${maxActive}). Complete, release, or cancel one first.`)
-      }
-
-      const usdc = getUsdc(signer)
-      const priceWei = ethers.parseUnits(price, 6)
-      const collateralValue = noCollateral ? '0' : collateral
-      const collateralWei = collateralValue ? ethers.parseUnits(collateralValue, 6) : 0n
-      const joinCode = generateJoinCode()
-      const joinCodeHash = hashJoinCode(joinCode)
-
-      // Step 1: Approve USDC for collateral (only if creator is seller and collateral > 0)
-      if (creatorIsSeller && collateralWei > 0n) {
-        setStep('Approving USDC…')
-        try {
-          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
-          await waitForTx(wallet.provider, approveTx.hash, 180000)
-        } catch (approveErr) {
-          console.error('approve failed:', approveErr)
-          throw new Error('USDC approve failed: ' + (approveErr.message || 'unknown'))
+      const restore = await fixSignerNonce(signer, wallet.provider)
+      try {
+        // Check active room limit before spending gas
+        const [active, maxActive] = await Promise.all([
+          contract.activeRooms(wallet.address),
+          contract.MAX_ACTIVE(),
+        ])
+        if (active >= maxActive) {
+          throw new Error(`You have ${active} active room(s) (max ${maxActive}). Complete, release, or cancel one first.`)
         }
-      }
 
-      // Step 2: Create room (contract pulls collateral via transferFrom)
-      setStep('Creating room…')
-      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, dealType, ARC_GAS)
-      setStep('Waiting for confirmation…')
-      const receipt = await waitForTx(wallet.provider, tx.hash, 180000)
+        const usdc = getUsdc(signer)
+        const priceWei = ethers.parseUnits(price, 6)
+        const collateralValue = noCollateral ? '0' : collateral
+        const collateralWei = collateralValue ? ethers.parseUnits(collateralValue, 6) : 0n
+        const joinCode = generateJoinCode()
+        const joinCodeHash = hashJoinCode(joinCode)
 
-      const event = receipt.logs.find(log => {
-        try { return contract.interface.parseLog(log)?.name === 'RoomCreated' } catch { return false }
-      })
-      if (!event) throw new Error('RoomCreated event not found in transaction receipt')
-      const parsed = contract.interface.parseLog(event)
-      if (!parsed?.args?.id) throw new Error('Could not parse room ID from event')
-      const roomId = parsed.args.id.toString()
-      const inviteLink = createInviteLink(roomId, joinCode)
+        // Step 1: Approve USDC for collateral (only if creator is seller and collateral > 0)
+        if (creatorIsSeller && collateralWei > 0n) {
+          setStep('Approving USDC\u2026')
+          try {
+            const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+            await waitForTx(wallet.provider, approveTx.hash, 180000)
+          } catch (approveErr) {
+            console.error('approve failed:', approveErr)
+            throw new Error('USDC approve failed: ' + (approveErr.message || 'unknown'))
+          }
+        }
 
-      setResult({ roomId, inviteLink, joinCode })
-      setStep('')
-      setLoading(false)
+        // Step 2: Create room (contract pulls collateral via transferFrom)
+        setStep('Creating room\u2026')
+        const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, dealType, ARC_GAS)
+        setStep('Waiting for confirmation\u2026')
+        const receipt = await waitForTx(wallet.provider, tx.hash, 180000)
 
-      // === Background: notify backend (non-blocking, 8s timeout each) ===
-      const listingId = searchParams.get('listingId')
-      const bgFetch = (url, opts) => {
-        const ctrl = new AbortController()
-        const t = setTimeout(() => ctrl.abort(), 8000)
-        return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t))
-      }
+        const event = receipt.logs.find(log => {
+          try { return contract.interface.parseLog(log)?.name === 'RoomCreated' } catch { return false }
+        })
+        if (!event) throw new Error('RoomCreated event not found in transaction receipt')
+        const parsed = contract.interface.parseLog(event)
+        if (!parsed?.args?.id) throw new Error('Could not parse room ID from event')
+        const roomId = parsed.args.id.toString()
+        const inviteLink = createInviteLink(roomId, joinCode)
 
-      if (listingId) {
-        bgFetch(`${API_URL}/api/listings/${listingId}/taken`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ roomId, creator: wallet.address }),
-        }).catch(e => console.error('Mark taken:', e))
+        setResult({ roomId, inviteLink, joinCode })
+        setStep('')
+        setLoading(false)
+
+        // === Background: notify backend (non-blocking, 8s timeout each) ===
+        const listingId = searchParams.get('listingId')
+        const bgFetch = (url, opts) => {
+          const ctrl = new AbortController()
+          const t = setTimeout(() => ctrl.abort(), 8000)
+          return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t))
+        }
+
+        if (listingId) {
+          bgFetch(`${API_URL}/api/listings/${listingId}/taken`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomId, creator: wallet.address }),
+          }).catch(e => console.error('Mark taken:', e))
+
+          if (counterparty) {
+            bgFetch(`${API_URL}/api/notifications`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: counterparty,
+                from: wallet.address,
+                message: `Someone opened a deal for "${item}" \u2014 Room #${roomId}`,
+                listingId,
+              }),
+            }).catch(e => console.error('Notify:', e))
+          }
+        }
 
         if (counterparty) {
-          bgFetch(`${API_URL}/api/notifications`, {
+          bgFetch(`${API_URL}/api/room-codes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              to: counterparty,
-              from: wallet.address,
-              message: `Someone opened a deal for "${item}" — Room #${roomId}`,
-              listingId,
+              roomId,
+              joinCode,
+              creator: wallet.address,
+              counterparty,
+              item,
+              price,
+              listingId: searchParams.get('listingId'),
             }),
-          }).catch(e => console.error('Notify:', e))
+          }).catch(e => console.error('Post room code:', e))
         }
-      }
-
-      if (counterparty) {
-        bgFetch(`${API_URL}/api/room-codes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            roomId,
-            joinCode,
-            creator: wallet.address,
-            counterparty,
-            item,
-            price,
-            listingId: searchParams.get('listingId'),
-          }),
-        }).catch(e => console.error('Post room code:', e))
+      } finally {
+        restore()
       }
     } catch (err) {
       console.error(err)
