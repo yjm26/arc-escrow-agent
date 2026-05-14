@@ -139,6 +139,7 @@ export default function RoomView({ wallet }) {
   const [showEvidenceForm, setShowEvidenceForm] = useState(false)
   const [mutualCancelStatus, setMutualCancelStatus] = useState({ creatorApproved: false, counterpartyApproved: false })
   const [proofInput, setProofInput] = useState('')
+  const [txPending, setTxPending] = useState(false)
   const { addToast } = useToast()
 
   const account = wallet?.address?.toLowerCase()
@@ -266,57 +267,63 @@ export default function RoomView({ wallet }) {
   const isAdmin = account === ownerAddr?.toLowerCase() || account === arbiterAddr?.toLowerCase()
 
   async function doAction(fn, label, successMsg) {
+    setTxPending(true)
     setStatus({ type: 'info', msg: label })
     addToast(label, 'info')
 
-    const RETRIES = 2
-    for (let attempt = 0; attempt <= RETRIES; attempt++) {
-      try {
-        const signer = await wallet.provider.getSigner()
-        await ensureArcChain(signer)
-        const contract = getContract(signer)
-        const tx = await fn(contract)
-        setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
-        addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
-        const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
-        if (receipt.status === 0) {
-          setStatus({ type: 'err', msg: 'TX reverted on-chain' })
-          addToast('Transaction reverted on-chain', 'err')
-          return false
-        }
-        setStatus({ type: 'ok', msg: successMsg })
-        addToast(successMsg, 'ok')
-        loadRoom()
-        loadEvidence()
-        return true
-      } catch (err) {
-        const msg = err.reason || err.message || String(err)
-        // User rejection = don't retry
-        if (msg.includes('denied') || msg.includes('User rejected') || msg.includes('revert') || msg.includes('execution reverted')) {
-          setStatus({ type: '', msg: '' })
-          if (!msg.includes('denied') && !msg.includes('User rejected')) {
-            addToast(msg.slice(0, 120), 'err')
+    try {
+      const RETRIES = 2
+      for (let attempt = 0; attempt <= RETRIES; attempt++) {
+        try {
+          const signer = await wallet.provider.getSigner()
+          await ensureArcChain(signer)
+          const contract = getContract(signer)
+          const tx = await fn(contract)
+          setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
+          addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
+          const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
+          if (receipt.status === 0) {
+            setStatus({ type: 'err', msg: 'TX reverted on-chain' })
+            addToast('Transaction reverted on-chain', 'err')
+            return false
           }
+          setStatus({ type: 'ok', msg: successMsg })
+          addToast(successMsg, 'ok')
+          loadRoom()
+          loadEvidence()
+          return true
+        } catch (err) {
+          const msg = err.reason || err.message || String(err)
+          // User rejection = don't retry
+          if (msg.includes('denied') || msg.includes('User rejected') || msg.includes('revert') || msg.includes('execution reverted')) {
+            setStatus({ type: '', msg: '' })
+            if (!msg.includes('denied') && !msg.includes('User rejected')) {
+              addToast(msg.slice(0, 120), 'err')
+            }
+            return false
+          }
+          // Network/RPC error = retry with backoff
+          if (attempt < RETRIES) {
+            const delay = 1000 * Math.pow(2, attempt)
+            addToast(`Retrying in ${delay/1000}s\u2026 (${attempt + 1}/${RETRIES})`, 'info')
+            await new Promise(r => setTimeout(r, delay))
+            continue
+          }
+          console.error('TX failed:', err)
+          setStatus({ type: 'err', msg: msg.slice(0, 100) })
+          addToast(msg.slice(0, 120), 'err')
           return false
         }
-        // Network/RPC error = retry with backoff
-        if (attempt < RETRIES) {
-          const delay = 1000 * Math.pow(2, attempt)
-          addToast(`Retrying in ${delay/1000}s\u2026 (${attempt + 1}/${RETRIES})`, 'info')
-          await new Promise(r => setTimeout(r, delay))
-          continue
-        }
-        console.error('TX failed:', err)
-        setStatus({ type: 'err', msg: msg.slice(0, 100) })
-        addToast(msg.slice(0, 120), 'err')
-        return false
       }
+      return false
+    } finally {
+      setTxPending(false)
     }
-    return false
   }
 
   const handleJoin = async () => {
     if (!joinCode) { setStatus({ type: 'err', msg: 'Invite link missing join code' }); return }
+    setTxPending(true)
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
@@ -341,11 +348,14 @@ export default function RoomView({ wallet }) {
       loadRoom()
     } catch (e) {
       setStatus({ type: 'err', msg: e.reason || e.message })
+    } finally {
+      setTxPending(false)
     }
   }
 
   const handleFund = async () => {
     const priceWei = ethers.parseUnits(room.price, 6)
+    setTxPending(true)
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
@@ -367,6 +377,8 @@ export default function RoomView({ wallet }) {
       loadRoom()
     } catch (e) {
       setStatus({ type: 'err', msg: e.reason || e.message })
+    } finally {
+      setTxPending(false)
     }
   }
 
@@ -429,8 +441,9 @@ export default function RoomView({ wallet }) {
 
   const handleSubmitEvidence = async () => {
     if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required' }); return }
-    setStatus({ type: 'info', msg: 'Submitting evidence…' })
+    setTxPending(true)
     try {
+      setStatus({ type: 'info', msg: 'Submitting evidence…' })
       const body = {
         submitter: wallet.address,
         evidenceType: evidenceType || 'link',
@@ -450,6 +463,8 @@ export default function RoomView({ wallet }) {
     } catch (err) {
       console.error('Evidence POST failed:', err)
       setStatus({ type: 'err', msg: 'Failed to submit evidence. Please copy-paste it into your Discord ticket instead.' })
+    } finally {
+      setTxPending(false)
     }
   }
 
@@ -735,6 +750,7 @@ export default function RoomView({ wallet }) {
               handleRequestMutualCancel={handleRequestMutualCancel}
               handleRevokeMutualCancel={handleRevokeMutualCancel}
               handleExecuteMutualCancel={handleExecuteMutualCancel}
+              txPending={txPending}
             />
 
             {/* Status */}

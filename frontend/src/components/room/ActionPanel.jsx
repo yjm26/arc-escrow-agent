@@ -27,6 +27,7 @@ export default function ActionPanel({
   handleRequestMutualCancel,
   handleRevokeMutualCancel,
   handleExecuteMutualCancel,
+  txPending,
 }) {
   const { addToast } = useToast()
 
@@ -46,12 +47,12 @@ export default function ActionPanel({
     <div className="flex flex-col gap-3">
       {/* ─── CREATED ─── */}
       {room.state === 'Created' && canExpire && (
-        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50">
+        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} disabled={txPending} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
           Expired — Close Room
         </button>
       )}
       {room.state === 'Created' && !canExpire && !isCreator && (
-        <button onClick={handleJoin} disabled={!joinCode} className="btn-primary w-full py-3">
+        <button onClick={handleJoin} disabled={txPending || !joinCode} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">
           {!joinCode ? 'Need invite link' : 'Join Room (FREE)'}
         </button>
       )}
@@ -60,26 +61,26 @@ export default function ActionPanel({
           <button onClick={copyInvite} className="btn-primary w-full py-3">
             {copied ? '\u2713 Copied!' : 'Copy Invite Link'}
           </button>
-          <button onClick={() => wrap(handleCancel, 'Cancelling room\u2026', 'Room cancelled.')} className="btn-ghost w-full py-3">Cancel Room</button>
+          <button onClick={() => wrap(handleCancel, 'Cancelling room\u2026', 'Room cancelled.')} disabled={txPending} className="btn-ghost w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Cancel Room</button>
         </>
       )}
 
       {/* ─── JOINED ─── */}
       {room.state === 'Joined' && canExpire && (
-        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50">
+        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} disabled={txPending} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
           Expired — Close Room
         </button>
       )}
       {room.state === 'Joined' && !canExpire && isBuyer && (
         <>
-          <button onClick={() => wrap(handleFund, 'Funding room\u2026', 'Room funded!')} className="btn-primary w-full py-3">Fund {totalUSDC} USDC</button>
-          <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} className="btn-ghost w-full py-3">Leave Room</button>
+          <button onClick={() => wrap(handleFund, 'Funding room\u2026', 'Room funded!')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Fund {totalUSDC} USDC</button>
+          <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} disabled={txPending} className="btn-ghost w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Leave Room</button>
         </>
       )}
       {room.state === 'Joined' && !canExpire && isSeller && (
         <>
           <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to fund (30m deadline)\u2026</div>
-          <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} className="btn-ghost w-full py-3">Leave Room</button>
+          <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} disabled={txPending} className="btn-ghost w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Leave Room</button>
         </>
       )}
 
@@ -101,7 +102,7 @@ export default function ActionPanel({
             />
             <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">Hashed on-chain for dispute evidence</p>
           </div>
-          <button onClick={() => wrap(handleDeliver, 'Confirming delivery\u2026', 'Marked as delivered!')} className="btn-primary w-full py-3">Item Given \u2713</button>
+          <button onClick={() => wrap(handleDeliver, 'Confirming delivery\u2026', 'Marked as delivered!')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Item Given \u2713</button>
         </div>
       )}
       {room.state === 'Funded' && isBuyer && (
@@ -111,7 +112,7 @@ export default function ActionPanel({
             <div className="text-[12px] text-green-600 dark:text-green-400 text-center py-1">Seller locked {room.collateralAmount} USDC collateral</div>
           )}
           {canBuyerRefund && (
-            <button onClick={() => wrap(handleBuyerRefund, 'Requesting refund\u2026', 'Refunded! You receive price + collateral.')} className="btn-ghost w-full py-3 text-red-600">Refund \u2014 Seller didn't deliver</button>
+            <button onClick={() => wrap(handleBuyerRefund, 'Requesting refund\u2026', 'Refunded! You receive price + collateral.')} disabled={txPending} className="btn-ghost w-full py-3 text-red-600 disabled:opacity-50 disabled:cursor-not-allowed">Refund — Seller didn't deliver</button>
           )}
         </>
       )}
@@ -119,13 +120,13 @@ export default function ActionPanel({
       {/* ─── DELIVERED ─── */}
       {room.state === 'Delivered' && isBuyer && (
         <>
-          <button onClick={() => wrap(handleRelease, 'Confirming receipt\u2026', 'Funds released to seller!')} className="btn-primary w-full py-3">Confirm Received</button>
+          <button onClick={() => wrap(handleRelease, 'Confirming receipt\u2026', 'Funds released to seller!')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Confirm Received</button>
           <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">\u2696\uFE0F Open Dispute + Evidence</button>
         </>
       )}
       {room.state === 'Delivered' && isSeller && canEscalate && (
-        <button onClick={() => wrap(handleEscalate, 'Escalating to arbiter\u2026', 'Escalated! Arbiter will review.')} className="btn-ghost w-full py-3 text-amber-600 border-amber-200 hover:bg-amber-50">
-          \u23F0 Escalate to Arbiter \u2014 Buyer Ghosting
+        <button onClick={() => wrap(handleEscalate, 'Escalating to arbiter\u2026', 'Escalated! Arbiter will review.')} disabled={txPending} className="btn-ghost w-full py-3 text-amber-600 border-amber-200 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed">
+          \u23F0 Escalate to Arbiter — Buyer Ghosting
         </button>
       )}
       {room.state === 'Delivered' && isSeller && !canEscalate && (
@@ -148,7 +149,7 @@ export default function ActionPanel({
           <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
           <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
           <div className="flex gap-2">
-            <button onClick={handleDispute} className="btn-primary flex-1 py-2.5 text-[13px]">Submit Dispute</button>
+            <button onClick={handleDispute} disabled={txPending} className="btn-primary flex-1 py-2.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">Submit Dispute</button>
             <button onClick={() => setShowDisputeForm(false)} className="btn-ghost flex-1 py-2.5 text-[13px]">Cancel</button>
           </div>
         </div>
@@ -175,7 +176,7 @@ export default function ActionPanel({
                   <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
                   <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
                   <div className="flex gap-2">
-                    <button onClick={handleSubmitEvidence} className="btn-primary flex-1 py-2 text-[12px]">Submit</button>
+                    <button onClick={handleSubmitEvidence} disabled={txPending} className="btn-primary flex-1 py-2 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">Submit</button>
                     <button onClick={() => setShowEvidenceForm(false)} className="btn-ghost flex-1 py-2 text-[12px]">Cancel</button>
                   </div>
                 </div>
@@ -185,9 +186,9 @@ export default function ActionPanel({
 
           {isAdmin && (
             <div className="flex flex-col gap-2 mt-3">
-              <button onClick={() => wrap(handleArbRelease, 'Resolving\u2026', 'Released to seller!')} className="btn-primary w-full py-2.5 text-[13px]">Release to Seller</button>
-              <button onClick={() => wrap(handleArbRefund, 'Resolving\u2026', 'Refunded to buyer!')} className="btn-ghost w-full py-2.5 text-[13px]">Refund to Buyer</button>
-              <button onClick={() => wrap(handleArbSplit, 'Splitting\u2026', '50/50 split executed!')} className="btn-ghost w-full py-2.5 text-[13px]">50/50 Split</button>
+              <button onClick={() => wrap(handleArbRelease, 'Resolving\u2026', 'Released to seller!')} disabled={txPending} className="btn-primary w-full py-2.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">Release to Seller</button>
+              <button onClick={() => wrap(handleArbRefund, 'Resolving\u2026', 'Refunded to buyer!')} disabled={txPending} className="btn-ghost w-full py-2.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">Refund to Buyer</button>
+              <button onClick={() => wrap(handleArbSplit, 'Splitting\u2026', '50/50 split executed!')} disabled={txPending} className="btn-ghost w-full py-2.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">50/50 Split</button>
             </div>
           )}
           {!isAdmin && (
@@ -204,7 +205,7 @@ export default function ActionPanel({
             <>
               <div className="text-[13px] font-medium text-amber-800 mb-1 text-center">Both parties agreed <span className="font-mono">(2/2)</span></div>
               <div className="text-[11px] text-amber-600 text-center mb-3">All funds will be refunded. No fees.</div>
-              <button onClick={() => wrap(handleExecuteMutualCancel, 'Executing mutual cancel\u2026', 'Deal cancelled. All funds refunded.')} className="w-full py-2.5 rounded text-[13px] font-medium bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition">
+              <button onClick={() => wrap(handleExecuteMutualCancel, 'Executing mutual cancel\u2026', 'Deal cancelled. All funds refunded.')} disabled={txPending} className="w-full py-2.5 rounded text-[13px] font-medium bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition disabled:opacity-50 disabled:cursor-not-allowed">
                 Execute Mutual Cancel
               </button>
             </>
@@ -228,14 +229,14 @@ export default function ActionPanel({
                   : 'Both parties must agree to cancel (0/2).'}
               </div>
               {!hasApprovedMutualCancel && (
-                <button onClick={() => wrap(handleRequestMutualCancel, 'Requesting mutual cancel\u2026', 'You approved mutual cancel. Waiting for counterparty.')} className="btn-ghost w-full py-2.5 text-[12px]">
+                <button onClick={() => wrap(handleRequestMutualCancel, 'Requesting mutual cancel\u2026', 'You approved mutual cancel. Waiting for counterparty.')} disabled={txPending} className="btn-ghost w-full py-2.5 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
                   Request Mutual Cancel
                 </button>
               )}
               {hasApprovedMutualCancel && !counterpartyApprovedMutualCancel && (
                 <>
                   <div className="text-[11px] text-stripe-body dark:text-gray-400 text-center py-2">Waiting for counterparty to approve\u2026</div>
-                  <button onClick={() => wrap(handleRevokeMutualCancel, 'Revoking\u2026', 'You revoked your approval.')} className="btn-ghost w-full py-2 text-[11px] text-red-600 border-red-200 hover:bg-red-50">
+                  <button onClick={() => wrap(handleRevokeMutualCancel, 'Revoking\u2026', 'You revoked your approval.')} disabled={txPending} className="btn-ghost w-full py-2 text-[11px] text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
                     Revoke Approval
                   </button>
                 </>
