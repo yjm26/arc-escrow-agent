@@ -343,9 +343,14 @@ const server = http.createServer(async (req, res) => {
 
     // GET /api/room-codes?wallet=0x... OR /api/room-codes/:wallet — get pending rooms
     if ((pathname === '/api/room-codes' || pathname.startsWith('/api/room-codes/')) && req.method === 'GET') {
+      const roomId = url.searchParams.get('roomId')
       const wallet = url.searchParams.get('wallet') || pathname.split('/')[3]
-      if (!wallet) return json(res, [])
       const codes = readJSON(ROOM_CODES_FILE, [])
+      if (roomId) {
+        const code = codes.find(c => c.roomId == roomId)
+        return json(res, code ? [code] : [])
+      }
+      if (!wallet) return json(res, [])
       const pending = codes.filter(c => c.counterparty === wallet.toLowerCase())
       return json(res, pending)
     }

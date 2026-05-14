@@ -485,6 +485,7 @@ export default function Market({ wallet }) {
           <ListingDetailModal
             listing={expandedListing}
             wallet={wallet}
+            API_URL={API_URL}
             onClose={() => setExpandedListing(null)}
             onOpenDeal={() => { setExpandedListing(null); handleOpenDeal(expandedListing) }}
             onDelete={() => { setExpandedListing(null); handleDelete(expandedListing.id) }}
@@ -615,11 +616,34 @@ function ListingCard({ listing, wallet, onOpenDeal, onDelete, onExpand }) {
 /* ═══════════════════════════════════════════
    Listing Detail Modal — click card to expand
    ═══════════════════════════════════════════ */
-function ListingDetailModal({ listing, wallet, onClose, onOpenDeal, onDelete }) {
+function ListingDetailModal({ listing, wallet, API_URL, onClose, onOpenDeal, onDelete }) {
+  const navigate = useNavigate()
+  const [joinLoading, setJoinLoading] = useState(false)
   const isOwner = wallet && listing.creator?.toLowerCase() === wallet.address?.toLowerCase()
   const isBuyerListing = listing.role === 'buyer'
   const catStyle = CATEGORY_STYLES[listing.category] || CATEGORY_STYLES.Other
   const hasSocials = listing.socials && Object.keys(listing.socials).length > 0
+
+  const handleJoinFromMarket = async () => {
+    if (!listing.takenRoomId) return
+    setJoinLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/api/room-codes?roomId=${listing.takenRoomId}`)
+      const data = await res.json()
+      if (data.length > 0 && data[0].joinCode) {
+        navigate(`/room/${listing.takenRoomId}?joinCode=${encodeURIComponent(data[0].joinCode)}`)
+      } else {
+        navigate(`/room/${listing.takenRoomId}`)
+      }
+      onClose()
+    } catch (err) {
+      console.error('Failed to fetch join code:', err)
+      navigate(`/room/${listing.takenRoomId}`)
+      onClose()
+    } finally {
+      setJoinLoading(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -754,8 +778,19 @@ function ListingDetailModal({ listing, wallet, onClose, onOpenDeal, onDelete }) 
         <div className="p-5 border-t border-zinc-100 dark:border-white/10">
           {isOwner ? (
             listing.taken ? (
-              <div className="text-center text-[13px] text-amber-600 dark:text-amber-400 font-medium">
-                ⏳ This listing is in progress
+              <div className="flex flex-col gap-3">
+                {listing.takenRoomId && (
+                  <button
+                    onClick={handleJoinFromMarket}
+                    disabled={joinLoading}
+                    className="w-full py-3 rounded-md bg-amber-500 text-white text-[15px] font-medium hover:bg-amber-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {joinLoading ? 'Loading\u2026' : 'Join Room \u2192'}
+                  </button>
+                )}
+                <div className="text-center text-[13px] text-amber-600 dark:text-amber-400 font-medium">
+                  \u23F3 This listing is in progress
+                </div>
               </div>
             ) : (
               <div className="flex gap-2">

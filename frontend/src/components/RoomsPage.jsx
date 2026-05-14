@@ -63,6 +63,10 @@ export default function RoomsPage({ wallet }) {
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
+      const addr = await signer.getAddress()
+      // Query nonce from PUBLIC RPC to bypass wallet stale cache
+      const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+      let nonce = await rpcProvider.getTransactionCount(addr, 'latest')
       const contract = getContract(signer)
       // Fetch room details to check if collateral is required
       const room = parseRoom(await contract.rooms(roomCode.roomId))
@@ -74,12 +78,12 @@ export default function RoomsPage({ wallet }) {
         const usdc = getUsdc(signer)
         const allowance = await usdc.allowance(wallet.address, CONTRACT_ADDRESS)
         if (allowance < collateralWei) {
-          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, { ...ARC_GAS_APPROVE, nonce: nonce++ })
           await waitForTx(wallet.provider, approveTx.hash, 180000)
         }
       }
       const codeBytes = ethers.toUtf8Bytes(roomCode.joinCode)
-      const tx = await contract.joinRoom(roomCode.roomId, codeBytes, ARC_GAS)
+      const tx = await contract.joinRoom(roomCode.roomId, codeBytes, { ...ARC_GAS, nonce: nonce++ })
       await waitForTx(wallet.provider, tx.hash, 180000)
       loadRooms()
       fetchPendingRooms()
