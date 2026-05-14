@@ -13,13 +13,16 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
     if (!wallet) { setIsAdmin(false); return }
     const provider = wallet.provider
     const contract = getContract(provider)
+    let stale = false
     Promise.all([
       contract.owner().catch(() => ''),
       contract.arbiter().catch(() => ''),
     ]).then(([owner, arbiter]) => {
+      if (stale) return
       const addr = wallet.address.toLowerCase()
       setIsAdmin(addr === owner.toLowerCase() || addr === arbiter.toLowerCase())
     })
+    return () => { stale = true }
   }, [wallet])
 
   // Close mobile menu on route change (listen to pathname)

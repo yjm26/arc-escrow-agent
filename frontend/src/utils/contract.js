@@ -14,22 +14,31 @@ export const ARC_GAS_APPROVE = {
   maxPriorityFeePerGas: 1000000000n,
 }
 
-/// Poll for tx receipt — bypass MetaMask provider, use Arc RPC directly
-/// MetaMask's injected provider sometimes returns tx hashes that never land on Arc
-export async function waitForTx(walletProvider, txHash, timeoutMs = 120000) {
-  // Use direct Arc RPC for reliable receipt polling
+/// Poll for tx receipt — dual RPC: direct Arc RPC + wallet provider fallback
+/// Arc Testnet RPC nodes sometimes lag; checking both improves reliability
+export async function waitForTx(walletProvider, txHash, timeoutMs = 180000) {
   const rpcProvider = new ethers.JsonRpcProvider("https://rpc.testnet.arc.network", 5042002)
   const start = Date.now()
+
+  // Give tx a moment to propagate to RPC nodes before polling
+  await new Promise(r => setTimeout(r, 2500))
+
   while (Date.now() - start < timeoutMs) {
+    // 1) Direct Arc RPC
     try {
       const receipt = await rpcProvider.getTransactionReceipt(txHash)
-      if (receipt) {
-        return receipt
-      }
-    } catch (e) {
-      // Swallow — RPC might be flaky
+      if (receipt) return receipt
+    } catch { /* swallow */ }
+
+    // 2) Wallet provider RPC (MetaMask / Reown) as fallback
+    if (walletProvider) {
+      try {
+        const receipt = await walletProvider.getTransactionReceipt(txHash)
+        if (receipt) return receipt
+      } catch { /* swallow */ }
     }
-    await new Promise(r => setTimeout(r, 2000))
+
+    await new Promise(r => setTimeout(r, 1500))
   }
   throw new Error(`TX ${txHash} not confirmed within ${timeoutMs/1000}s. Check https://testnet.arcscan.app/tx/${txHash}`)
 }
