@@ -3,23 +3,57 @@ import { Link } from 'react-router-dom'
 export default function Hero({ wallet, onConnect }) {
   return (
     <section className="relative pt-28 pb-20 px-4 sm:px-6 overflow-hidden">
-      {/* Subtle gradient blobs — behind content, very low opacity */}
-      <div className="absolute inset-0 pointer-events-none z-0">
-        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-[0.06] blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(83,58,253,1), transparent 70%)', animation: 'float 18s ease-in-out infinite' }} />
-        <div className="absolute top-1/3 -left-20 w-[400px] h-[400px] rounded-full opacity-[0.04] blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(37,99,235,1), transparent 70%)', animation: 'float 22s ease-in-out infinite 6s' }} />
-        <div className="absolute bottom-0 right-1/4 w-[350px] h-[350px] rounded-full opacity-[0.04] blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(139,92,246,1), transparent 70%)', animation: 'float 20s ease-in-out infinite 12s' }} />
-      </div>
+      {/* Abstract connected lines background */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <svg
+          className="absolute w-full h-full opacity-[0.04] dark:opacity-[0.06]"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <pattern id="lines" width="80" height="80" patternUnits="userSpaceOnUse">
+              {/* Horizontal */}
+              <line x1="0" y1="40" x2="80" y2="40" stroke="currentColor" strokeWidth="0.5" />
+              {/* Vertical */}
+              <line x1="40" y1="0" x2="40" y2="80" stroke="currentColor" strokeWidth="0.5" />
+              {/* Diagonal trust lines */}
+              <line x1="0" y1="0" x2="80" y2="80" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+              <line x1="80" y1="0" x2="0" y2="80" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
+              {/* Connection dots */}
+              <circle cx="40" cy="40" r="1.5" fill="currentColor" opacity="0.6" />
+              <circle cx="0" cy="0" r="1" fill="currentColor" opacity="0.3" />
+              <circle cx="80" cy="0" r="1" fill="currentColor" opacity="0.3" />
+              <circle cx="0" cy="80" r="1" fill="currentColor" opacity="0.3" />
+              <circle cx="80" cy="80" r="1" fill="currentColor" opacity="0.3" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#lines)" />
+        </svg>
 
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(20px, -20px) scale(1.03); }
-          66% { transform: translate(-15px, 15px) scale(0.97); }
-        }
-      `}</style>
+        {/* Large subtle abstract shape — trust bridge */}
+        <svg
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-[0.03] dark:opacity-[0.05]"
+          viewBox="0 0 200 200"
+        >
+          {/* Two nodes connected by curved line */}
+          <circle cx="60" cy="100" r="8" fill="none" stroke="currentColor" strokeWidth="0.8" />
+          <circle cx="140" cy="100" r="8" fill="none" stroke="currentColor" strokeWidth="0.8" />
+          <path
+            d="M 68 100 Q 100 85 132 100"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.6"
+            strokeDasharray="2 2"
+          />
+          {/* Satellite dots */}
+          <circle cx="100" cy="60" r="3" fill="currentColor" opacity="0.4" />
+          <circle cx="100" cy="140" r="3" fill="currentColor" opacity="0.4" />
+          <line x1="60" y1="100" x2="100" y2="60" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
+          <line x1="140" y1="100" x2="100" y2="140" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
+          <line x1="60" y1="100" x2="100" y2="140" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
+          <line x1="140" y1="100" x2="100" y2="60" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
+        </svg>
+      </div>
 
       <div className="relative z-10 max-w-[1100px] mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
         {/* Left — Text */}
