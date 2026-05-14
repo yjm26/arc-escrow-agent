@@ -50,7 +50,7 @@ export default function CreateRoom({ wallet }) {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
       const contract = getContract(signer)
-      const restore = await fixSignerNonce(signer, wallet.provider)
+      const restore = await fixSignerNonce(signer)
       try {
         // Check active room limit before spending gas
         const [active, maxActive] = await Promise.all([

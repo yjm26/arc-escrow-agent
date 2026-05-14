@@ -188,9 +188,11 @@ export function createInviteLink(roomId, joinCode) {
 /// Override wallet nonce with on-chain nonce to prevent MetaMask/AppKit desync.
 /// Some wallet caches stale nonces after dropped txs, causing all future txs to hang.
 /// This patches signer.populateTransaction to use RPC's latest nonce + auto-increment.
-export async function fixSignerNonce(signer, provider) {
+export async function fixSignerNonce(signer) {
   const addr = await signer.getAddress()
-  let nextNonce = await provider.getTransactionCount(addr, 'latest')
+  // Use PUBLIC RPC — wallet provider may have stale nonce cache
+  const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+  let nextNonce = await rpcProvider.getTransactionCount(addr, 'latest')
   const originalPopulate = signer.populateTransaction.bind(signer)
   signer.populateTransaction = async (tx) => {
     const populated = await originalPopulate(tx)

@@ -272,7 +272,7 @@ export default function RoomView({ wallet }) {
         try {
           const signer = await wallet.provider.getSigner()
           await ensureArcChain(signer)
-          const restore = await fixSignerNonce(signer, wallet.provider)
+          const restore = await fixSignerNonce(signer)
           try {
             const contract = getContract(signer)
             const tx = await fn(contract)
