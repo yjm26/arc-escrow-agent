@@ -14,31 +14,33 @@ export const ARC_GAS_APPROVE = {
   maxPriorityFeePerGas: 1000000000n,
 }
 
-/// Poll for tx receipt — dual RPC: direct Arc RPC + wallet provider fallback
-/// Arc Testnet RPC nodes sometimes lag; checking both improves reliability
-export async function waitForTx(walletProvider, txHash, timeoutMs = 120000) {
+/// Poll for tx receipt — aggressive polling for Arc's fast deterministic finality
+/// Arc blocks finalize quickly; we poll immediately with short intervals.
+/// Uses provider.waitForTransaction when available (event-based, faster than polling).
+export async function waitForTx(walletProvider, txHash, timeoutMs = 60000) {
   const rpcProvider = new ethers.JsonRpcProvider("https://rpc.testnet.arc.network", 5042002)
   const start = Date.now()
 
-  // Give tx a moment to propagate to RPC nodes before polling
-  await new Promise(r => setTimeout(r, 800))
-
-  while (Date.now() - start < timeoutMs) {
-    // 1) Direct Arc RPC
+  // Try wallet provider's native waitForTransaction first (event-based, instant)
+  if (walletProvider && typeof walletProvider.waitForTransaction === 'function') {
     try {
-      const receipt = await rpcProvider.getTransactionReceipt(txHash)
+      const receipt = await walletProvider.waitForTransaction(txHash, 1, timeoutMs)
       if (receipt) return receipt
-    } catch { /* swallow */ }
+    } catch { /* fall through to polling */ }
+  }
 
-    // 2) Wallet provider RPC (MetaMask / Reown) as fallback
-    if (walletProvider) {
-      try {
-        const receipt = await walletProvider.getTransactionReceipt(txHash)
-        if (receipt) return receipt
-      } catch { /* swallow */ }
-    }
+  // Aggressive polling: no initial delay, 300ms intervals
+  while (Date.now() - start < timeoutMs) {
+    // Check both RPCs in parallel
+    const [rpcReceipt, walletReceipt] = await Promise.allSettled([
+      rpcProvider.getTransactionReceipt(txHash),
+      walletProvider ? walletProvider.getTransactionReceipt(txHash) : Promise.resolve(null),
+    ])
 
-    await new Promise(r => setTimeout(r, 900))
+    if (rpcReceipt.status === 'fulfilled' && rpcReceipt.value) return rpcReceipt.value
+    if (walletReceipt.status === 'fulfilled' && walletReceipt.value) return walletReceipt.value
+
+    await new Promise(r => setTimeout(r, 300))
   }
   throw new Error(`TX ${txHash} not confirmed within ${timeoutMs/1000}s. Check https://testnet.arcscan.app/tx/${txHash}`)
 }
