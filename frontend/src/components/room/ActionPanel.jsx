@@ -92,17 +92,26 @@ export default function ActionPanel({
               <div className="text-[12px] text-green-700 dark:text-green-400 font-medium">Collateral Locked: {room.collateralAmount} USDC</div>
             </div>
           )}
-          <div>
-            <label className="text-[12px] text-stripe-body dark:text-gray-400 mb-1.5 block font-mono uppercase tracking-[1px]">Delivery proof (optional)</label>
-            <input
-              className="stripe-input"
-              placeholder="Tracking #, receipt ID, or note"
-              value={proofInput}
-              onChange={(e) => setProofInput(e.target.value)}
-            />
-            <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">Hashed on-chain for dispute evidence</p>
-          </div>
-          <button onClick={() => wrap(handleDeliver, 'Confirming delivery\u2026', 'Marked as delivered!')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Item Given \u2713</button>
+          <details className="group">
+            <summary className="list-none cursor-pointer">
+              <div className="flex items-center justify-between text-[12px] text-stripe-body dark:text-gray-400 font-mono uppercase tracking-[1px]">
+                <span>Delivery proof (optional)</span>
+                <span className="group-open:rotate-180 transition-transform text-[10px]">▼</span>
+              </div>
+            </summary>
+            <div className="mt-2 space-y-1">
+              <input
+                className="stripe-input"
+                placeholder="Tracking #, receipt ID, or note"
+                value={proofInput}
+                onChange={(e) => setProofInput(e.target.value)}
+              />
+              <p className="text-[11px] text-stripe-body dark:text-gray-400">Hashed on-chain for dispute evidence</p>
+            </div>
+          </details>
+          <button onClick={() => wrap(handleDeliver, 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">
+            {txPending ? 'Processing\u2026' : 'I delivered'}
+          </button>
         </div>
       )}
       {room.state === 'Funded' && isBuyer && (

@@ -51,13 +51,13 @@ const STATE_GUIDES = {
   Funded: {
     seller: [
       'Funds are now in escrow.',
-      'Deliver the item, then click "Item Given".',
+      'Deliver the item, then click "I delivered".',
       'Buyer will confirm receipt to release funds.',
       'Both parties can agree to mutual cancel.',
     ],
     buyer: [
       'Funds locked in escrow.',
-      'Waiting for seller to deliver and mark "Item Given".',
+      'Waiting for seller to deliver.',
       'You will confirm receipt once satisfied.',
       'Both parties can agree to mutual cancel.',
     ],
@@ -397,7 +397,7 @@ export default function RoomView({ wallet }) {
     }
   }
 
-  const handleDeliver = () => doAction((c) => c.markDelivered(id, proofInput ? ethers.keccak256(ethers.toUtf8Bytes(proofInput)) : ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
+  const handleDeliver = () => doAction((c) => c.markDelivered(id, proofInput ? ethers.keccak256(ethers.toUtf8Bytes(proofInput)) : ethers.ZeroHash, ARC_GAS), 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')
   const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
   const handleBuyerRefund = () => doAction((c) => c.buyerRefund(id, ARC_GAS), 'Requesting refund…', 'Refunded! You receive price + seller collateral.')
 
