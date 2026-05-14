@@ -1,100 +1,18 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-
-function timeAgo(ts) {
-  const diff = Math.floor((Date.now() - ts) / 1000)
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
-}
-
-function fmt(addr) {
-  if (!addr) return '—'
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
-
-const STATUS_STYLE = {
-  pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-  accepted: 'bg-green-50 text-green-700 border-green-200',
-  declined: 'bg-red-50 text-red-700 border-red-200',
-  countered: 'bg-blue-50 text-blue-700 border-blue-200',
-}
+import { useOffers } from '../hooks/useOffers'
 
 export default function OffersPanel({ wallet, API_URL }) {
   const navigate = useNavigate()
-  const [offers, setOffers] = useState([])
-  const [tab, setTab] = useState('incoming')
-  const [counterTarget, setCounterTarget] = useState(null)
-  const [counterPrice, setCounterPrice] = useState('')
-  const [counterMsg, setCounterMsg] = useState('')
+  const {
+    tab, setTab, incoming, outgoing, displayed,
+    counterTarget, setCounterTarget,
+    counterPrice, setCounterPrice,
+    counterMsg, setCounterMsg,
+    accept, decline, submitCounter, openRoom, startCounter,
+    timeAgo, fmt, STATUS_STYLE,
+  } = useOffers(wallet, API_URL, navigate, { defaultTab: 'incoming' })
 
-  async function fetchOffers() {
-    if (!wallet?.address) return
-    try {
-      const res = await fetch(`${API_URL}/api/offers?wallet=${wallet.address}`)
-      const data = await res.json()
-      setOffers(Array.isArray(data) ? data : [])
-    } catch (err) {
-      console.error('Failed to fetch offers:', err)
-    }
-  }
-
-  useEffect(() => { fetchOffers() }, [wallet?.address])
-
-  useEffect(() => {
-    if (!wallet?.address) return
-    const i = setInterval(fetchOffers, 10000)
-    return () => clearInterval(i)
-  }, [wallet?.address])
-
-  const incoming = offers.filter(o => o.listingCreator.toLowerCase() === wallet.address.toLowerCase())
-  const outgoing = offers.filter(o => o.offererWallet.toLowerCase() === wallet.address.toLowerCase())
-  const displayed = tab === 'incoming' ? incoming : outgoing
-
-  async function accept(offerId) {
-    try {
-      await fetch(`${API_URL}/api/offers/${offerId}/accept`, { method: 'PUT' })
-      fetchOffers()
-    } catch (err) { console.error(err) }
-  }
-
-  async function decline(offerId) {
-    try {
-      await fetch(`${API_URL}/api/offers/${offerId}/decline`, { method: 'PUT' })
-      fetchOffers()
-    } catch (err) { console.error(err) }
-  }
-
-  async function submitCounter(offerId) {
-    try {
-      await fetch(`${API_URL}/api/offers/${offerId}/counter`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counterPrice, counterMessage: counterMsg }),
-      })
-      setCounterTarget(null)
-      setCounterPrice('')
-      setCounterMsg('')
-      fetchOffers()
-    } catch (err) { console.error(err) }
-  }
-
-  // Open room — determines correct role & collateral based on who's clicking
-  // When OUTGOING offer (I'm the offerer):
-  //   - listing.role === 'seller' → offerer is BUYER → creatorIsSeller=false, collateral=0
-  //   - listing.role === 'buyer'  → offerer is SELLER → creatorIsSeller=true, collateral from listing
-  // When INCOMING offer (I'm the listing creator):
-  //   - listing.role === 'seller' → I'm SELLER → creatorIsSeller=true, collateral from listing
-  //   - listing.role === 'buyer'  → I'm BUYER → creatorIsSeller=false, collateral=0
-  function openRoom(offer, isOutgoing) {
-    const iAmSeller = isOutgoing
-      ? offer.listingRole === 'buyer'
-      : offer.listingRole === 'seller'
-    const collateral = iAmSeller ? (offer.collateral || '0') : '0'
-    const counterparty = isOutgoing ? offer.listingCreator : offer.offererWallet
-    navigate(`/create?item=${encodeURIComponent(offer.listingTitle)}&price=${offer.offerPrice || offer.counterPrice}&collateral=${collateral}&creatorIsSeller=${iAmSeller}&counterparty=${counterparty}&listingId=${offer.listingId || offer.listing_id || ''}&deliveryDays=${offer.deliveryDays || 5}`)
-  }
+  const isOutgoing = tab === 'outgoing'
 
   return (
     <div className="card-3d mt-8">
@@ -113,7 +31,7 @@ export default function OffersPanel({ wallet, API_URL }) {
       <div className="divide-y divide-zinc-100 dark:divide-white/10">
         {displayed.length === 0 && (
           <div className="p-6 text-center text-[13px] text-zinc-400 font-mono">
-            {tab === 'incoming' ? 'no incoming offers yet' : 'you haven\'t made any offers yet'}
+            {tab === 'incoming' ? 'no incoming offers yet' : "you haven't made any offers yet"}
           </div>
         )}
 
@@ -156,59 +74,37 @@ export default function OffersPanel({ wallet, API_URL }) {
               {/* INCOMING: pending */}
               {tab === 'incoming' && offer.status === 'pending' && (
                 <>
-                  <button onClick={() => accept(offer.id)} className="px-3 py-1.5 rounded bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition">
-                    Accept
-                  </button>
-                  <button onClick={() => { setCounterTarget(offer); setCounterPrice(offer.offerPrice); setCounterMsg('') }} className="px-3 py-1.5 rounded border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-[12px] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition">
-                    Counter
-                  </button>
-                  <button onClick={() => decline(offer.id)} className="px-3 py-1.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-gray-400 text-[12px] hover:bg-zinc-50 dark:hover:bg-white/5 transition">
-                    Decline
-                  </button>
+                  <button onClick={() => accept(offer.id)} className="px-3 py-1.5 rounded bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition">Accept</button>
+                  <button onClick={() => startCounter(offer, offer.offerPrice)} className="px-3 py-1.5 rounded border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-[12px] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition">Counter</button>
+                  <button onClick={() => decline(offer.id)} className="px-3 py-1.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-gray-400 text-[12px] hover:bg-zinc-50 dark:hover:bg-white/5 transition">Decline</button>
                 </>
               )}
 
               {/* INCOMING: countered */}
               {tab === 'incoming' && offer.status === 'countered' && (
                 <>
-                  <button onClick={() => accept(offer.id)} className="px-3 py-1.5 rounded bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition">
-                    Accept {offer.counterPrice} USDC
-                  </button>
-                  <button onClick={() => { setCounterTarget(offer); setCounterPrice(offer.counterPrice); setCounterMsg('') }} className="px-3 py-1.5 rounded border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-[12px] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition">
-                    Counter again
-                  </button>
-                  <button onClick={() => decline(offer.id)} className="px-3 py-1.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-gray-400 text-[12px] hover:bg-zinc-50 dark:hover:bg-white/5 transition">
-                    Decline
-                  </button>
+                  <button onClick={() => accept(offer.id)} className="px-3 py-1.5 rounded bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition">Accept {offer.counterPrice} USDC</button>
+                  <button onClick={() => startCounter(offer, offer.counterPrice)} className="px-3 py-1.5 rounded border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-[12px] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition">Counter again</button>
+                  <button onClick={() => decline(offer.id)} className="px-3 py-1.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-gray-400 text-[12px] hover:bg-zinc-50 dark:hover:bg-white/5 transition">Decline</button>
                 </>
               )}
 
-              {/* INCOMING: accepted → Create Room button for listing creator too */}
+              {/* INCOMING: accepted */}
               {tab === 'incoming' && offer.status === 'accepted' && (
-                <button onClick={() => openRoom(offer, false)} className="px-4 py-1.5 rounded bg-zinc-900 dark:bg-white dark:text-[#0c0f1a] text-white text-[12px] font-medium hover:bg-zinc-800 dark:hover:bg-gray-200 transition">
-                  Create Room →
-                </button>
+                <button onClick={() => openRoom(offer, false)} className="px-4 py-1.5 rounded bg-zinc-900 dark:bg-white dark:text-[#0c0f1a] text-white text-[12px] font-medium hover:bg-zinc-800 dark:hover:bg-gray-200 transition">Create Room &rarr;</button>
               )}
 
               {/* OUTGOING: accepted */}
               {tab === 'outgoing' && offer.status === 'accepted' && (
-                <button onClick={() => openRoom(offer, true)} className="px-4 py-1.5 rounded bg-zinc-900 dark:bg-white dark:text-[#0c0f1a] text-white text-[12px] font-medium hover:bg-zinc-800 dark:hover:bg-gray-200 transition">
-                  Create Room →
-                </button>
+                <button onClick={() => openRoom(offer, true)} className="px-4 py-1.5 rounded bg-zinc-900 dark:bg-white dark:text-[#0c0f1a] text-white text-[12px] font-medium hover:bg-zinc-800 dark:hover:bg-gray-200 transition">Create Room &rarr;</button>
               )}
 
               {/* OUTGOING: countered */}
               {tab === 'outgoing' && offer.status === 'countered' && (
                 <>
-                  <button onClick={() => { accept(offer.id) }} className="px-3 py-1.5 rounded bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition">
-                    Accept {offer.counterPrice} USDC
-                  </button>
-                  <button onClick={() => { setCounterTarget(offer); setCounterPrice(offer.counterPrice || offer.offerPrice); setCounterMsg('') }} className="px-3 py-1.5 rounded border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-[12px] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition">
-                    Counter back
-                  </button>
-                  <button onClick={() => decline(offer.id)} className="px-3 py-1.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-gray-400 text-[12px] hover:bg-zinc-50 dark:hover:bg-white/5 transition">
-                    Walk away
-                  </button>
+                  <button onClick={() => accept(offer.id)} className="px-3 py-1.5 rounded bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition">Accept {offer.counterPrice} USDC</button>
+                  <button onClick={() => startCounter(offer, offer.counterPrice || offer.offerPrice)} className="px-3 py-1.5 rounded border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 text-[12px] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition">Counter back</button>
+                  <button onClick={() => decline(offer.id)} className="px-3 py-1.5 rounded border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-gray-400 text-[12px] hover:bg-zinc-50 dark:hover:bg-white/5 transition">Walk away</button>
                 </>
               )}
             </div>
@@ -238,7 +134,7 @@ export default function OffersPanel({ wallet, API_URL }) {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setCounterTarget(null)} className="flex-1 py-2 rounded border border-zinc-200 dark:border-white/10 text-[13px] text-zinc-600 dark:text-gray-400 hover:bg-zinc-50 dark:hover:bg-white/5 transition">Cancel</button>
-                <button onClick={() => submitCounter(counterTarget.id)} disabled={!counterPrice || Number(counterPrice) <= 0} className="flex-1 py-2 rounded bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 transition disabled:opacity-40">Counter →</button>
+                <button onClick={() => submitCounter(counterTarget.id)} disabled={!counterPrice || Number(counterPrice) <= 0} className="flex-1 py-2 rounded bg-blue-600 text-white text-[13px] font-medium hover:bg-blue-700 transition disabled:opacity-40">Counter &rarr;</button>
               </div>
             </div>
           </div>

@@ -13,6 +13,8 @@ import CreateRoom from './components/CreateRoom'
 import Market from './components/Market'
 import Offers from './components/Offers'
 import Docs from './components/Docs'
+import ToastContainer from './components/ToastContainer'
+import { ToastProvider } from './contexts/ToastContext'
 import { reconnectWallet } from './lib/wallet'
 
 const ARC_TESTNET = {
@@ -88,6 +90,7 @@ export default function App() {
   }, [disconnect])
 
   return (
+    <ToastProvider>
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Navbar onConnect={handleConnect} onDisconnect={handleDisconnect} wallet={wallet} connecting={connecting} />
       <ErrorBoundary>
@@ -121,6 +124,8 @@ export default function App() {
         </div>
         <div className="font-mono text-[10px] text-gray-400 dark:text-gray-600 mt-2">0xADf4c67c0D8b2900fA045B1BDbA5d54c803688E5</div>
       </footer>
+      <ToastContainer />
     </BrowserRouter>
+    </ToastProvider>
   )
 }

@@ -4,6 +4,8 @@ import { ethers } from 'ethers'
 import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS, waitForTx , parseRoom} from '../utils/contract'
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 import RoomHistory from './room/RoomHistory'
+import ActionPanel from './room/ActionPanel'
+import { useToast } from '../hooks/useToast'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -235,15 +237,19 @@ export default function RoomView({ wallet }) {
     else if (room.state === 'Funded' && room.deliveryDeadline) { target = room.deliveryDeadline; label = 'Deliver deadline' }
     else if (room.state === 'Delivered' && room.confirmDeadline) { target = room.confirmDeadline; label = 'Confirm window' }
     else if (room.state === 'Disputed' && room.disputedAt) { label = 'Pending arbiter'; setCountdown('Pending arbiter'); return }
-    else { return }
+    else { setCountdown(''); return }
 
     const tick = () => {
       const remaining = target - Math.floor(Date.now() / 1000)
-      if (remaining <= 0) { setCountdown(`${label}: expired`); return }
+      if (remaining <= 0) { setCountdown('Expired'); return }
       const h = Math.floor(remaining / 3600)
       const m = Math.floor((remaining % 3600) / 60)
       const s = remaining % 60
-      setCountdown(`${label}: ${h}h ${m}m ${s}s`)
+      const parts = []
+      if (h > 0) parts.push(`${h}h`)
+      if (m > 0 || h > 0) parts.push(`${m}m`)
+      parts.push(`${s}s`)
+      setCountdown(parts.join(' '))
     }
     tick()
     const interval = setInterval(tick, 1000)
@@ -257,24 +263,29 @@ export default function RoomView({ wallet }) {
 
   async function doAction(fn, label, successMsg) {
     setStatus({ type: 'info', msg: label })
+    addToast(label, 'info')
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
       const contract = getContract(signer)
       const tx = await fn(contract)
-      setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}… — waiting for confirmation…` })
+      setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
+      addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
       const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
       if (receipt.status === 0) {
         setStatus({ type: 'err', msg: 'TX reverted on-chain' })
+        addToast('Transaction reverted on-chain', 'err')
         return false
       }
       setStatus({ type: 'ok', msg: successMsg })
+      addToast(successMsg, 'ok')
       loadRoom()
       loadEvidence()
       return true
     } catch (err) {
       console.error('TX failed:', err)
       setStatus({ type: 'err', msg: err.reason || err.message })
+      addToast(err.reason || err.message, 'err')
       return false
     }
   }
@@ -610,7 +621,7 @@ export default function RoomView({ wallet }) {
             {/* Countdown */}
             {countdown && (
               <div className={`rounded-lg p-4 border ${
-                countdown.includes('expired')
+                countdown === 'Expired'
                   ? 'bg-red-50 border-red-200'
                   : room.state === 'Disputed'
                   ? 'bg-red-50 border-red-200'
@@ -619,10 +630,10 @@ export default function RoomView({ wallet }) {
                   : 'bg-purple-50 border-purple-200'
               }`}>
                 <div className={`text-[10px] font-mono uppercase tracking-[2px] mb-1 ${
-                  countdown.includes('expired') ? 'text-red-600' : room.state === 'Disputed' ? 'text-red-600' : room.state === 'Funded' ? 'text-amber-600' : 'text-purple-600'
+                  countdown === 'Expired' ? 'text-red-600' : room.state === 'Disputed' ? 'text-red-600' : room.state === 'Funded' ? 'text-amber-600' : 'text-purple-600'
                 }`}>Deadline</div>
                 <div className={`text-[18px] font-semibold font-mono ${
-                  countdown.includes('expired') ? 'text-red-800' : room.state === 'Disputed' ? 'text-red-800' : room.state === 'Funded' ? 'text-amber-800' : 'text-purple-800'
+                  countdown === 'Expired' ? 'text-red-800' : room.state === 'Disputed' ? 'text-red-800' : room.state === 'Funded' ? 'text-amber-800' : 'text-purple-800'
                 }`}>{countdown}</div>
                 {room.state === 'Funded' && (
                   <div className="text-[11px] text-amber-600 mt-1">Seller must deliver before deadline</div>
@@ -633,184 +644,32 @@ export default function RoomView({ wallet }) {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="card-3d p-5 space-y-3">
-              <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-1">Actions</div>
-
-              {/* CREATED */}
-              {room.state === 'Created' && !isCreator && (
-                <button onClick={handleJoin} disabled={!joinCode} className="btn-primary w-full py-3">
-                  {!joinCode ? '⚠️ Need invite link' : 'Join Room (FREE)'}
-                </button>
-              )}
-              {room.state === 'Created' && isCreator && (
-                <>
-                  <button onClick={copyInvite} className="btn-primary w-full py-3">
-                    {copied ? '✓ Copied!' : 'Copy Invite Link'}
-                  </button>
-                  <button onClick={handleCancel} className="btn-ghost w-full py-3">Cancel Room</button>
-                </>
-              )}
-
-              {/* JOINED */}
-              {room.state === 'Joined' && isCounter && (
-                <>
-                  <button onClick={handleFund} className="btn-primary w-full py-3">Fund {totalUSDC} USDC</button>
-                  <button onClick={handleLeave} className="btn-ghost w-full py-3">Leave Room</button>
-                </>
-              )}
-              {room.state === 'Joined' && isCreator && (
-                <>
-                  <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for buyer to fund…</div>
-                  <button onClick={handleLeave} className="btn-ghost w-full py-3">Leave Room</button>
-                </>
-              )}
-
-              {/* FUNDED */}
-              {room.state === 'Funded' && isCreator && (
-                <button onClick={handleDeliver} className="btn-primary w-full py-3">Item Given ✓</button>
-              )}
-              {room.state === 'Funded' && isCounter && (
-                <>
-                  {canBuyerRefund ? (
-                    <button onClick={handleBuyerRefund} className="btn-primary w-full py-3">Refund — Seller didn't deliver</button>
-                  ) : (
-                    <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for seller to give item…</div>
-                  )}
-                </>
-              )}
-
-              {/* DELIVERED */}
-              {room.state === 'Delivered' && isCounter && (
-                <>
-                  <button onClick={handleRelease} className="btn-primary w-full py-3">Confirm Received</button>
-                  <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">⚖️ Open Dispute + Evidence</button>
-                </>
-              )}
-              {room.state === 'Delivered' && isSeller && canEscalate && (
-                <button onClick={handleEscalate} className="btn-primary w-full py-3 text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100">⏰ Escalate to Arbiter — Buyer Ghosting</button>
-              )}
-              {room.state === 'Delivered' && isSeller && !canEscalate && (
-                <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for buyer to confirm…</div>
-              )}
-
-              {/* Dispute Form */}
-              {showDisputeForm && room.state === 'Delivered' && (
-                <div className="bg-red-50 border border-red-200 rounded p-4 space-y-3">
-                  <div className="text-[13px] font-medium text-red-700">⚖️ Open Dispute</div>
-                  <div className="text-[11px] text-red-500">Explain the problem and attach evidence (screenshot link, tx hash, etc.)</div>
-                  <input type="text" placeholder="Reason for dispute" value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white" />
-                  <select value={evidenceType} onChange={(e) => setEvidenceType(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white">
-                    <option value="link">Link / URL</option>
-                    <option value="screenshot">Screenshot</option>
-                    <option value="tx_hash">Transaction Hash</option>
-                    <option value="text">Text / Description</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white" />
-                  <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white" />
-                  <div className="flex gap-2">
-                    <button onClick={handleDispute} className="btn-primary flex-1 py-2.5 text-[13px]">Submit Dispute</button>
-                    <button onClick={() => setShowDisputeForm(false)} className="btn-ghost flex-1 py-2.5 text-[13px]">Cancel</button>
-                  </div>
-                </div>
-              )}
-
-              {/* DISPUTED */}
-              {room.state === 'Disputed' && (
-                <div className="bg-red-50 border border-red-200 rounded p-4">
-                  <div className="text-[13px] text-red-700 font-medium text-center mb-1">⚖️ Under Dispute</div>
-                  <div className="text-[12px] text-red-500 text-center mb-3">{arbiterName} will review evidence and decide on-chain</div>
-
-                  {isParticipant && (
-                    <>
-                      <button onClick={() => setShowEvidenceForm(!showEvidenceForm)} className="btn-ghost w-full py-2 text-[12px] mb-2">+ Add More Evidence</button>
-                      {showEvidenceForm && (
-                        <div className="bg-white border border-red-100 rounded p-3 space-y-2">
-                          <select value={evidenceType} onChange={(e) => setEvidenceType(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px]">
-                            <option value="link">Link / URL</option>
-                            <option value="screenshot">Screenshot</option>
-                            <option value="tx_hash">Transaction Hash</option>
-                            <option value="text">Text / Description</option>
-                            <option value="other">Other</option>
-                          </select>
-                          <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px]" />
-                          <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px]" />
-                          <div className="flex gap-2">
-                            <button onClick={handleSubmitEvidence} className="btn-primary flex-1 py-2 text-[12px]">Submit</button>
-                            <button onClick={() => setShowEvidenceForm(false)} className="btn-ghost flex-1 py-2 text-[12px]">Cancel</button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {isAdmin && (
-                    <div className="flex flex-col gap-2 mt-3">
-                      <button onClick={handleArbRelease} className="btn-primary w-full py-2.5 text-[13px]">Release to Seller</button>
-                      <button onClick={handleArbRefund} className="btn-ghost w-full py-2.5 text-[13px]">Refund to Buyer</button>
-                      <button onClick={handleArbSplit} className="btn-ghost w-full py-2.5 text-[13px]">50/50 Split</button>
-                    </div>
-                  )}
-                  {!isAdmin && (
-                    <div className="text-[12px] text-red-500 text-center mt-2">Awaiting arbiter decision. Funds are safe.</div>
-                  )}
-                </div>
-              )}
-
-              {/* EXPIRE */}
-              {canExpire && isParticipant && (
-                <button onClick={handleExpire} className="btn-ghost w-full py-2.5 text-[12px]">⏰ Expire Stale Room</button>
-              )}
-
-      {/* MUTUAL CANCEL */}
-      {canMutualCancel && (
-        <div className={`rounded-lg border p-4 ${mutualCancelReady ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 dark:bg-white/5 border-stripe-border dark:border-white/10'}`}>
-          <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Mutual Cancel</div>
-          {mutualCancelReady ? (
-            <>
-              <div className="text-[13px] font-medium text-amber-800 mb-1 text-center">Both parties agreed <span className="font-mono">(2/2)</span></div>
-              <div className="text-[11px] text-amber-600 text-center mb-3">All funds will be refunded. No fees.</div>
-              <button onClick={handleExecuteMutualCancel} className="w-full py-2.5 rounded text-[13px] font-medium bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 transition">Execute Mutual Cancel</button>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${mutualCancelStatus.creatorApproved ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                  <span className="text-[11px] text-stripe-body dark:text-gray-400">Creator</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-stripe-body dark:text-gray-400">Counterparty</span>
-                  <div className={`w-2 h-2 rounded-full ${mutualCancelStatus.counterpartyApproved ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                </div>
-              </div>
-              <div className="text-[12px] text-stripe-body dark:text-gray-400 text-center mb-3">
-                {hasApprovedMutualCancel
-                  ? 'You approved. Waiting for counterparty (1/2).'
-                  : counterpartyApprovedMutualCancel
-                  ? 'Counterparty approved. Your turn (1/2).'
-                  : 'Both parties must agree to cancel (0/2).'}
-              </div>
-              {!hasApprovedMutualCancel && (
-                <button onClick={handleRequestMutualCancel} className="btn-ghost w-full py-2.5 text-[12px]">Request Mutual Cancel</button>
-              )}
-              {hasApprovedMutualCancel && !counterpartyApprovedMutualCancel && (
-                <>
-                  <div className="text-[11px] text-stripe-body dark:text-gray-400 text-center py-2">Waiting for counterparty to approve…</div>
-                  <button onClick={handleRevokeMutualCancel} className="btn-ghost w-full py-2 text-[11px] text-red-600 border-red-200 hover:bg-red-50">Revoke Approval</button>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* TERMINAL */}
-      {['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room.state) && (
-        <div className="text-stripe-body dark:text-gray-400 text-[13px] text-center py-2 bg-gray-50 dark:bg-white/5 rounded">This deal is closed.</div>
-      )}
-            </div>
+            <ActionPanel
+              room={room} id={id} isCreator={isCreator} isSeller={isSeller} isBuyer={isCounter} isAdmin={isAdmin} isParticipant={isParticipant}
+              arbiterName={arbiterName} totalUSDC={totalUSDC} joinCode={joinCode} copied={copied}
+              proofInput={proofInput} setProofInput={setProofInput}
+              canExpire={canExpire} canEscalate={canEscalate} canBuyerRefund={canBuyerRefund}
+              handleJoin={handleJoin} handleFund={handleFund} handleDeliver={handleDeliver} handleRelease={handleRelease}
+              handleBuyerRefund={handleBuyerRefund} handleCancel={handleCancel} handleLeave={handleLeave} handleExpire={handleExpire}
+              handleEscalate={handleEscalate} handleArbRelease={handleArbRelease} handleArbRefund={handleArbRefund} handleArbSplit={handleArbSplit}
+              copyInvite={copyInvite}
+              showDisputeForm={showDisputeForm} setShowDisputeForm={setShowDisputeForm}
+              disputeReason={disputeReason} setDisputeReason={setDisputeReason}
+              evidenceType={evidenceType} setEvidenceType={setEvidenceType}
+              evidenceDesc={evidenceDesc} setEvidenceDesc={setEvidenceDesc}
+              evidenceRef={evidenceRef} setEvidenceRef={setEvidenceRef}
+              handleDispute={handleDispute}
+              showEvidenceForm={showEvidenceForm} setShowEvidenceForm={setShowEvidenceForm}
+              handleSubmitEvidence={handleSubmitEvidence}
+              canMutualCancel={canMutualCancel}
+              mutualCancelStatus={mutualCancelStatus}
+              hasApprovedMutualCancel={hasApprovedMutualCancel}
+              counterpartyApprovedMutualCancel={counterpartyApprovedMutualCancel}
+              mutualCancelReady={mutualCancelReady}
+              handleRequestMutualCancel={handleRequestMutualCancel}
+              handleRevokeMutualCancel={handleRevokeMutualCancel}
+              handleExecuteMutualCancel={handleExecuteMutualCancel}
+            />
 
             {/* Status */}
             {status && (
