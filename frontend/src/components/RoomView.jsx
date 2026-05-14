@@ -722,7 +722,7 @@ export default function RoomView({ wallet }) {
             )}
 
             <ActionPanel
-              room={room} id={id} isCreator={isCreator} isSeller={isSeller} isBuyer={isCounter} isAdmin={isAdmin} isParticipant={isParticipant}
+              room={room} id={id} isCreator={isCreator} isSeller={isSeller} isBuyer={isBuyer} isAdmin={isAdmin} isParticipant={isParticipant}
               arbiterName={arbiterName} totalUSDC={totalUSDC} joinCode={joinCode} copied={copied}
               canExpire={canExpire} canEscalate={canEscalate} canBuyerRefund={canBuyerRefund}
               handleJoin={handleJoin} handleFund={handleFund} handleDeliver={handleDeliver} handleRelease={handleRelease}
