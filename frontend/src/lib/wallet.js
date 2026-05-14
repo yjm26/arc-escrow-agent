@@ -1,5 +1,5 @@
 import { ethers } from 'ethers'
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../utils/contract'
+import { CONTRACT_ADDRESS, CONTRACT_ABI, ensureArcChain } from '../utils/contract'
 
 const ARC_TESTNET = {
   chainId: 5042002,
@@ -17,6 +17,10 @@ export async function reconnectWallet(reownProvider) {
   const provider = new ethers.BrowserProvider(ethereum)
   const accounts = await provider.send('eth_accounts', [])
   if (accounts.length === 0) throw new Error('No connected account')
+
+  // Auto-switch to Arc Testnet on connect (handles email/social login defaults)
+  await ensureArcChain(provider)
+
   const signer = await provider.getSigner()
   const address = await signer.getAddress()
   let balance = 0n

@@ -48,10 +48,34 @@ export async function waitForTx(walletProvider, txHash, timeoutMs = 60000) {
 }
 
 
-// Verify user is on Arc Testnet before sending tx
-export async function ensureArcChain(signer) {
-  const network = await signer.provider.getNetwork()
+// Verify user is on Arc Testnet before sending tx — auto-switch if wrong
+export async function ensureArcChain(signerOrProvider) {
+  const provider = signerOrProvider.provider || signerOrProvider
+  const network = await provider.getNetwork()
   if (network.chainId !== 5042002n) {
+    const ethereum = provider.provider || window.ethereum
+    if (ethereum?.request) {
+      try {
+        await ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x4cef52' }] })
+        return
+      } catch (switchError) {
+        // Chain not added in wallet — try add it
+        if (switchError.code === 4902) {
+          await ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x4cef52',
+              chainName: 'Arc Testnet',
+              rpcUrls: ['https://rpc.testnet.arc.network'],
+              nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+              blockExplorerUrls: ['https://testnet.arcscan.app'],
+            }],
+          })
+          return
+        }
+        throw switchError
+      }
+    }
     throw new Error(`Wrong network (chain ${network.chainId}). Please switch to Arc Testnet in your wallet.`)
   }
 }
