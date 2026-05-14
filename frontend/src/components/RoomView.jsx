@@ -138,6 +138,7 @@ export default function RoomView({ wallet }) {
   const [showEvidenceForm, setShowEvidenceForm] = useState(false)
   const [mutualCancelStatus, setMutualCancelStatus] = useState({ creatorApproved: false, counterpartyApproved: false })
   const [proofInput, setProofInput] = useState('')
+  const { addToast } = useToast()
 
   const account = wallet?.address?.toLowerCase()
 

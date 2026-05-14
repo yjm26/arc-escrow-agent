@@ -45,12 +45,17 @@ export default function ActionPanel({
   return (
     <div className="flex flex-col gap-3">
       {/* ─── CREATED ─── */}
-      {room.state === 'Created' && !isCreator && (
+      {room.state === 'Created' && canExpire && (
+        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50">
+          Expired — Close Room
+        </button>
+      )}
+      {room.state === 'Created' && !canExpire && !isCreator && (
         <button onClick={handleJoin} disabled={!joinCode} className="btn-primary w-full py-3">
           {!joinCode ? 'Need invite link' : 'Join Room (FREE)'}
         </button>
       )}
-      {room.state === 'Created' && isCreator && (
+      {room.state === 'Created' && !canExpire && isCreator && (
         <>
           <button onClick={copyInvite} className="btn-primary w-full py-3">
             {copied ? '\u2713 Copied!' : 'Copy Invite Link'}
@@ -60,13 +65,18 @@ export default function ActionPanel({
       )}
 
       {/* ─── JOINED ─── */}
-      {room.state === 'Joined' && isBuyer && (
+      {room.state === 'Joined' && canExpire && (
+        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50">
+          Expired — Close Room
+        </button>
+      )}
+      {room.state === 'Joined' && !canExpire && isBuyer && (
         <>
           <button onClick={() => wrap(handleFund, 'Funding room\u2026', 'Room funded!')} className="btn-primary w-full py-3">Fund {totalUSDC} USDC</button>
           <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} className="btn-ghost w-full py-3">Leave Room</button>
         </>
       )}
-      {room.state === 'Joined' && isSeller && (
+      {room.state === 'Joined' && !canExpire && isSeller && (
         <>
           <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to fund (30m deadline)\u2026</div>
           <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} className="btn-ghost w-full py-3">Leave Room</button>
@@ -184,13 +194,6 @@ export default function ActionPanel({
             <div className="text-[12px] text-red-500 text-center mt-2">Awaiting arbiter decision. Funds are safe.</div>
           )}
         </div>
-      )}
-
-      {/* ─── EXPIRE ─── */}
-      {canExpire && isParticipant && (
-        <button onClick={() => wrap(handleExpire, 'Expiring room\u2026', 'Room expired.')} className="btn-ghost w-full py-2.5 text-[12px] text-red-600 border-red-200 hover:bg-red-50">
-          \u23F0 Expire Stale Room
-        </button>
       )}
 
       {/* ─── MUTUAL CANCEL ─── */}
