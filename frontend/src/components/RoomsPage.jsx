@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, STATE_NAMES, CONTRACT_ADDRESS, ARC_GAS, ARC_GAS_APPROVE, ensureArcChain, waitForTx } from '../utils/contract'
+import { getContract, getUsdc, STATE_NAMES, CONTRACT_ADDRESS, ARC_GAS, ARC_GAS_APPROVE, ensureArcChain, waitForTx , parseRoom} from '../utils/contract'
 import { STATE_BADGE, formatAddress } from '../utils/constants'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
@@ -44,7 +44,7 @@ export default function RoomsPage({ wallet }) {
       const stillPending = []
       for (const rc of data) {
         try {
-          const room = await contract.getRoom(rc.roomId)
+          const room = parseRoom(await contract.rooms(rc.roomId))
           // If counterparty is address(0), we haven't joined yet
           if (room.counterparty.toLowerCase() === '0x0000000000000000000000000000000000000000') {
             stillPending.push(rc)
@@ -66,7 +66,7 @@ export default function RoomsPage({ wallet }) {
       await ensureArcChain(signer)
       const contract = getContract(signer)
       // Fetch room details to check if collateral is required
-      const room = await contract.getRoom(roomCode.roomId)
+      const room = parseRoom(await contract.rooms(roomCode.roomId))
       const collateralWei = room.collateralAmount
       const creatorIsSeller = room.creatorIsSeller
       const isCounterpartySeller = !creatorIsSeller
@@ -105,7 +105,7 @@ export default function RoomsPage({ wallet }) {
       // Scan all rooms (newest first)
       for (let i = Number(total) - 1; i >= 0; i--) {
         try {
-          const r = await contract.getRoom(i)
+          const r = parseRoom(await contract.rooms(i))
           const isCreator = r.creator.toLowerCase() === addr
           const isCounter = r.counterparty.toLowerCase() === addr
 

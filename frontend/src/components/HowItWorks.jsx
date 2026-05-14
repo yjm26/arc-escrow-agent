@@ -12,12 +12,12 @@ const STEPS = [
   {
     num: '03',
     title: 'Item given & confirm',
-    desc: 'Seller marks item as given. Buyer confirms receipt — or disputes. 2h auto-release if no action.',
+    desc: 'Seller marks item as given. Buyer confirms receipt — or disputes. Confirm window depends on deal type (24h–30d).',
   },
   {
     num: '04',
     title: 'Settled',
-    desc: 'Funds released to seller. If disputed, arbiter decides. 6h timeout if arbiter is absent.',
+    desc: 'Funds released to seller. If disputed, arbiter decides. No automatic releases — buyer must confirm or arbiter resolves.',
   },
 ]
 
@@ -120,11 +120,11 @@ export default function HowItWorks() {
 
           <div className="space-y-0">
             <FaqItem q="What happens if the seller doesn't deliver?" a="If the seller misses the delivery deadline, the buyer can call a refund and get their USDC back plus collateral. The 1% platform fee is not refunded." />
-            <FaqItem q="What if I receive a damaged or wrong item?" a="After the seller marks the item as delivered, you have 3 days to dispute. An arbiter will review and decide — full refund, release to seller, or 50/50 split." />
+            <FaqItem q="What if I receive a damaged or wrong item?" a="After the seller marks the item as delivered, you have a confirm window to dispute (24h for Instant, 7d for Service, 30d for Event Based). An arbiter will review and decide — full refund, release to seller, or 50/50 split." />
             <FaqItem q="Who is the arbiter?" a="The deployer wallet acts as arbiter. For testnet this is a single address. On mainnet, this should be a multi-sig or governance contract." />
             <FaqItem q="What if the arbiter never responds?" a="Disputes have no automatic timeout. Funds stay frozen until the arbiter acts. This prevents griefers from exploiting timers, but it also means disputes require patience. The arbiter typically responds within 24 hours." />
             <FaqItem q="Is the contract verified?" a="Yes. The source code is on GitHub and the contract is deployed on Arc Testnet. You can verify it on the block explorer." />
-            <FaqItem q="What are the timers?" a="Join: 1 day, Fund: 1 day, Delivery: 1–90 days (set at creation), Auto-release after delivery: 3 days, Dispute: no timeout. All enforced by the smart contract." />
+            <FaqItem q="What are the timers?" a="Join: 1 day, Fund: 30 minutes, Delivery: 1–90 days (set at creation), Confirm window after delivery: 24h/7d/30d depending on deal type, Dispute: no timeout. All enforced by the smart contract." />
           </div>
         </div>
       </div>

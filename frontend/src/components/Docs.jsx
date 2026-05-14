@@ -444,7 +444,7 @@ function HowItWorks() {
           [<><Badge color="slate">CREATED</Badge></>, 'Seller', 'Room is open. Waiting for buyer to join. 1-day timer.'],
           [<><Badge color="purple">JOINED</Badge></>, 'Buyer', 'Buyer entered with the correct code. 1-day timer to fund.'],
           [<><Badge color="amber">FUNDED</Badge></>, 'Seller', 'USDC deposited. Seller must deliver before the deadline (1–90 days).'],
-          [<><Badge color="green">DELIVERED</Badge></>, 'Seller', 'Item marked delivered. Buyer confirms or disputes within 3 days.'],
+          [<><Badge color="green">DELIVERED</Badge></>, 'Seller', 'Item marked delivered. Buyer confirms or disputes within confirm window (24h–30d depending on deal type).'],
           [<><Badge color="blue">RELEASED</Badge></>, 'Auto / Buyer', 'Funds sent to seller. Deal complete.'],
           [<><Badge color="red">DISPUTED</Badge></>, 'Arbiter', 'Frozen. Arbiter decides: release, refund, or split.'],
           [<><Badge color="amber">REFUNDED</Badge></>, 'Auto / Buyer', 'Buyer refunded. Seller missed deadline or deal expired.'],
@@ -486,7 +486,7 @@ function HowItWorks() {
         Once funded, the room is FUNDED. The seller has the delivery window (1 to 90 days, set at creation) to deliver. No one can pull out alone at this point.
       </P>
       <InfoBox title="Fund Timer" color="blue">
-        The buyer has 1 day to fund after joining. If they don't, anyone can expire the room.
+        The buyer has 30 minutes to fund after joining. If they don't, anyone can expire the room.
       </InfoBox>
 
       <H3>4. Seller Delivers</H3>
@@ -494,7 +494,7 @@ function HowItWorks() {
         The seller does what they agreed to. Sends the NFT, transfers the account, finishes the work. Then clicks "Mark as Delivered". They can attach an optional message or proof link.
       </P>
       <P>
-        The room state changes to DELIVERED. This starts the 3-day auto-release timer. The buyer must 
+        The room state changes to DELIVERED. This starts the confirm window timer. The buyer must 
         check what they received and respond.
       </P>
       <InfoBox title="Delivery Timer" color="blue">
@@ -513,7 +513,7 @@ function HowItWorks() {
         </li>
         <li>
           <strong className="text-stripe-navy dark:text-white">Dispute</strong>. Something went wrong. 
-          Funds freeze. Auto-release stops. Buyer opens a Discord ticket for arbiter review.
+          Funds freeze. Buyer opens a Discord ticket for arbiter review.
         </li>
         <li>
           <strong className="text-stripe-navy dark:text-white">Mutual Cancel</strong>. Both parties agree 
@@ -521,12 +521,14 @@ function HowItWorks() {
         </li>
       </ul>
 
-      <H3>6. Auto-Release (Safety Net)</H3>
+      <H3>6. Escalate (Safety Net)</H3>
       <P>
-        If the buyer doesn't confirm or dispute within 3 days, funds auto-release to the seller. This prevents buyers from holding funds hostage by simply doing nothing.
+        If the buyer doesn't confirm or dispute within the confirm window, the seller can escalate to the arbiter.
+        This prevents buyers from holding funds hostage by simply doing nothing.
       </P>
       <P>
-        3 days is enough to verify most digital goods. Check an NFT transfer, log in, review work. Not so long that anyone gets stuck.
+        Confirm window depends on deal type: 24 hours for Instant (digital goods), 30 days for Event Based (WL, mints), 
+        7 days for Service (freelance, custom work). The seller clicks "Escalate" and the arbiter takes over.
       </P>
 
       <StateFlowDiagram />
@@ -790,7 +792,7 @@ function Disputes() {
 
       <H2>When a Dispute Happens</H2>
       <P>
-        A dispute starts when the buyer clicks "Dispute" after delivery. Funds freeze immediately. Auto-release stops. No one touches the money until the arbiter decides.
+        A dispute starts when the buyer clicks "Dispute" after delivery. Funds freeze immediately. No one touches the money until the arbiter decides.
       </P>
 
       <H3>The Dispute Process</H3>
@@ -855,9 +857,9 @@ function Timers() {
         headers={['Phase', 'Duration', 'What Triggers It', 'What Happens If Expired']}
         rows={[
           ['Join', '1 day', 'Room is created', 'Anyone can expire the room; collateral returns to seller'],
-          ['Fund', '1 day', 'Buyer joins the room', 'Anyone can expire the room; collateral returns to seller'],
+          ['Fund', '30 minutes', 'Buyer joins the room', 'Anyone can expire the room; collateral returns to seller'],
           ['Deliver', '1–90 days', 'Buyer funds the escrow', 'Buyer can call buyerRefund() for full refund + collateral'],
-          ['Auto-Release', '3 days', 'Seller marks as delivered', 'Funds automatically release to seller'],
+          ['Confirm Window', '24h / 7d / 30d', 'Seller marks as delivered', 'Buyer confirms or seller escalates to arbiter'],
           ['Dispute Arbiter', 'No timeout', 'Buyer clicks Dispute', 'Frozen until arbiter resolves'],
         ]}
       />
@@ -890,8 +892,8 @@ function Timers() {
           the actual work needed.
         </li>
         <li>
-          <strong className="text-stripe-navy dark:text-white">Check delivery within 3 days</strong>. 
-          Once the seller marks delivered, you have 3 days to verify and respond. Set a reminder.
+          <strong className="text-stripe-navy dark:text-white">Check delivery within the confirm window</strong>. 
+          Once the seller marks delivered, you have a confirm window to verify and respond. The window depends on deal type: 24h for Instant, 7d for Service, 30d for Event Based. Set a reminder.
         </li>
       </ul>
     </div>
@@ -1072,8 +1074,8 @@ function FAQ() {
         </FaqItem>
 
         <FaqItem q="What if the buyer never confirms?">
-          After the seller marks delivery, the buyer has 3 days to confirm or dispute. If they do 
-          nothing, funds automatically release to the seller. This prevents buyers from holding funds 
+          After the seller marks delivery, the buyer has a confirm window to confirm or dispute (24h for Instant, 7d for Service, 30d for Event Based). If they do 
+          nothing, the seller can escalate to the arbiter. The arbiter reviews the delivery proof and decides — release to seller, refund to buyer, or split. This prevents buyers from holding funds 
           hostage by simply going silent.
         </FaqItem>
 

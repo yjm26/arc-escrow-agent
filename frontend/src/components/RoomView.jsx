@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
-import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS, waitForTx } from '../utils/contract'
+import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_NAMES, CONTRACT_ADDRESS, waitForTx , parseRoom} from '../utils/contract'
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 import RoomHistory from './room/RoomHistory'
 
@@ -60,15 +60,15 @@ const STATE_GUIDES = {
   Delivered: {
     seller: [
       'Waiting for buyer to confirm receipt.',
-      'Auto-release happens 3 days after delivery.',
-      'If buyer disputes, evidence will be reviewed.',
+      'Buyer has a confirm window based on deal type.',
+      'If buyer ghosts, you can escalate to arbiter after the window.',
       'Both parties can still agree to mutual cancel.',
     ],
     buyer: [
       'Seller marked item as delivered.',
-      'If satisfied, click "Confirm Received".',
+      'If satisfied, click "Confirm Received" to release funds.',
       'If there is an issue, open a dispute with evidence.',
-      'Auto-release to seller happens in 3 days if no action.',
+      'You have a confirm window — check the timer above.',
       'Both parties can agree to mutual cancel.',
     ],
   },
@@ -116,6 +116,7 @@ export default function RoomView({ wallet }) {
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState(null)
   const [countdown, setCountdown] = useState('')
+  const [confirmCountdown, setConfirmCountdown] = useState(null)
   const [arbiterName, setArbiterName] = useState('Bond Escrow')
   const [arbiterAddr, setArbiterAddr] = useState(TREASURY)
   const [copied, setCopied] = useState(false)
@@ -140,7 +141,7 @@ export default function RoomView({ wallet }) {
       if (!wallet) { setRoom(null); setLoading(false); return }
       const provider = wallet.provider
       const contract = getContract(provider)
-      const data = await contract.getRoom(id)
+      const data = parseRoom(await contract.rooms(id))
       setRoom({
         creator: data.creator,
         counterparty: data.counterparty,
@@ -152,6 +153,8 @@ export default function RoomView({ wallet }) {
         deliveredAt: Number(data.deliveredAt),
         disputedAt: Number(data.disputedAt),
         deliveryDeadline: Number(data.deliveryDeadline),
+        confirmDeadline: Number(data.confirmDeadline),
+        dealType: Number(data.dealType),
         state: STATE_NAMES[Number(data.state)],
         value: ethers.formatUnits(data.fundedAmount, 6),
         collateralLocked: data.collateralAmount,
@@ -228,9 +231,9 @@ export default function RoomView({ wallet }) {
     let target = 0
     let label = ''
     if (room.state === 'Created' && room.createdAt) { target = room.createdAt + 86400; label = 'Join deadline' }
-    else if (room.state === 'Joined' && room.joinedAt) { target = room.joinedAt + 86400; label = 'Fund deadline' }
+    else if (room.state === 'Joined' && room.joinedAt) { target = room.joinedAt + 1800; label = 'Fund deadline' }
     else if (room.state === 'Funded' && room.deliveryDeadline) { target = room.deliveryDeadline; label = 'Deliver deadline' }
-    else if (room.state === 'Delivered' && room.deliveredAt) { target = room.deliveredAt + 259200; label = 'Auto-release' }
+    else if (room.state === 'Delivered' && room.confirmDeadline) { target = room.confirmDeadline; label = 'Confirm window' }
     else if (room.state === 'Disputed' && room.disputedAt) { label = 'Pending arbiter'; setCountdown('Pending arbiter'); return }
     else { return }
 
@@ -245,7 +248,7 @@ export default function RoomView({ wallet }) {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [room?.state, room?.createdAt, room?.joinedAt, room?.deliveryDeadline, room?.deliveredAt, room?.disputedAt])
+  }, [room?.state, room?.createdAt, room?.joinedAt, room?.deliveryDeadline, room?.confirmDeadline, room?.disputedAt])
 
   const isCreator = account === room?.creator?.toLowerCase()
   const isCounter = account === room?.counterparty?.toLowerCase()
@@ -394,7 +397,7 @@ export default function RoomView({ wallet }) {
   const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling…', 'Cancelled. Collateral returned.')
   const handleLeave = () => doAction((c) => c.leaveRoom(id, ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
   const handleExpire = () => doAction((c) => c.expireRoom(id, ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
-  const handleAutoRelease = () => doAction((c) => c.autoRelease(id, ARC_GAS), 'Auto-releasing…', 'Auto-released! Seller gets price + collateral.')
+
   const handleRequestMutualCancel = () => doAction((c) => c.requestMutualCancel(id, ARC_GAS), 'Requesting mutual cancel…', 'You approved mutual cancel. Waiting for counterparty.')
   const handleRevokeMutualCancel = () => doAction((c) => c.revokeMutualCancel(id, ARC_GAS), 'Revoking mutual cancel…', 'You revoked your approval.')
   const handleExecuteMutualCancel = () => doAction((c) => c.executeMutualCancel(id, ARC_GAS), 'Executing mutual cancel…', 'Deal cancelled. All funds refunded.')
@@ -419,7 +422,7 @@ export default function RoomView({ wallet }) {
     (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 86400)
   )
   const canBuyerRefund = room?.state === 'Funded' && room?.deliveryDeadline && (Date.now() / 1000) > room.deliveryDeadline
-  const canAutoRelease = room?.state === 'Delivered' && room.deliveredAt && (Date.now() / 1000 - room.deliveredAt) >= 259200
+  const canEscalate = room?.state === 'Delivered' && room.confirmDeadline && (Date.now() / 1000) > room.confirmDeadline
 
   const canMutualCancel = isParticipant && ['Joined', 'Funded', 'Delivered'].includes(room?.state)
   const hasApprovedMutualCancel = isCreator ? mutualCancelStatus.creatorApproved : isCounter ? mutualCancelStatus.counterpartyApproved : false
@@ -681,10 +684,10 @@ export default function RoomView({ wallet }) {
                   <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">⚖️ Open Dispute + Evidence</button>
                 </>
               )}
-              {room.state === 'Delivered' && isCreator && canAutoRelease && (
-                <button onClick={handleAutoRelease} className="btn-primary w-full py-3">⏰ Claim Auto-Release</button>
+              {room.state === 'Delivered' && isSeller && canEscalate && (
+                <button onClick={handleEscalate} className="btn-primary w-full py-3 text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100">⏰ Escalate to Arbiter — Buyer Ghosting</button>
               )}
-              {room.state === 'Delivered' && isCreator && !canAutoRelease && (
+              {room.state === 'Delivered' && isSeller && !canEscalate && (
                 <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-2 bg-gray-50 dark:bg-white/5 rounded">Waiting for buyer to confirm…</div>
               )}
 

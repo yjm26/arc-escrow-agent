@@ -8,7 +8,7 @@ function TimerBar({ label, value }) {
 }
 
 export default function TimerSection({ room, countdowns }) {
-  const { joinCountdown, fundCountdown, deliverCountdown, autoReleaseCountdown, disputeCountdown } = countdowns
+  const { joinCountdown, fundCountdown, deliverCountdown, confirmCountdown } = countdowns
 
   return (
     <>
@@ -21,11 +21,8 @@ export default function TimerSection({ room, countdowns }) {
       {room.state === 'Funded' && deliverCountdown && (
         <TimerBar label="Deliver deadline" value={deliverCountdown} />
       )}
-      {room.state === 'Delivered' && autoReleaseCountdown && (
-        <TimerBar label="Auto-release" value={autoReleaseCountdown} />
-      )}
-      {room.state === 'Disputed' && disputeCountdown && (
-        <TimerBar label="Arbiter deadline" value={disputeCountdown} />
+      {room.state === 'Delivered' && confirmCountdown && (
+        <TimerBar label="Confirm window" value={confirmCountdown} />
       )}
     </>
   )

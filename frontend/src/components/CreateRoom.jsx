@@ -12,6 +12,7 @@ export default function CreateRoom({ wallet }) {
   const [collateral, setCollateral] = useState(searchParams.get('collateral') || '')
   const [noCollateral, setNoCollateral] = useState(searchParams.get('collateral') === '0')
   const [deliveryDays, setDeliveryDays] = useState(Number(searchParams.get('deliveryDays')) || 5)
+  const [dealType, setDealType] = useState(0) // 0=Instant, 1=EventBased, 2=Service
   const counterparty = searchParams.get('counterparty') || ''
   const fromMarket = !!searchParams.get('listingId') || !!searchParams.get('item')
   const [creatorIsSeller, setCreatorIsSeller] = useState(searchParams.get('creatorIsSeller') !== 'false')
@@ -78,7 +79,7 @@ export default function CreateRoom({ wallet }) {
 
       // Step 2: Create room (contract pulls collateral via transferFrom)
       setStep('Creating room…')
-      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, ARC_GAS)
+      const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, dealType, ARC_GAS)
       setStep('Waiting for confirmation…')
       const receipt = await waitForTx(wallet.provider, tx.hash, 180000)
 
@@ -405,6 +406,34 @@ export default function CreateRoom({ wallet }) {
           </div>
 
 
+
+          {/* Deal type */}
+          <div className="mb-4">
+            <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 block mb-1.5">
+              Deal Type
+            </label>
+            <div className="flex flex-col gap-2">
+              {[
+                { key: 0, label: 'Instant', desc: 'Digital goods — 24h confirm window' },
+                { key: 1, label: 'Event Based', desc: 'WL, mint, launch — 30d confirm window' },
+                { key: 2, label: 'Service', desc: 'Freelance, custom work — 7d confirm window' },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setDealType(t.key)}
+                  className={`text-left p-3 rounded-lg border transition ${
+                    dealType === t.key
+                      ? 'bg-stripe-navy dark:bg-white text-white dark:text-[#0c0f1a] border-stripe-navy dark:border-white'
+                      : 'bg-white dark:bg-white/5 text-stripe-body dark:text-gray-400 border-stripe-border dark:border-white/10 hover:border-stripe-navy dark:hover:border-white/40'
+                  }`}
+                >
+                  <div className="text-[13px] font-semibold">{t.label}</div>
+                  <div className="text-[11px] opacity-80 mt-0.5">{t.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
 
           <button onClick={handleCreate} disabled={loading || !item || !price} className="btn-primary w-full py-3.5 text-[15px]">
             {loading ? step || 'Processing…' : fromMarket ? `Confirm Deal →` : `Create Room (FREE${!noCollateral && collateral && creatorIsSeller ? ' + collateral' : ''})`}

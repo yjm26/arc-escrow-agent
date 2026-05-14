@@ -1,10 +1,10 @@
 export default function ActionPanel({
   room, id, isCreator, isSeller, isBuyer, isArbiter,
   arbiterName, totalUSDC, joinCode, copied, proofInput, setProofInput,
-  canExpire, canAutoRelease, canBuyerRefund, canDisputeTimeout,
+  canExpire, canEscalate, canBuyerRefund, canDisputeTimeout,
   handleJoin, handleFund, handleDeliver, handleRelease, handleDispute,
   handleBuyerRefund, handleCancel, handleLeave, handleExpire,
-  handleAutoRelease, handleDisputeTimeout, handleArbRelease,
+  handleEscalate, handleDisputeTimeout, handleArbRelease,
   handleArbRefund, handleArbSplit, copyInvite, handleLockCollateral,
 }) {
   return (
@@ -80,10 +80,10 @@ export default function ActionPanel({
           <button onClick={handleDispute} className="btn-ghost w-full py-3">Dispute</button>
         </>
       )}
-      {room.state === 'Delivered' && isSeller && canAutoRelease && (
-            <button onClick={handleAutoRelease} className="btn-ghost w-full py-3">Claim Auto-Release</button>
+      {room.state === 'Delivered' && isSeller && canEscalate && (
+            <button onClick={handleEscalate} className="btn-ghost w-full py-3 text-amber-600 border-amber-200 hover:bg-amber-50">Escalate to Arbiter — Buyer Ghosting</button>
       )}
-      {room.state === 'Delivered' && isSeller && !canAutoRelease && (
+      {room.state === 'Delivered' && isSeller && !canEscalate && (
         <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to confirm receipt…</div>
       )}
 
