@@ -261,7 +261,7 @@ export default function Market({ wallet }) {
             />
             <textarea className="stripe-input mb-3 resize-none" placeholder="Description — what are you selling?" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} maxLength={500} />
 
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Category</label>
                 <select className="stripe-input w-full" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
@@ -284,14 +284,33 @@ export default function Market({ wallet }) {
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">USDC</span>
                 </div>
               </div>
-              <div>
-                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Delivery</label>
-                <div className="relative">
-                  <input className="stripe-input w-full" type="number" min={1} max={90} step={1} value={form.deliveryDays} onChange={(e) => setForm({ ...form, deliveryDays: Math.max(1, Math.min(90, Number(e.target.value) || 1)) })} />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-stripe-body dark:text-gray-500">days</span>
-                </div>
-              </div>
             </div>
+
+            {/* Estimated Delivery — only for Event-based & Service */}
+            {Number(form.dealType) !== 0 && (
+              <div className="mb-4">
+                <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">
+                  {Number(form.dealType) === 1 ? 'Estimated Delivery' : 'Custom Timeline'}
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    className="stripe-input flex-1"
+                    type="number"
+                    min={1}
+                    max={90}
+                    step={1}
+                    value={form.deliveryDays}
+                    onChange={(e) => setForm({ ...form, deliveryDays: Math.max(1, Math.min(90, Number(e.target.value) || 1)) })}
+                  />
+                  <span className="text-[13px] text-stripe-body dark:text-gray-400 font-medium">days</span>
+                </div>
+                <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
+                  {Number(form.dealType) === 1
+                    ? 'When the NFT / event item will be available (e.g. mint in 7 days).'
+                    : 'Agreed delivery window for the service.'}
+                </p>
+              </div>
+            )}
 
             {/* Collateral */}
             <div className="mb-4">

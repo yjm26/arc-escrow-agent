@@ -173,6 +173,13 @@ export default function CreateRoom({ wallet }) {
               </div>
               <h2 className="text-[22px] font-semibold text-stripe-navy dark:text-white mb-1">Room Created!</h2>
               <p className="text-[14px] text-stripe-body dark:text-gray-400">Share this invite link with your counterparty</p>
+              {fromMarket && !creatorIsSeller && (
+                <div className="mt-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+                  <p className="text-[12px] text-amber-700 dark:text-amber-400">
+                    The seller has been notified. They need to join and lock collateral before you can fund this room.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">

@@ -29,8 +29,9 @@ const STATE_GUIDES = {
       'You can cancel anytime before someone joins.',
     ],
     buyer: [
-      'Waiting for seller to share the invite link.',
-      'Once you receive it, click Join Room.',
+      'Room created from market deal.',
+      'Seller has been notified to join.',
+      'You can share the invite link as backup.',
       'No funds are locked yet.',
     ],
   },
@@ -326,9 +327,12 @@ export default function RoomView({ wallet }) {
       if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
         const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
         const usdc = getUsdc(signer)
-        setStatus({ type: 'info', msg: 'Approving collateral…' })
-        const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
-        await waitForTx(wallet.provider, approveTx.hash, 180000)
+        const allowance = await usdc.allowance(wallet.address, CONTRACT_ADDRESS)
+        if (allowance < collateralWei) {
+          setStatus({ type: 'info', msg: 'Approving collateral…' })
+          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+          await waitForTx(wallet.provider, approveTx.hash, 180000)
+        }
       }
       setStatus({ type: 'info', msg: 'Joining…' })
       const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
