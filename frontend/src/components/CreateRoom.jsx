@@ -68,11 +68,15 @@ export default function CreateRoom({ wallet }) {
         const joinCode = generateJoinCode()
         const joinCodeHash = hashJoinCode(joinCode)
 
+        // Query nonce from PUBLIC RPC to bypass wallet stale cache
+        const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+        let nonce = await rpcProvider.getTransactionCount(await signer.getAddress(), 'latest')
+
         // Step 1: Approve USDC for collateral (only if creator is seller and collateral > 0)
         if (creatorIsSeller && collateralWei > 0n) {
           setStep('Approving USDC\u2026')
           try {
-            const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+            const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, { ...ARC_GAS_APPROVE, nonce: nonce++ })
             await waitForTx(wallet.provider, approveTx.hash, 180000)
           } catch (approveErr) {
             console.error('approve failed:', approveErr)
@@ -82,7 +86,7 @@ export default function CreateRoom({ wallet }) {
 
         // Step 2: Create room (contract pulls collateral via transferFrom)
         setStep('Creating room\u2026')
-        const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, dealType, ARC_GAS)
+        const tx = await contract.createRoom(item, priceWei, collateralWei, joinCodeHash, creatorIsSeller, deliveryDays, dealType, { ...ARC_GAS, nonce: nonce++ })
         setStep('Waiting for confirmation\u2026')
         const receipt = await waitForTx(wallet.provider, tx.hash, 180000)
 

@@ -272,10 +272,13 @@ export default function RoomView({ wallet }) {
         try {
           const signer = await wallet.provider.getSigner()
           await ensureArcChain(signer)
-          const restore = await fixSignerNonce(signer)
-          try {
-            const contract = getContract(signer)
-            const tx = await fn(contract)
+          const addr = await signer.getAddress()
+          // Query nonce from PUBLIC RPC to bypass wallet stale cache
+          const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+          const nonce = await rpcProvider.getTransactionCount(addr, 'latest')
+          const gas = { ...ARC_GAS, nonce }
+          const contract = getContract(signer)
+          const tx = await fn(contract, gas)
             setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
             addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
 
@@ -303,9 +306,6 @@ export default function RoomView({ wallet }) {
             loadRoom()
             loadEvidence()
             return true
-          } finally {
-            restore()
-          }
         } catch (err) {
           const msg = err.reason || err.message || String(err)
           // User rejection = don't retry
@@ -341,7 +341,10 @@ export default function RoomView({ wallet }) {
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
-      const restore = await fixSignerNonce(signer)
+      // Query nonce from PUBLIC RPC
+      const addr = await signer.getAddress()
+      const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+      let nonce = await rpcProvider.getTransactionCount(addr, 'latest')
       try {
         const contract = getContract(signer)
         // Pre-verify join code to avoid wasting gas
@@ -353,20 +356,18 @@ export default function RoomView({ wallet }) {
           const allowance = await usdc.allowance(wallet.address, CONTRACT_ADDRESS)
           if (allowance < collateralWei) {
             setStatus({ type: 'info', msg: 'Approving collateral\u2026' })
-            const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+            const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, { ...ARC_GAS_APPROVE, nonce: nonce++ })
             await waitForTx(wallet.provider, approveTx.hash, 180000)
           }
         }
         setStatus({ type: 'info', msg: 'Joining\u2026' })
-        const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
+        const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), { ...ARC_GAS, nonce: nonce++ })
         await waitForTx(wallet.provider, tx.hash, 180000)
         setStatus({ type: 'ok', msg: 'Joined!' })
         loadRoom()
-      } finally {
-        restore()
+      } catch (e) {
+        setStatus({ type: 'err', msg: e.reason || e.message })
       }
-    } catch (e) {
-      setStatus({ type: 'err', msg: e.reason || e.message })
     } finally {
       setTxPending(false)
     }
@@ -378,7 +379,10 @@ export default function RoomView({ wallet }) {
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
-      const restore = await fixSignerNonce(signer)
+      // Query nonce from PUBLIC RPC
+      const addr = await signer.getAddress()
+      const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+      let nonce = await rpcProvider.getTransactionCount(addr, 'latest')
       try {
         const contract = getContract(signer)
         // Fetch dynamic tax from contract — never hardcode
@@ -389,31 +393,29 @@ export default function RoomView({ wallet }) {
         const bal = await usdc.balanceOf(wallet.address)
         if (bal < exactNeeded) { setStatus({ type: 'err', msg: `Insufficient USDC. Need ${ethers.formatUnits(exactNeeded, 6)} USDC (incl. ${Number(taxBps)/100}% fee)` }); return }
         setStatus({ type: 'info', msg: 'Approving USDC\u2026' })
-        const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
+        const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, { ...ARC_GAS_APPROVE, nonce: nonce++ })
         await waitForTx(wallet.provider, approveTx.hash, 180000)
         setStatus({ type: 'info', msg: 'Funding room\u2026' })
-        const fundTx = await contract.fundRoom(id, ARC_GAS)
+        const fundTx = await contract.fundRoom(id, { ...ARC_GAS, nonce: nonce++ })
         await waitForTx(wallet.provider, fundTx.hash, 180000)
         setStatus({ type: 'ok', msg: 'Funded!' })
         loadRoom()
-      } finally {
-        restore()
+      } catch (e) {
+        setStatus({ type: 'err', msg: e.reason || e.message })
       }
-    } catch (e) {
-      setStatus({ type: 'err', msg: e.reason || e.message })
     } finally {
       setTxPending(false)
     }
   }
 
-  const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')
-  const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
-  const handleBuyerRefund = () => doAction((c) => c.buyerRefund(id, ARC_GAS), 'Requesting refund…', 'Refunded! You receive price + seller collateral.')
+  const handleDeliver = () => doAction((c, gas) => c.markDelivered(id, ethers.ZeroHash, gas), 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')
+  const handleRelease = () => doAction((c, gas) => c.releaseFunds(id, gas), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
+  const handleBuyerRefund = () => doAction((c, gas) => c.buyerRefund(id, gas), 'Requesting refund…', 'Refunded! You receive price + seller collateral.')
 
   const handleDispute = async () => {
     if (!disputeReason.trim()) { setStatus({ type: 'err', msg: 'Reason required' }); return }
     const ok = await doAction(
-      (c) => c.openDispute(id, disputeReason.trim(), 'text', '', '', ARC_GAS),
+      (c, gas) => c.openDispute(id, disputeReason.trim(), 'text', '', '', gas),
       'Opening dispute\u2026',
       'Disputed! Arbiter will review.'
     )
@@ -462,23 +464,23 @@ export default function RoomView({ wallet }) {
     setDisputeReason('')
   }
 
-  const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling\u2026', 'Cancelled. Collateral returned.')
-  const handleLeave = () => doAction((c) => c.leaveRoom(id, ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
-  const handleExpire = () => doAction((c) => c.expireRoom(id, ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
+  const handleCancel = () => doAction((c, gas) => c.cancelRoom(id, gas), 'Cancelling\u2026', 'Cancelled. Collateral returned.')
+  const handleLeave = () => doAction((c, gas) => c.leaveRoom(id, gas), 'Leaving…', 'Left room. Collateral returned.')
+  const handleExpire = () => doAction((c, gas) => c.expireRoom(id, gas), 'Expiring…', 'Expired. Collateral returned.')
 
-  const handleRequestMutualCancel = () => doAction((c) => c.requestMutualCancel(id, ARC_GAS), 'Requesting mutual cancel…', 'You approved mutual cancel. Waiting for counterparty.')
-  const handleRevokeMutualCancel = () => doAction((c) => c.revokeMutualCancel(id, ARC_GAS), 'Revoking mutual cancel…', 'You revoked your approval.')
-  const handleExecuteMutualCancel = () => doAction((c) => c.executeMutualCancel(id, ARC_GAS), 'Executing mutual cancel…', 'Deal cancelled. All funds refunded.')
+  const handleRequestMutualCancel = () => doAction((c, gas) => c.requestMutualCancel(id, gas), 'Requesting mutual cancel…', 'You approved mutual cancel. Waiting for counterparty.')
+  const handleRevokeMutualCancel = () => doAction((c, gas) => c.revokeMutualCancel(id, gas), 'Revoking mutual cancel…', 'You revoked your approval.')
+  const handleExecuteMutualCancel = () => doAction((c, gas) => c.executeMutualCancel(id, gas), 'Executing mutual cancel…', 'Deal cancelled. All funds refunded.')
   const handleArbRelease = () => {
     const seller = room.creatorIsSeller ? room.creator : room.counterparty
-    doAction((c) => c.arbiterResolve(id, seller, ARC_GAS), 'Resolving…', 'Released to seller (+ collateral)')
+    doAction((c, gas) => c.arbiterResolve(id, seller, gas), 'Resolving…', 'Released to seller (+ collateral)')
   }
   const handleArbRefund = () => {
     const buyer = room.creatorIsSeller ? room.counterparty : room.creator
-    doAction((c) => c.arbiterResolve(id, buyer, ARC_GAS), 'Resolving…', 'Refunded to buyer (+ collateral)')
+    doAction((c, gas) => c.arbiterResolve(id, buyer, gas), 'Resolving…', 'Refunded to buyer (+ collateral)')
   }
-  const handleArbSplit = () => doAction((c) => c.arbiterSplit(id, ARC_GAS), 'Splitting…', '50/50 split')
-  const handleEscalate = () => doAction((c) => c.escalateNoResponse(id, ARC_GAS), 'Escalating…', 'Escalated! Arbiter will review delivery proof.')
+  const handleArbSplit = () => doAction((c, gas) => c.arbiterSplit(id, gas), 'Splitting…', '50/50 split')
+  const handleEscalate = () => doAction((c, gas) => c.escalateNoResponse(id, gas), 'Escalating…', 'Escalated! Arbiter will review delivery proof.')
 
   const copyInvite = () => {
     navigator.clipboard.writeText(window.location.href)
