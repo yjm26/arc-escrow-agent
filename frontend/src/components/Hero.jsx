@@ -3,55 +3,65 @@ import { Link } from 'react-router-dom'
 export default function Hero({ wallet, onConnect }) {
   return (
     <section className="relative pt-28 pb-20 px-4 sm:px-6 overflow-hidden">
-      {/* Abstract connected lines background */}
+      {/* Fine dot-grid background */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <svg
-          className="absolute w-full h-full opacity-[0.04] dark:opacity-[0.06]"
+          className="absolute w-full h-full opacity-[0.18] dark:opacity-[0.26]"
           xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="none"
+          preserveAspectRatio="xMidYMid slice"
         >
           <defs>
-            <pattern id="lines" width="80" height="80" patternUnits="userSpaceOnUse">
-              {/* Horizontal */}
-              <line x1="0" y1="40" x2="80" y2="40" stroke="currentColor" strokeWidth="0.5" />
-              {/* Vertical */}
-              <line x1="40" y1="0" x2="40" y2="80" stroke="currentColor" strokeWidth="0.5" />
-              {/* Diagonal trust lines */}
-              <line x1="0" y1="0" x2="80" y2="80" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
-              <line x1="80" y1="0" x2="0" y2="80" stroke="currentColor" strokeWidth="0.3" opacity="0.5" />
-              {/* Connection dots */}
-              <circle cx="40" cy="40" r="1.5" fill="currentColor" opacity="0.6" />
-              <circle cx="0" cy="0" r="1" fill="currentColor" opacity="0.3" />
-              <circle cx="80" cy="0" r="1" fill="currentColor" opacity="0.3" />
-              <circle cx="0" cy="80" r="1" fill="currentColor" opacity="0.3" />
-              <circle cx="80" cy="80" r="1" fill="currentColor" opacity="0.3" />
+            <pattern id="dot-grid" width="60" height="60" patternUnits="userSpaceOnUse">
+              {/* Vertical lines */}
+              <line x1="0" y1="0" x2="0" y2="60" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
+              <line x1="30" y1="0" x2="30" y2="60" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
+              {/* Horizontal lines */}
+              <line x1="0" y1="0" x2="60" y2="0" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
+              <line x1="0" y1="30" x2="60" y2="30" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
+              {/* Dots at intersections */}
+              <circle cx="0" cy="0" r="1.2" fill="currentColor" opacity="0.5" />
+              <circle cx="30" cy="0" r="1.2" fill="currentColor" opacity="0.5" />
+              <circle cx="0" cy="30" r="1.2" fill="currentColor" opacity="0.5" />
+              <circle cx="30" cy="30" r="1.5" fill="currentColor" opacity="0.55" />
+              {/* Offset secondary dots */}
+              <circle cx="15" cy="15" r="0.8" fill="currentColor" opacity="0.3" />
+              <circle cx="45" cy="15" r="0.8" fill="currentColor" opacity="0.3" />
+              <circle cx="15" cy="45" r="0.8" fill="currentColor" opacity="0.3" />
+              <circle cx="45" cy="45" r="0.8" fill="currentColor" opacity="0.3" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#lines)" />
+          <rect width="100%" height="100%" fill="url(#dot-grid)" />
         </svg>
 
-        {/* Large subtle abstract shape — trust bridge */}
+        {/* Large faded focal dot cluster */}
         <svg
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-[0.03] dark:opacity-[0.05]"
-          viewBox="0 0 200 200"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-[0.10] dark:opacity-[0.16]"
+          viewBox="0 0 300 300"
         >
-          {/* Two nodes connected by curved line */}
-          <circle cx="60" cy="100" r="8" fill="none" stroke="currentColor" strokeWidth="0.8" />
-          <circle cx="140" cy="100" r="8" fill="none" stroke="currentColor" strokeWidth="0.8" />
-          <path
-            d="M 68 100 Q 100 85 132 100"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="0.6"
-            strokeDasharray="2 2"
-          />
-          {/* Satellite dots */}
-          <circle cx="100" cy="60" r="3" fill="currentColor" opacity="0.4" />
-          <circle cx="100" cy="140" r="3" fill="currentColor" opacity="0.4" />
-          <line x1="60" y1="100" x2="100" y2="60" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
-          <line x1="140" y1="100" x2="100" y2="140" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
-          <line x1="60" y1="100" x2="100" y2="140" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
-          <line x1="140" y1="100" x2="100" y2="60" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
+          {/* Concentric rings */}
+          <circle cx="150" cy="150" r="40" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.35" />
+          <circle cx="150" cy="150" r="70" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.25" />
+          <circle cx="150" cy="150" r="100" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.18" />
+
+          {/* Radial dash lines */}
+          <line x1="150" y1="150" x2="150" y2="50" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="220" y2="80" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="250" y2="150" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="220" y2="220" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="150" y2="250" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="80" y2="220" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="50" y2="150" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+          <line x1="150" y1="150" x2="80" y2="80" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
+
+          {/* Outer dots */}
+          <circle cx="150" cy="50" r="2" fill="currentColor" opacity="0.35" />
+          <circle cx="250" cy="150" r="2" fill="currentColor" opacity="0.35" />
+          <circle cx="150" cy="250" r="2" fill="currentColor" opacity="0.35" />
+          <circle cx="50" cy="150" r="2" fill="currentColor" opacity="0.35" />
+          <circle cx="220" cy="80" r="1.5" fill="currentColor" opacity="0.3" />
+          <circle cx="220" cy="220" r="1.5" fill="currentColor" opacity="0.3" />
+          <circle cx="80" cy="220" r="1.5" fill="currentColor" opacity="0.3" />
+          <circle cx="80" cy="80" r="1.5" fill="currentColor" opacity="0.3" />
         </svg>
       </div>
 
@@ -155,8 +165,8 @@ export default function Hero({ wallet, onConnect }) {
                   <span className="text-[10px] font-mono uppercase tracking-wider text-stripe-body dark:text-gray-500">Parties</span>
                 </div>
                 {[
-                  { addr: '0xF871…7AF3', role: 'Seller', you: true },
-                  { addr: '0xAb12…9c34', role: 'Buyer', you: false },
+                  { addr: '0xF871\u20267AF3', role: 'Seller', you: true },
+                  { addr: '0xAb12\u20269c34', role: 'Buyer', you: false },
                 ].map((p, i) => (
                   <div key={i} className={`flex justify-between items-center px-4 py-2.5 ${i === 0 ? 'border-b border-stripe-border dark:border-white/10' : ''}`}>
                     <div>
