@@ -115,7 +115,7 @@ export default function RoomView({ wallet }) {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const joinCode = searchParams.get('code') || ''
+  const joinCode = searchParams.get('joinCode') || searchParams.get('code') || ''
 
   const [room, setRoom] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -303,8 +303,8 @@ export default function RoomView({ wallet }) {
             }
             setStatus({ type: 'ok', msg: successMsg })
             addToast(successMsg, 'ok')
-            loadRoom()
-            loadEvidence()
+            // Delay re-fetch to let RPC nodes sync
+            setTimeout(() => { loadRoom(); loadEvidence() }, 3000)
             return true
         } catch (err) {
           const msg = err.reason || err.message || String(err)
@@ -399,7 +399,8 @@ export default function RoomView({ wallet }) {
         const fundTx = await contract.fundRoom(id, { ...ARC_GAS, nonce: nonce++ })
         await waitForTx(wallet.provider, fundTx.hash, 180000)
         setStatus({ type: 'ok', msg: 'Funded!' })
-        loadRoom()
+        // Delay re-fetch to let RPC nodes sync
+        setTimeout(() => loadRoom(), 3000)
       } catch (e) {
         setStatus({ type: 'err', msg: e.reason || e.message })
       }
@@ -503,7 +504,7 @@ export default function RoomView({ wallet }) {
   const role = isCreator ? (room?.creatorIsSeller ? 'seller' : 'buyer') : isCounter ? (room?.creatorIsSeller ? 'buyer' : 'seller') : null
   const isSeller = role === 'seller'
   const isBuyer = role === 'buyer'
-  const guide = room && STATE_GUIDES[room.state] ? (STATE_GUIDES[room.state][role || 'both'] || STATE_GUIDES[room.state].both) : []
+  const guide = room && STATE_GUIDES[room.state] ? (STATE_GUIDES[room.state][role || 'both'] || STATE_GUIDES[room.state].both || []) : []
 
   if (loading) return (
     <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
@@ -650,7 +651,7 @@ export default function RoomView({ wallet }) {
             </div>
 
             {/* Evidence (if disputed) */}
-            {room.state === 'Disputed' && evidence.length > 0 && (
+            {room.state === 'Disputed' && evidence && evidence.length > 0 && (
               <div className="card-3d p-5">
                 <div className="text-[10px] font-mono uppercase tracking-[2px] text-red-600 mb-3">Submitted Evidence</div>
                 <div className="space-y-2">
