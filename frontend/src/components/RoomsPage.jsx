@@ -79,7 +79,6 @@ export default function RoomsPage({ wallet }) {
         }
       }
       const codeBytes = ethers.toUtf8Bytes(roomCode.joinCode)
-      setStatus({ type: 'info', msg: 'Joining…' })
       const tx = await contract.joinRoom(roomCode.roomId, codeBytes, ARC_GAS)
       await waitForTx(wallet.provider, tx.hash, 180000)
       loadRooms()

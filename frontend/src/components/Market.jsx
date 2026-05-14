@@ -724,7 +724,7 @@ function ListingDetailModal({ listing, wallet, onClose, onOpenDeal, onDelete }) 
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[2px] text-zinc-400 mb-2">Contact</div>
               <div className="flex flex-wrap gap-2">
-                {SOCIAL_TYPES.map(s => {
+                {SOCIAL_OPTIONS.map(s => {
                   const val = listing.socials?.[s.key]
                   if (!val) return null
                   const link = socialLink(s.key, val)
