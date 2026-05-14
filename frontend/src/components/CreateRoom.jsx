@@ -396,29 +396,31 @@ export default function CreateRoom({ wallet }) {
             )}
           </div>
 
-          {/* Delivery days */}
-          <div className="mb-4">
-            <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 block mb-1.5">
-              Delivery Window
-            </label>
-            <div className="flex items-center gap-3">
-                <input
-                  className={`stripe-input flex-1 ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  type="number"
-                  min={1}
-                  max={90}
-                  step={1}
-                  value={deliveryDays}
-                  onChange={(e) => !fromMarket && setDeliveryDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
-                  readOnly={fromMarket}
-                  disabled={fromMarket}
-                />
-              <span className="text-[13px] text-stripe-body dark:text-gray-400 font-medium">days</span>
+          {/* Delivery days — hidden for Instant deals */}
+          {dealType !== 0 && (
+            <div className="mb-4">
+              <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-400 block mb-1.5">
+                Delivery Window
+              </label>
+              <div className="flex items-center gap-3">
+                  <input
+                    className={`stripe-input flex-1 ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    type="number"
+                    min={1}
+                    max={90}
+                    step={1}
+                    value={deliveryDays}
+                    onChange={(e) => !fromMarket && setDeliveryDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
+                    readOnly={fromMarket}
+                    disabled={fromMarket}
+                  />
+                <span className="text-[13px] text-stripe-body dark:text-gray-400 font-medium">days</span>
+              </div>
+              <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
+                Seller must deliver within this window or buyer can refund + claim collateral.
+              </p>
             </div>
-            <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
-              Seller must deliver within this window or buyer can refund + claim collateral.
-            </p>
-          </div>
+          )}
 
 
 

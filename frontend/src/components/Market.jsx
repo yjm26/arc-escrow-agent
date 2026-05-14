@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useToast } from '../hooks/useToast'
 import OfferModal from './OfferModal'
 import OffersPanel from './OffersPanel'
 import ReputationBadge from './ReputationBadge'
@@ -618,6 +619,7 @@ function ListingCard({ listing, wallet, onOpenDeal, onDelete, onExpand }) {
    ═══════════════════════════════════════════ */
 function ListingDetailModal({ listing, wallet, API_URL, onClose, onOpenDeal, onDelete }) {
   const navigate = useNavigate()
+  const { addToast } = useToast()
   const [joinLoading, setJoinLoading] = useState(false)
   const isOwner = wallet && listing.creator?.toLowerCase() === wallet.address?.toLowerCase()
   const isBuyerListing = listing.role === 'buyer'
@@ -625,21 +627,28 @@ function ListingDetailModal({ listing, wallet, API_URL, onClose, onOpenDeal, onD
   const hasSocials = listing.socials && Object.keys(listing.socials).length > 0
 
   const handleJoinFromMarket = async () => {
-    if (!listing.takenRoomId) return
     setJoinLoading(true)
     try {
-      const res = await fetch(`${API_URL}/api/room-codes?roomId=${listing.takenRoomId}`)
-      const data = await res.json()
+      // Fetch fresh listing data — frontend state may be stale (takenRoomId not yet polled)
+      const res = await fetch(`${API_URL}/api/listings`)
+      const all = await res.json()
+      const fresh = all.find(l => l.id === listing.id)
+      const roomId = fresh?.takenRoomId || listing.takenRoomId
+      if (!roomId) {
+        addToast('Buyer has not created a room yet. Please wait a moment and try again.', 'err')
+        return
+      }
+      const codeRes = await fetch(`${API_URL}/api/room-codes?roomId=${roomId}`)
+      const data = await codeRes.json()
       if (data.length > 0 && data[0].joinCode) {
-        navigate(`/room/${listing.takenRoomId}?joinCode=${encodeURIComponent(data[0].joinCode)}`)
+        navigate(`/room/${roomId}?joinCode=${encodeURIComponent(data[0].joinCode)}`)
       } else {
-        navigate(`/room/${listing.takenRoomId}`)
+        navigate(`/room/${roomId}`)
       }
       onClose()
     } catch (err) {
       console.error('Failed to fetch join code:', err)
-      navigate(`/room/${listing.takenRoomId}`)
-      onClose()
+      addToast('Failed to load room. Please try My Rooms instead.', 'err')
     } finally {
       setJoinLoading(false)
     }
