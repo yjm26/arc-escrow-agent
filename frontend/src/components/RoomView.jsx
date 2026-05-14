@@ -132,13 +132,8 @@ export default function RoomView({ wallet }) {
 
   const [evidence, setEvidence] = useState([])
   const [disputeReason, setDisputeReason] = useState('')
-  const [evidenceType, setEvidenceType] = useState('link')
-  const [evidenceDesc, setEvidenceDesc] = useState('')
-  const [evidenceRef, setEvidenceRef] = useState('')
   const [showDisputeForm, setShowDisputeForm] = useState(false)
-  const [showEvidenceForm, setShowEvidenceForm] = useState(false)
   const [mutualCancelStatus, setMutualCancelStatus] = useState({ creatorApproved: false, counterpartyApproved: false })
-  const [proofInput, setProofInput] = useState('')
   const [txPending, setTxPending] = useState(false)
   const { addToast } = useToast()
 
@@ -283,7 +278,21 @@ export default function RoomView({ wallet }) {
             const tx = await fn(contract)
             setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
             addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
+
+            // Stuck-tx detection: if not on chain within 15s, warn user about wallet cache
+            const stuckTimer = setTimeout(async () => {
+              try {
+                const rpc = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+                const found = await rpc.getTransaction(tx.hash)
+                if (!found) {
+                  addToast('TX not found on-chain — your wallet may have a stuck nonce. Try: MetaMask → Settings → Advanced → Clear Activity Tab Data, then retry.', 'err')
+                  setStatus({ type: 'err', msg: 'TX stuck in wallet. Clear wallet activity and retry.' })
+                }
+              } catch { /* ignore */ }
+            }, 15000)
+
             const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
+            clearTimeout(stuckTimer)
             if (receipt.status === 0) {
               setStatus({ type: 'err', msg: 'TX reverted on-chain' })
               addToast('Transaction reverted on-chain', 'err')
@@ -397,36 +406,37 @@ export default function RoomView({ wallet }) {
     }
   }
 
-  const handleDeliver = () => doAction((c) => c.markDelivered(id, proofInput ? ethers.keccak256(ethers.toUtf8Bytes(proofInput)) : ethers.ZeroHash, ARC_GAS), 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')
+  const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')
   const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
   const handleBuyerRefund = () => doAction((c) => c.buyerRefund(id, ARC_GAS), 'Requesting refund…', 'Refunded! You receive price + seller collateral.')
 
   const handleDispute = async () => {
     if (!disputeReason.trim()) { setStatus({ type: 'err', msg: 'Reason required' }); return }
     const ok = await doAction(
-      (c) => c.openDispute(id, disputeReason.trim(), evidenceType || 'link', evidenceDesc.trim(), evidenceRef.trim(), ARC_GAS),
-      'Opening dispute…',
-      'Disputed! Open a Discord ticket for arbiter review.'
+      (c) => c.openDispute(id, disputeReason.trim(), 'text', '', '', ARC_GAS),
+      'Opening dispute\u2026',
+      'Disputed! Arbiter will review.'
     )
     if (!ok) return
     // Post evidence to backend after successful dispute TX
     try {
-      if (evidenceRef.trim()) {
-        const body = {
-          submitter: wallet.address,
-          evidenceType: evidenceType || 'link',
-          description: disputeReason.trim() + (evidenceDesc.trim() ? ' | ' + evidenceDesc.trim() : ''),
-          evidenceRef: evidenceRef.trim(),
-        }
-        await fetch(`${API_URL}/api/evidence/${id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        loadEvidence()
+      const body = {
+        submitter: wallet.address,
+        evidenceType: 'text',
+        description: disputeReason.trim(),
+        evidenceRef: '',
+        roomId: id,
+        timestamp: Date.now(),
       }
+      const res = await fetch(`${API_URL}/api/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error('Failed to post evidence')
+      loadEvidence()
     } catch (err) {
-      console.error('Evidence POST failed:', err)
+      console.error('Evidence post failed:', err)
     }
     // Register dispute for arbiter dashboard
     try {
@@ -442,7 +452,7 @@ export default function RoomView({ wallet }) {
           counterparty: room?.counterparty || '',
           disputedBy: wallet.address,
           reason: disputeReason.trim(),
-          evidenceRef: evidenceRef.trim() || '',
+          evidenceRef: '',
         }),
       })
     } catch (err) {
@@ -450,40 +460,9 @@ export default function RoomView({ wallet }) {
     }
     setShowDisputeForm(false)
     setDisputeReason('')
-    setEvidenceDesc('')
-    setEvidenceRef('')
   }
 
-  const handleSubmitEvidence = async () => {
-    if (!evidenceRef.trim()) { setStatus({ type: 'err', msg: 'Evidence required' }); return }
-    setTxPending(true)
-    try {
-      setStatus({ type: 'info', msg: 'Submitting evidence…' })
-      const body = {
-        submitter: wallet.address,
-        evidenceType: evidenceType || 'link',
-        description: evidenceDesc.trim(),
-        evidenceRef: evidenceRef.trim(),
-      }
-      const res = await fetch(`${API_URL}/api/evidence/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) throw new Error('Server rejected evidence')
-      setStatus({ type: 'ok', msg: 'Evidence submitted — share your Discord ticket link with the arbiter.' })
-      setEvidenceDesc('')
-      setEvidenceRef('')
-      loadEvidence()
-    } catch (err) {
-      console.error('Evidence POST failed:', err)
-      setStatus({ type: 'err', msg: 'Failed to submit evidence. Please copy-paste it into your Discord ticket instead.' })
-    } finally {
-      setTxPending(false)
-    }
-  }
-
-  const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling…', 'Cancelled. Collateral returned.')
+  const handleCancel = () => doAction((c) => c.cancelRoom(id, ARC_GAS), 'Cancelling\u2026', 'Cancelled. Collateral returned.')
   const handleLeave = () => doAction((c) => c.leaveRoom(id, ARC_GAS), 'Leaving…', 'Left room. Collateral returned.')
   const handleExpire = () => doAction((c) => c.expireRoom(id, ARC_GAS), 'Expiring…', 'Expired. Collateral returned.')
 
@@ -743,7 +722,6 @@ export default function RoomView({ wallet }) {
             <ActionPanel
               room={room} id={id} isCreator={isCreator} isSeller={isSeller} isBuyer={isCounter} isAdmin={isAdmin} isParticipant={isParticipant}
               arbiterName={arbiterName} totalUSDC={totalUSDC} joinCode={joinCode} copied={copied}
-              proofInput={proofInput} setProofInput={setProofInput}
               canExpire={canExpire} canEscalate={canEscalate} canBuyerRefund={canBuyerRefund}
               handleJoin={handleJoin} handleFund={handleFund} handleDeliver={handleDeliver} handleRelease={handleRelease}
               handleBuyerRefund={handleBuyerRefund} handleCancel={handleCancel} handleLeave={handleLeave} handleExpire={handleExpire}
@@ -751,12 +729,7 @@ export default function RoomView({ wallet }) {
               copyInvite={copyInvite}
               showDisputeForm={showDisputeForm} setShowDisputeForm={setShowDisputeForm}
               disputeReason={disputeReason} setDisputeReason={setDisputeReason}
-              evidenceType={evidenceType} setEvidenceType={setEvidenceType}
-              evidenceDesc={evidenceDesc} setEvidenceDesc={setEvidenceDesc}
-              evidenceRef={evidenceRef} setEvidenceRef={setEvidenceRef}
               handleDispute={handleDispute}
-              showEvidenceForm={showEvidenceForm} setShowEvidenceForm={setShowEvidenceForm}
-              handleSubmitEvidence={handleSubmitEvidence}
               canMutualCancel={canMutualCancel}
               mutualCancelStatus={mutualCancelStatus}
               hasApprovedMutualCancel={hasApprovedMutualCancel}

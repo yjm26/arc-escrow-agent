@@ -16,6 +16,8 @@ export default function CreateRoom({ wallet }) {
   const counterparty = searchParams.get('counterparty') || ''
   const fromMarket = !!searchParams.get('listingId') || !!searchParams.get('item')
   const [creatorIsSeller, setCreatorIsSeller] = useState(searchParams.get('creatorIsSeller') !== 'false')
+  const socialsRaw = searchParams.get('socials')
+  const socials = socialsRaw ? (() => { try { return JSON.parse(decodeURIComponent(socialsRaw)) } catch { return null } })() : null
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState('')
   const [result, setResult] = useState(null)
@@ -444,6 +446,36 @@ export default function CreateRoom({ wallet }) {
               ))}
             </div>
           </div>
+
+          {/* Contact info from market listing */}
+          {fromMarket && socials && (
+            <div className="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20">
+              <div className="font-mono text-[10px] uppercase tracking-[2px] text-blue-600 dark:text-blue-400 mb-1.5">
+                Seller Contact
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(socials).map(([key, val]) => {
+                  const link = key === 'telegram' ? `https://t.me/${val.replace(/^@/, '')}` :
+                                 key === 'twitter' ? `https://x.com/${val.replace(/^@/, '')}` :
+                                 key === 'discord' ? null :
+                                 key === 'whatsapp' ? `https://wa.me/${val.replace(/^\+/, '')}` :
+                                 val.startsWith('http') ? val : null
+                  return link ? (
+                    <a key={key} href={link} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 dark:border-blue-500/20 text-[12px] text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/10 transition">
+                      {key === 'telegram' && '✈️'} {key === 'twitter' && '𝕏'} {key === 'whatsapp' && '📱'} {key === 'other' && '🔗'} {val}
+                    </a>
+                  ) : (
+                    <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-blue-200 dark:border-blue-500/20 text-[12px] text-blue-600 dark:text-blue-300">
+                      {val}
+                    </span>
+                  )
+                })}
+              </div>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1.5">
+                Contact seller directly for delivery details. The contract only secures the funds.
+              </p>
+            </div>
+          )}
 
           <button onClick={handleCreate} disabled={loading || !item || !price} className="btn-primary w-full py-3.5 text-[15px]">
             {loading ? step || 'Processing…' : fromMarket ? `Confirm Deal →` : `Create Room (FREE${!noCollateral && collateral && creatorIsSeller ? ' + collateral' : ''})`}

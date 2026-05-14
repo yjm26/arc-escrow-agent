@@ -25,10 +25,12 @@ const CATEGORY_STYLES = {
   Other:  { bg: 'rgba(156,163,175,0.07)', color: '#6b7280', border: 'rgba(156,163,175,0.15)' },
 }
 
-const SOCIAL_TYPES = [
-  { key: 'twitter', label: 'Twitter / X', icon: '𝕏', placeholder: '@username' },
-  { key: 'telegram', label: 'Telegram', icon: '✈️', placeholder: '@username' },
-  { key: 'discord', label: 'Discord', icon: '🎮', placeholder: 'username#1234' },
+const SOCIAL_OPTIONS = [
+  { key: 'telegram', label: 'Telegram', icon: '✈️', placeholder: '@username', validate: (v) => v.startsWith('@') || 'Must start with @' },
+  { key: 'discord', label: 'Discord', icon: '🎮', placeholder: 'username', validate: (v) => v.length >= 2 || 'Too short' },
+  { key: 'twitter', label: 'Twitter / X', icon: '𝕏', placeholder: '@username', validate: (v) => v.startsWith('@') || 'Must start with @' },
+  { key: 'whatsapp', label: 'WhatsApp', icon: '📱', placeholder: '+628xxx', validate: (v) => /^\+\d{8,}$/.test(v) || 'Must start with + and country code' },
+  { key: 'other', label: 'Other', icon: '🔗', placeholder: 'Link or @handle', validate: () => null },
 ]
 
 const SORT_OPTIONS = [
@@ -71,7 +73,7 @@ export default function Market({ wallet }) {
   const [expandedListing, setExpandedListing] = useState(null)
   const [form, setForm] = useState({
     role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, dealType: 0,
-    socials: { twitter: '', telegram: '', discord: '' },
+    contactMethod: 'telegram', contactHandle: '',
   })
 
   const fetchListings = useCallback(async () => {
@@ -103,10 +105,13 @@ export default function Market({ wallet }) {
     if (!wallet) { setFormError('Connect your wallet first'); return }
     if (!form.title.trim()) { setTouched(t => ({ ...t, title: true })); setFormError('Title is required'); return }
     if (!form.price || Number(form.price) <= 0) { setTouched(t => ({ ...t, price: true })); setFormError('Price must be greater than 0'); return }
-    const socials = {}
-    for (const s of SOCIAL_TYPES) {
-      if (form.socials[s.key]?.trim()) socials[s.key] = form.socials[s.key].trim()
-    }
+    // Validate contact
+    const method = SOCIAL_OPTIONS.find(s => s.key === form.contactMethod)
+    const handle = form.contactHandle.trim()
+    if (!handle) { setFormError('Contact handle is required so buyer/seller can reach you'); return }
+    const validation = method?.validate?.(handle)
+    if (validation) { setFormError(`Contact: ${validation}`); return }
+    const socials = { [form.contactMethod]: handle }
     try {
       const res = await fetch(`${API_URL}/api/listings`, {
         method: 'POST',
@@ -121,11 +126,11 @@ export default function Market({ wallet }) {
           deliveryDays: Number(form.deliveryDays) || 5,
           dealType: Number(form.dealType) || 0,
           creator: wallet.address,
-          socials: Object.keys(socials).length > 0 ? socials : undefined,
+          socials,
         }),
       })
       if (!res.ok) throw new Error('Failed to post')
-      setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, dealType: 0, socials: { twitter: '', telegram: '', discord: '' } })
+      setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, dealType: 0, contactMethod: 'telegram', contactHandle: '' })
       setTouched({ title: false, price: false })
       setShowForm(false)
       fetchListings()
@@ -347,17 +352,31 @@ export default function Market({ wallet }) {
               </div>
             </div>
 
-            {/* Social contacts */}
+            {/* Contact — required */}
             <div className="mb-4">
-              <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-2">Contact (optional)</label>
-              <div className="grid grid-cols-3 gap-3">
-                {SOCIAL_TYPES.map((s) => (
-                  <div key={s.key}>
-                    <input className="stripe-input w-full" placeholder={`${s.icon} ${s.placeholder}`} value={form.socials[s.key] || ''} onChange={(e) => setForm({ ...form, socials: { ...form.socials, [s.key]: e.target.value } })} />
-                    <div className="text-[10px] text-stripe-body mt-1 text-center">{s.label}</div>
-                  </div>
-                ))}
+              <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-2">
+                Contact <span className="text-red-400">*</span>
+              </label>
+              <div className="flex gap-2">
+                <select
+                  className="stripe-input w-[140px] shrink-0"
+                  value={form.contactMethod}
+                  onChange={(e) => setForm({ ...form, contactMethod: e.target.value })}
+                >
+                  {SOCIAL_OPTIONS.map(s => (
+                    <option key={s.key} value={s.key}>{s.icon} {s.label}</option>
+                  ))}
+                </select>
+                <input
+                  className="stripe-input flex-1"
+                  placeholder={SOCIAL_OPTIONS.find(s => s.key === form.contactMethod)?.placeholder || '@username'}
+                  value={form.contactHandle}
+                  onChange={(e) => setForm({ ...form, contactHandle: e.target.value })}
+                />
               </div>
+              <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-1">
+                Buyers will use this to contact you directly. Required for all listings.
+              </p>
             </div>
 
             <button onClick={handleSubmit} className="btn-primary w-full py-3">Post Listing</button>

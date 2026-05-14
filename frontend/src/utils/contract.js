@@ -8,10 +8,12 @@ export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc
 export const ARC_GAS = {
   maxFeePerGas: 20000000000n,       // 20 Gwei minimum per Arc docs
   maxPriorityFeePerGas: 1000000000n, // 1 Gwei tip for faster inclusion
+  gasLimit: 500000,                  // explicit gas limit — avoids wallet estimation failures
 }
 export const ARC_GAS_APPROVE = {
   maxFeePerGas: 20000000000n,
   maxPriorityFeePerGas: 1000000000n,
+  gasLimit: 200000,
 }
 
 /// Poll for tx receipt — aggressive polling for Arc's fast deterministic finality

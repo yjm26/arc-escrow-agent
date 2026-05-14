@@ -2,7 +2,7 @@ import { useToast } from '../../hooks/useToast'
 
 export default function ActionPanel({
   room, id, isCreator, isSeller, isBuyer, isAdmin, isParticipant,
-  arbiterName, totalUSDC, joinCode, copied, proofInput, setProofInput,
+  arbiterName, totalUSDC, joinCode, copied,
   canExpire, canEscalate, canBuyerRefund,
   handleJoin, handleFund, handleDeliver, handleRelease,
   handleBuyerRefund, handleCancel, handleLeave, handleExpire,
@@ -11,13 +11,7 @@ export default function ActionPanel({
   // Dispute form state
   showDisputeForm, setShowDisputeForm,
   disputeReason, setDisputeReason,
-  evidenceType, setEvidenceType,
-  evidenceDesc, setEvidenceDesc,
-  evidenceRef, setEvidenceRef,
   handleDispute,
-  // Evidence form state
-  showEvidenceForm, setShowEvidenceForm,
-  handleSubmitEvidence,
   // Mutual cancel
   canMutualCancel,
   mutualCancelStatus,
@@ -92,23 +86,9 @@ export default function ActionPanel({
               <div className="text-[12px] text-green-700 dark:text-green-400 font-medium">Collateral Locked: {room.collateralAmount} USDC</div>
             </div>
           )}
-          <details className="group">
-            <summary className="list-none cursor-pointer">
-              <div className="flex items-center justify-between text-[12px] text-stripe-body dark:text-gray-400 font-mono uppercase tracking-[1px]">
-                <span>Delivery proof (optional)</span>
-                <span className="group-open:rotate-180 transition-transform text-[10px]">▼</span>
-              </div>
-            </summary>
-            <div className="mt-2 space-y-1">
-              <input
-                className="stripe-input"
-                placeholder="Tracking #, receipt ID, or note"
-                value={proofInput}
-                onChange={(e) => setProofInput(e.target.value)}
-              />
-              <p className="text-[11px] text-stripe-body dark:text-gray-400">Hashed on-chain for dispute evidence</p>
-            </div>
-          </details>
+          <div className="text-[12px] text-stripe-body dark:text-gray-400 text-center">
+            Click below once you've sent the item to buyer.
+          </div>
           <button onClick={() => wrap(handleDeliver, 'Confirming delivery\u2026', 'Delivered! Buyer can now release funds.')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">
             {txPending ? 'Processing\u2026' : 'I delivered'}
           </button>
@@ -130,7 +110,7 @@ export default function ActionPanel({
       {room.state === 'Delivered' && isBuyer && (
         <>
           <button onClick={() => wrap(handleRelease, 'Confirming receipt\u2026', 'Funds released to seller!')} disabled={txPending} className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Confirm Received</button>
-          <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3">\u2696\uFE0F Open Dispute + Evidence</button>
+          <button onClick={() => setShowDisputeForm(!showDisputeForm)} className="btn-ghost w-full py-3 text-red-600 border-red-200 hover:bg-red-50">⚖️ Open Dispute</button>
         </>
       )}
       {room.state === 'Delivered' && isSeller && canEscalate && (
@@ -145,20 +125,17 @@ export default function ActionPanel({
       {/* ─── Dispute Form ─── */}
       {showDisputeForm && room.state === 'Delivered' && (
         <div className="bg-red-50 border border-red-200 rounded p-4 space-y-3">
-          <div className="text-[13px] font-medium text-red-700">\u2696\uFE0F Open Dispute</div>
-          <div className="text-[11px] text-red-500">Explain the problem and attach evidence</div>
-          <input type="text" placeholder="Reason for dispute" value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
-          <select value={evidenceType} onChange={(e) => setEvidenceType(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]">
-            <option value="link">Link / URL</option>
-            <option value="screenshot">Screenshot</option>
-            <option value="tx_hash">Transaction Hash</option>
-            <option value="text">Text / Description</option>
-            <option value="other">Other</option>
-          </select>
-          <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
-          <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
+          <div className="text-[13px] font-medium text-red-700">⚖️ Open Dispute</div>
+          <div className="text-[11px] text-red-500">Explain the problem in short. This opens a case for arbiter review.</div>
+          <textarea
+            placeholder="Why are you disputing? (e.g. item not received, wrong item, seller unresponsive)"
+            value={disputeReason}
+            onChange={(e) => setDisputeReason(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e] resize-none"
+          />
           <div className="flex gap-2">
-            <button onClick={handleDispute} disabled={txPending} className="btn-primary flex-1 py-2.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">Submit Dispute</button>
+            <button onClick={handleDispute} disabled={txPending || !disputeReason.trim()} className="btn-primary flex-1 py-2.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">Submit Dispute</button>
             <button onClick={() => setShowDisputeForm(false)} className="btn-ghost flex-1 py-2.5 text-[13px]">Cancel</button>
           </div>
         </div>
@@ -167,30 +144,14 @@ export default function ActionPanel({
       {/* ─── DISPUTED ─── */}
       {room.state === 'Disputed' && (
         <div className="bg-red-50 border border-red-200 rounded p-4">
-          <div className="text-[13px] text-red-700 font-medium text-center mb-1">\u2696\uFE0F Under Dispute</div>
-          <div className="text-[12px] text-red-500 text-center mb-3">{arbiterName} will review evidence and decide on-chain</div>
+          <div className="text-[13px] text-red-700 font-medium text-center mb-1">⚖️ Under Dispute</div>
+          <div className="text-[12px] text-red-500 text-center mb-3">{arbiterName} will review and decide on-chain</div>
 
-          {isParticipant && (
-            <>
-              <button onClick={() => setShowEvidenceForm(!showEvidenceForm)} className="btn-ghost w-full py-2 text-[12px] mb-2">+ Add More Evidence</button>
-              {showEvidenceForm && (
-                <div className="bg-white dark:bg-[#1a1d2e] border border-red-100 rounded p-3 space-y-2">
-                  <select value={evidenceType} onChange={(e) => setEvidenceType(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]">
-                    <option value="link">Link / URL</option>
-                    <option value="screenshot">Screenshot</option>
-                    <option value="tx_hash">Transaction Hash</option>
-                    <option value="text">Text / Description</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <input type="text" placeholder="Description (optional)" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
-                  <input type="text" placeholder="Evidence URL / link / hash" value={evidenceRef} onChange={(e) => setEvidenceRef(e.target.value)} className="w-full px-3 py-2 rounded border border-red-200 text-[13px] bg-white dark:bg-[#1a1d2e]" />
-                  <div className="flex gap-2">
-                    <button onClick={handleSubmitEvidence} disabled={txPending} className="btn-primary flex-1 py-2 text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">Submit</button>
-                    <button onClick={() => setShowEvidenceForm(false)} className="btn-ghost flex-1 py-2 text-[12px]">Cancel</button>
-                  </div>
-                </div>
-              )}
-            </>
+          {isParticipant && disputeReason && (
+            <div className="bg-white dark:bg-[#1a1d2e] border border-red-100 rounded p-3 mb-3">
+              <div className="text-[10px] font-mono uppercase tracking-[2px] text-red-400 mb-1">Reason</div>
+              <div className="text-[13px] text-stripe-navy dark:text-white">{disputeReason}</div>
+            </div>
           )}
 
           {isAdmin && (
