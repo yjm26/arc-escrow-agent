@@ -6,13 +6,13 @@ export const USDC_ADDRESS = '0x3600000000000000000000000000000000000000'; // Arc
 /// Arc minimum gas params — transactions below 20 Gwei maxFeePerGas stay pending forever
 /// See https://docs.arc.network/arc/references/gas-and-fees
 export const ARC_GAS = {
-  maxFeePerGas: 20000000000n,       // 20 Gwei minimum per Arc docs
-  maxPriorityFeePerGas: 1000000000n, // 1 Gwei tip for faster inclusion
+  maxFeePerGas: 100000000000n,       // 100 Gwei — well above testnet base-fee spikes
+  maxPriorityFeePerGas: 2000000000n, // 2 Gwei tip
   gasLimit: 500000,                  // explicit gas limit — avoids wallet estimation failures
 }
 export const ARC_GAS_APPROVE = {
-  maxFeePerGas: 20000000000n,
-  maxPriorityFeePerGas: 1000000000n,
+  maxFeePerGas: 100000000000n,
+  maxPriorityFeePerGas: 2000000000n,
   gasLimit: 200000,
 }
 
