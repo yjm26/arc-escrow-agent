@@ -139,11 +139,27 @@ export default function RoomView({ wallet }) {
 
   const account = wallet?.address?.toLowerCase()
 
+  const [inviteLink, setInviteLink] = useState('')
+
+  useEffect(() => {
+    // Fetch invite link with joinCode from backend (for creator to share)
+    if (!id) return
+    fetch(`${API_URL}/api/room-codes?roomId=${id}`)
+      .then(r => r.json())
+      .then(codes => {
+        const code = codes?.[0]?.joinCode
+        if (code) setInviteLink(`${window.location.origin}/room/${id}?code=${code}`)
+        else setInviteLink(window.location.href)
+      })
+      .catch(() => setInviteLink(window.location.href))
+  }, [id])
+
   async function loadRoom() {
     try {
       if (!wallet) { setRoom(null); setLoading(false); return }
-      const provider = wallet.provider
-      const contract = getContract(provider)
+      // Use PUBLIC RPC for reads — wallet provider often lags behind latest block
+      const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+      const contract = getContract(rpcProvider)
       const data = parseRoom(await contract.rooms(id))
       setRoom({
         creator: data.creator,
@@ -172,8 +188,8 @@ export default function RoomView({ wallet }) {
       } catch {}
       try {
         const [cRep, cpRep] = await Promise.all([
-          fetchReputation(provider, data.creator),
-          fetchReputation(provider, data.counterparty),
+          fetchReputation(rpcProvider, data.creator),
+          fetchReputation(rpcProvider, data.counterparty),
         ])
         setCreatorRep(cRep)
         setCounterpartyRep(cpRep)
@@ -484,7 +500,7 @@ export default function RoomView({ wallet }) {
   const handleEscalate = () => doAction((c, gas) => c.escalateNoResponse(id, gas), 'Escalating…', 'Escalated! Arbiter will review delivery proof.')
 
   const copyInvite = () => {
-    navigator.clipboard.writeText(window.location.href)
+    navigator.clipboard.writeText(inviteLink || window.location.href)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

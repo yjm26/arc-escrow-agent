@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS, ensureArcChain, fixSignerNonce } from '../utils/contract'
 
@@ -20,9 +20,21 @@ export default function CreateRoom({ wallet }) {
   const socials = socialsRaw ? (() => { try { return JSON.parse(decodeURIComponent(socialsRaw)) } catch { return null } })() : null
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState('')
-  const [result, setResult] = useState(null)
+  const [result, setResult] = useState(() => {
+    // Persist success screen across refresh (e.g. user refreshes before clicking Go to Room)
+    try {
+      const saved = sessionStorage.getItem('bond_last_created')
+      if (saved) {
+        const data = JSON.parse(saved)
+        if (Date.now() - data.ts < 600000) return data // 10 min ttl
+        sessionStorage.removeItem('bond_last_created')
+      }
+    } catch {}
+    return null
+  })
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const navigate = useNavigate()
 
   const handleCreate = async () => {
     if (!wallet || !item || !price) return
@@ -99,7 +111,8 @@ export default function CreateRoom({ wallet }) {
         const roomId = parsed.args.id.toString()
         const inviteLink = createInviteLink(roomId, joinCode)
 
-        setResult({ roomId, inviteLink, joinCode })
+        setResult({ roomId, inviteLink, joinCode, ts: Date.now() })
+        sessionStorage.setItem('bond_last_created', JSON.stringify({ roomId, inviteLink, joinCode, ts: Date.now() }))
         setStep('')
         setLoading(false)
 

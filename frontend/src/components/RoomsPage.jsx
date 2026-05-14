@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, STATE_NAMES, CONTRACT_ADDRESS, ARC_GAS, ARC_GAS_APPROVE, ensureArcChain, waitForTx , parseRoom} from '../utils/contract'
 import { STATE_BADGE, formatAddress } from '../utils/constants'
@@ -13,6 +13,7 @@ export default function RoomsPage({ wallet }) {
   const [filter, setFilter] = useState('active')
   const [pendingRooms, setPendingRooms] = useState([])
   const [joinError, setJoinError] = useState('')
+  const navigate = useNavigate()
 
   const FILTERS = [
     { key: 'active', label: 'Active' },
@@ -96,6 +97,8 @@ export default function RoomsPage({ wallet }) {
       await waitForTx(wallet.provider, tx.hash, 180000)
       loadRooms(false)
       fetchPendingRooms()
+      // Navigate seller to room page after successful join
+      navigate(`/room/${fresh.roomId}?code=${fresh.joinCode}`)
     } catch (e) {
       console.error('Join room failed:', e)
       setJoinError('Failed to join: ' + (e.reason || e.message))
@@ -107,15 +110,14 @@ export default function RoomsPage({ wallet }) {
     if (!background) setLoading(true)
     else setIsRefreshing(true)
     try {
-      const provider = wallet.provider
-      const contract = getContract(provider)
+      // Use PUBLIC RPC for reads — wallet provider often lags behind latest block
+      const rpcProvider = new ethers.JsonRpcProvider('https://rpc.testnet.arc.network', 5042002)
+      const contract = getContract(rpcProvider)
       const addr = wallet.address.toLowerCase()
 
-      // Use roomCount — no ENS resolution needed
       const total = await contract.roomCount()
       const myRooms = []
 
-      // Scan all rooms (newest first)
       for (let i = Number(total) - 1; i >= 0; i--) {
         try {
           const r = parseRoom(await contract.rooms(i))
@@ -145,9 +147,6 @@ export default function RoomsPage({ wallet }) {
         } catch {}
       }
       setRooms(myRooms)
-
-      // NOTE: Auto-expire removed — user must explicitly expire stale rooms
-      // to avoid surprise transactions. Expire buttons are shown in RoomView.
     } catch (e) {
       console.error('Load rooms error:', e)
     } finally {
