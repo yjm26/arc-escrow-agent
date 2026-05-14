@@ -7,3 +7,4 @@ typechain-types/
 __pycache__/
 *.pyc
 apply-refactor.py
+frontend/full_test.mjs
