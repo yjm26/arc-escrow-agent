@@ -137,6 +137,7 @@ export default function RoomView({ wallet }) {
   const [showDisputeForm, setShowDisputeForm] = useState(false)
   const [showEvidenceForm, setShowEvidenceForm] = useState(false)
   const [mutualCancelStatus, setMutualCancelStatus] = useState({ creatorApproved: false, counterpartyApproved: false })
+  const [proofInput, setProofInput] = useState('')
 
   const account = wallet?.address?.toLowerCase()
 
@@ -364,7 +365,7 @@ export default function RoomView({ wallet }) {
     }
   }
 
-  const handleDeliver = () => doAction((c) => c.markDelivered(id, ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
+  const handleDeliver = () => doAction((c) => c.markDelivered(id, proofInput ? ethers.keccak256(ethers.toUtf8Bytes(proofInput)) : ethers.ZeroHash, ARC_GAS), 'Confirming item given…', 'Delivered!')
   const handleRelease = () => doAction((c) => c.releaseFunds(id, ARC_GAS), 'Confirming receipt…', 'Released! Seller gets price + collateral.')
   const handleBuyerRefund = () => doAction((c) => c.buyerRefund(id, ARC_GAS), 'Requesting refund…', 'Refunded! You receive price + seller collateral.')
 

@@ -310,24 +310,26 @@ export default function CreateRoom({ wallet }) {
           </div>
 
           <input
-            className="stripe-input mb-3"
+            className={`stripe-input mb-3 ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
             placeholder="What are you selling?"
             value={item}
-            onChange={(e) => setItem(e.target.value)}
+            onChange={(e) => !fromMarket && setItem(e.target.value)}
             readOnly={fromMarket}
+            disabled={fromMarket}
             maxLength={500}
           />
 
           <div className="relative mb-3">
             <input
-              className="stripe-input"
+              className={`stripe-input ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
               type="number"
               placeholder="0.00"
               min="0.01"
               step="0.01"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => !fromMarket && setPrice(e.target.value)}
               readOnly={fromMarket}
+              disabled={fromMarket}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] text-stripe-body dark:text-gray-400 font-medium">USDC</span>
           </div>
@@ -357,7 +359,7 @@ export default function CreateRoom({ wallet }) {
               <>
                 <div className="relative">
                   <input
-                    className="stripe-input"
+                    className={`stripe-input ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
                     type="number"
                     placeholder="0.00"
                     min="0"
@@ -365,6 +367,7 @@ export default function CreateRoom({ wallet }) {
                     value={collateral}
                     onChange={(e) => !fromMarket && setCollateral(e.target.value)}
                     readOnly={fromMarket}
+                    disabled={fromMarket}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[13px] text-stripe-body dark:text-gray-400 font-medium">USDC</span>
                 </div>
@@ -389,7 +392,7 @@ export default function CreateRoom({ wallet }) {
             </label>
             <div className="flex items-center gap-3">
                 <input
-                  className="stripe-input flex-1"
+                  className={`stripe-input flex-1 ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
                   type="number"
                   min={1}
                   max={90}
@@ -397,6 +400,7 @@ export default function CreateRoom({ wallet }) {
                   value={deliveryDays}
                   onChange={(e) => !fromMarket && setDeliveryDays(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
                   readOnly={fromMarket}
+                  disabled={fromMarket}
                 />
               <span className="text-[13px] text-stripe-body dark:text-gray-400 font-medium">days</span>
             </div>
@@ -421,12 +425,13 @@ export default function CreateRoom({ wallet }) {
                 <button
                   key={t.key}
                   type="button"
-                  onClick={() => setDealType(t.key)}
+                  onClick={() => !fromMarket && setDealType(t.key)}
+                  disabled={fromMarket}
                   className={`text-left p-3 rounded-lg border transition ${
                     dealType === t.key
                       ? 'bg-stripe-navy dark:bg-white text-white dark:text-[#0c0f1a] border-stripe-navy dark:border-white'
                       : 'bg-white dark:bg-white/5 text-stripe-body dark:text-gray-400 border-stripe-border dark:border-white/10 hover:border-stripe-navy dark:hover:border-white/40'
-                  }`}
+                  } ${fromMarket ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-[13px] font-semibold">{t.label}</div>
                   <div className="text-[11px] opacity-80 mt-0.5">{t.desc}</div>
