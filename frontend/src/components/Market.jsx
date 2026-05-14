@@ -638,12 +638,29 @@ function ListingDetailModal({ listing, wallet, API_URL, onClose, onOpenDeal, onD
         addToast('Buyer has not created a room yet. Please wait a moment and try again.', 'err')
         return
       }
-      const codeRes = await fetch(`${API_URL}/api/room-codes?roomId=${roomId}`)
-      const data = await codeRes.json()
-      if (data.length > 0 && data[0].joinCode) {
-        navigate(`/room/${roomId}?joinCode=${encodeURIComponent(data[0].joinCode)}`)
+
+      // Try to get join code — first by roomId, then by creator address fallback
+      let joinCode = null
+      try {
+        const codeRes = await fetch(`${API_URL}/api/room-codes?roomId=${roomId}`)
+        const data = await codeRes.json()
+        joinCode = data?.[0]?.joinCode
+      } catch (e) { console.error('room-codes by roomId failed:', e) }
+
+      // Fallback: fetch from creator's stored codes
+      if (!joinCode && fresh?.creator) {
+        try {
+          const fallbackRes = await fetch(`${API_URL}/api/room-codes/${fresh.creator}`)
+          const fallbackData = await fallbackRes.json()
+          const match = fallbackData.find(rc => String(rc.roomId) === String(roomId))
+          joinCode = match?.joinCode
+        } catch (e) { console.error('room-codes by creator failed:', e) }
+      }
+
+      if (joinCode) {
+        navigate(`/room/${roomId}?joinCode=${encodeURIComponent(joinCode)}`)
       } else {
-        navigate(`/room/${roomId}`)
+        addToast('Join code not found. Please ask the buyer for the invite link, or check My Rooms.', 'err')
       }
       onClose()
     } catch (err) {
@@ -798,7 +815,7 @@ function ListingDetailModal({ listing, wallet, API_URL, onClose, onOpenDeal, onD
                   </button>
                 )}
                 <div className="text-center text-[13px] text-amber-600 dark:text-amber-400 font-medium">
-                  \u23F3 This listing is in progress
+                  ⏳ This listing is in progress
                 </div>
               </div>
             ) : (

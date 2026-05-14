@@ -351,7 +351,9 @@ const server = http.createServer(async (req, res) => {
         return json(res, code ? [code] : [])
       }
       if (!wallet) return json(res, [])
-      const pending = codes.filter(c => c.counterparty === wallet.toLowerCase())
+      const pending = codes
+        .filter(c => c.counterparty === wallet.toLowerCase())
+        .filter(c => !c.createdAt || Date.now() - c.createdAt < 86400000) // filter stale (>24h)
       return json(res, pending)
     }
 

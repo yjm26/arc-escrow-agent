@@ -41,9 +41,14 @@ export default function RoomsPage({ wallet }) {
       const res = await fetch(`${API_URL}/api/room-codes/${wallet.address}`)
       const data = await res.json()
       // Filter out rooms we've already joined (check on-chain)
+      // and discard codes older than 24h (stale / likely expired)
+      const DAY = 24 * 60 * 60 * 1000
+      const cutoff = Date.now() - DAY
       const contract = getContract(wallet.provider)
       const stillPending = []
       for (const rc of data) {
+        // Skip stale codes (>24h) unless no timestamp (keep for safety)
+        if (rc.createdAt && rc.createdAt < cutoff) continue
         try {
           const room = parseRoom(await contract.rooms(rc.roomId))
           // If counterparty is address(0), we haven't joined yet

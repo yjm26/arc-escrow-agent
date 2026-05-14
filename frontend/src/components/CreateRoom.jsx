@@ -65,10 +65,16 @@ export default function CreateRoom({ wallet }) {
       const restore = await fixSignerNonce(signer)
       try {
         // Check active room limit before spending gas
-        const [active, maxActive] = await Promise.all([
-          contract.activeRooms(wallet.address),
-          contract.MAX_ACTIVE(),
-        ])
+        let active, maxActive
+        try {
+          [active, maxActive] = await Promise.all([
+            contract.activeRooms(wallet.address),
+            contract.MAX_ACTIVE(),
+          ])
+        } catch (readErr) {
+          console.error('Read error:', readErr)
+          throw new Error('Cannot read contract. Make sure your wallet is on Arc Testnet (chain 5042002) and the contract is deployed.')
+        }
         if (active >= maxActive) {
           throw new Error(`You have ${active} active room(s) (max ${maxActive}). Complete, release, or cancel one first.`)
         }
@@ -116,49 +122,58 @@ export default function CreateRoom({ wallet }) {
         setStep('')
         setLoading(false)
 
-        // === Background: notify backend (non-blocking, 8s timeout each) ===
+        // === Notify backend (blocking with timeout, critical for seller discovery) ===
         const listingId = searchParams.get('listingId')
-        const bgFetch = (url, opts) => {
+        let backendErr = null
+        try {
           const ctrl = new AbortController()
-          const t = setTimeout(() => ctrl.abort(), 8000)
-          return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t))
-        }
+          const t = setTimeout(() => ctrl.abort(), 15000)
 
-        if (listingId) {
-          bgFetch(`${API_URL}/api/listings/${listingId}/taken`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId, creator: wallet.address }),
-          }).catch(e => console.error('Mark taken:', e))
+          if (listingId) {
+            await fetch(`${API_URL}/api/listings/${listingId}/taken`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              signal: ctrl.signal,
+              body: JSON.stringify({ roomId, creator: wallet.address }),
+            })
+            if (counterparty) {
+              await fetch(`${API_URL}/api/notifications`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: ctrl.signal,
+                body: JSON.stringify({
+                  to: counterparty,
+                  from: wallet.address,
+                  message: `Someone opened a deal for "${item}" \u2014 Room #${roomId}`,
+                  listingId,
+                }),
+              })
+            }
+          }
 
           if (counterparty) {
-            bgFetch(`${API_URL}/api/notifications`, {
+            await fetch(`${API_URL}/api/room-codes`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              signal: ctrl.signal,
               body: JSON.stringify({
-                to: counterparty,
-                from: wallet.address,
-                message: `Someone opened a deal for "${item}" \u2014 Room #${roomId}`,
-                listingId,
+                roomId,
+                joinCode,
+                creator: wallet.address,
+                counterparty,
+                item,
+                price,
+                listingId: searchParams.get('listingId'),
               }),
-            }).catch(e => console.error('Notify:', e))
+            })
           }
+          clearTimeout(t)
+        } catch (e) {
+          console.error('Backend sync failed:', e)
+          backendErr = 'Seller notification failed \u2014 please share the invite link manually.'
         }
-
-        if (counterparty) {
-          bgFetch(`${API_URL}/api/room-codes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roomId,
-              joinCode,
-              creator: wallet.address,
-              counterparty,
-              item,
-              price,
-              listingId: searchParams.get('listingId'),
-            }),
-          }).catch(e => console.error('Post room code:', e))
+        if (backendErr) {
+          setError(backendErr)
         }
       } finally {
         restore()

@@ -73,7 +73,7 @@ export default function ActionPanel({
       )}
       {room.state === 'Joined' && !canExpire && isSeller && (
         <>
-          <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to fund (30m deadline)\u2026</div>
+          <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to fund (30m deadline)…</div>
           <button onClick={() => wrap(handleLeave, 'Leaving room\u2026', 'Left room.')} disabled={txPending} className="btn-ghost w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed">Leave Room</button>
         </>
       )}
@@ -96,7 +96,7 @@ export default function ActionPanel({
       )}
       {room.state === 'Funded' && isBuyer && (
         <>
-          <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for seller to deliver\u2026</div>
+          <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for seller to deliver…</div>
           {Number(room.collateralAmount) > 0 && (
             <div className="text-[12px] text-green-600 dark:text-green-400 text-center py-1">Seller locked {room.collateralAmount} USDC collateral</div>
           )}
@@ -119,7 +119,7 @@ export default function ActionPanel({
         </button>
       )}
       {room.state === 'Delivered' && isSeller && !canEscalate && (
-        <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to confirm receipt\u2026</div>
+        <div className="text-[13px] text-stripe-body dark:text-gray-400 text-center py-1">Waiting for buyer to confirm receipt…</div>
       )}
 
       {/* ─── Dispute Form ─── */}
@@ -205,7 +205,7 @@ export default function ActionPanel({
               )}
               {hasApprovedMutualCancel && !counterpartyApprovedMutualCancel && (
                 <>
-                  <div className="text-[11px] text-stripe-body dark:text-gray-400 text-center py-2">Waiting for counterparty to approve\u2026</div>
+                  <div className="text-[11px] text-stripe-body dark:text-gray-400 text-center py-2">Waiting for counterparty to approve…</div>
                   <button onClick={() => wrap(handleRevokeMutualCancel, 'Revoking\u2026', 'You revoked your approval.')} disabled={txPending} className="btn-ghost w-full py-2 text-[11px] text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
                     Revoke Approval
                   </button>

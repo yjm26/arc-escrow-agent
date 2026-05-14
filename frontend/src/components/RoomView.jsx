@@ -115,7 +115,8 @@ export default function RoomView({ wallet }) {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const joinCode = searchParams.get('joinCode') || searchParams.get('code') || ''
+  const [joinCodeInput, setJoinCodeInput] = useState(searchParams.get('joinCode') || searchParams.get('code') || '')
+  const joinCode = joinCodeInput.trim().toUpperCase()
 
   const [room, setRoom] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -236,6 +237,23 @@ export default function RoomView({ wallet }) {
   }
 
   useEffect(() => { loadRoom(); loadEvidence() }, [id, wallet])
+
+  // Auto-fetch joinCode from backend when user is eligible to join but URL has no code
+  useEffect(() => {
+    if (!room || !id || joinCodeInput) return
+    const isCreatorAddr = account === room.creator?.toLowerCase()
+    const isCounterAddr = account === room.counterparty?.toLowerCase()
+    if (isCreatorAddr || isCounterAddr) return // already participant
+    if (room.state !== 'Created') return // can only join in Created state
+    if (!wallet) return
+    fetch(`${API_URL}/api/room-codes?roomId=${id}`)
+      .then(r => r.json())
+      .then(data => {
+        const code = data?.[0]?.joinCode
+        if (code) setJoinCodeInput(code)
+      })
+      .catch(() => {})
+  }, [room, id, account, joinCodeInput, wallet])
 
   const isTerminal = ['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room?.state)
   useSmartPolling(
@@ -735,6 +753,36 @@ export default function RoomView({ wallet }) {
                 {room.state === 'Delivered' && (
                   <div className="text-[11px] text-purple-600 mt-1">No action = funds released to seller</div>
                 )}
+              </div>
+            )}
+
+            {/* Manual join code input — fallback when auto-fetch fails */}
+            {!joinCode && room.state === 'Created' && !isCreator && !isParticipant && (
+              <div className="bg-stripe-surface dark:bg-white/5 border border-stripe-border dark:border-white/10 rounded-lg p-4">
+                <div className="text-[10px] font-mono uppercase tracking-[2px] text-stripe-body dark:text-gray-400 mb-2">Join Code Required</div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={joinCodeInput}
+                    onChange={(e) => setJoinCodeInput(e.target.value)}
+                    placeholder="Enter 8-character code"
+                    maxLength={8}
+                    className="stripe-input flex-1 font-mono text-[14px] tracking-[2px] uppercase"
+                  />
+                  <button
+                    onClick={() => {
+                      const trimmed = joinCodeInput.trim().toUpperCase()
+                      if (trimmed.length === 8) setJoinCodeInput(trimmed)
+                    }}
+                    disabled={joinCodeInput.trim().length !== 8}
+                    className="btn-primary px-4 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                </div>
+                <p className="text-[11px] text-stripe-body dark:text-gray-400 mt-2">
+                  Ask the room creator for the invite link or join code.
+                </p>
               </div>
             )}
 
