@@ -266,6 +266,18 @@ export default function RoomView({ wallet }) {
   const isParticipant = isCreator || isCounter
   const isAdmin = account === ownerAddr?.toLowerCase() || account === arbiterAddr?.toLowerCase()
 
+  async function fixSignerNonce(signer) {
+    const addr = await signer.getAddress()
+    let nextNonce = await wallet.provider.getTransactionCount(addr, 'latest')
+    const originalPopulate = signer.populateTransaction.bind(signer)
+    signer.populateTransaction = async (tx) => {
+      const populated = await originalPopulate(tx)
+      populated.nonce = nextNonce++
+      return populated
+    }
+    return () => { signer.populateTransaction = originalPopulate }
+  }
+
   async function doAction(fn, label, successMsg) {
     setTxPending(true)
     setStatus({ type: 'info', msg: label })
@@ -277,21 +289,26 @@ export default function RoomView({ wallet }) {
         try {
           const signer = await wallet.provider.getSigner()
           await ensureArcChain(signer)
-          const contract = getContract(signer)
-          const tx = await fn(contract)
-          setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
-          addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
-          const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
-          if (receipt.status === 0) {
-            setStatus({ type: 'err', msg: 'TX reverted on-chain' })
-            addToast('Transaction reverted on-chain', 'err')
-            return false
+          const restore = await fixSignerNonce(signer)
+          try {
+            const contract = getContract(signer)
+            const tx = await fn(contract)
+            setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
+            addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
+            const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
+            if (receipt.status === 0) {
+              setStatus({ type: 'err', msg: 'TX reverted on-chain' })
+              addToast('Transaction reverted on-chain', 'err')
+              return false
+            }
+            setStatus({ type: 'ok', msg: successMsg })
+            addToast(successMsg, 'ok')
+            loadRoom()
+            loadEvidence()
+            return true
+          } finally {
+            restore()
           }
-          setStatus({ type: 'ok', msg: successMsg })
-          addToast(successMsg, 'ok')
-          loadRoom()
-          loadEvidence()
-          return true
         } catch (err) {
           const msg = err.reason || err.message || String(err)
           // User rejection = don't retry
@@ -327,25 +344,30 @@ export default function RoomView({ wallet }) {
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
-      const contract = getContract(signer)
-      // Pre-verify join code to avoid wasting gas
-      const isValid = await contract.verifyJoinCode(id, ethers.toUtf8Bytes(joinCode))
-      if (!isValid) { setStatus({ type: 'err', msg: 'Invalid invite code' }); return }
-      if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
-        const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
-        const usdc = getUsdc(signer)
-        const allowance = await usdc.allowance(wallet.address, CONTRACT_ADDRESS)
-        if (allowance < collateralWei) {
-          setStatus({ type: 'info', msg: 'Approving collateral…' })
-          const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
-          await waitForTx(wallet.provider, approveTx.hash, 180000)
+      const restore = await fixSignerNonce(signer)
+      try {
+        const contract = getContract(signer)
+        // Pre-verify join code to avoid wasting gas
+        const isValid = await contract.verifyJoinCode(id, ethers.toUtf8Bytes(joinCode))
+        if (!isValid) { setStatus({ type: 'err', msg: 'Invalid invite code' }); return }
+        if (!room.creatorIsSeller && room.collateralAmount && ethers.parseUnits(room.collateralAmount, 6) > 0n) {
+          const collateralWei = ethers.parseUnits(room.collateralAmount, 6)
+          const usdc = getUsdc(signer)
+          const allowance = await usdc.allowance(wallet.address, CONTRACT_ADDRESS)
+          if (allowance < collateralWei) {
+            setStatus({ type: 'info', msg: 'Approving collateral\u2026' })
+            const approveTx = await usdc.approve(CONTRACT_ADDRESS, collateralWei, ARC_GAS_APPROVE)
+            await waitForTx(wallet.provider, approveTx.hash, 180000)
+          }
         }
+        setStatus({ type: 'info', msg: 'Joining\u2026' })
+        const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
+        await waitForTx(wallet.provider, tx.hash, 180000)
+        setStatus({ type: 'ok', msg: 'Joined!' })
+        loadRoom()
+      } finally {
+        restore()
       }
-      setStatus({ type: 'info', msg: 'Joining…' })
-      const tx = await contract.joinRoom(id, ethers.toUtf8Bytes(joinCode), ARC_GAS)
-      await waitForTx(wallet.provider, tx.hash, 180000)
-      setStatus({ type: 'ok', msg: 'Joined!' })
-      loadRoom()
     } catch (e) {
       setStatus({ type: 'err', msg: e.reason || e.message })
     } finally {
@@ -359,22 +381,27 @@ export default function RoomView({ wallet }) {
     try {
       const signer = await wallet.provider.getSigner()
       await ensureArcChain(signer)
-      const contract = getContract(signer)
-      // Fetch dynamic tax from contract — never hardcode
-      const taxBps = await contract.FUND_TAX_BPS()
-      const feeWei = (priceWei * taxBps) / 10000n
-      const exactNeeded = priceWei + feeWei
-      const usdc = getUsdc(signer)
-      const bal = await usdc.balanceOf(wallet.address)
-      if (bal < exactNeeded) { setStatus({ type: 'err', msg: `Insufficient USDC. Need ${ethers.formatUnits(exactNeeded, 6)} USDC (incl. ${Number(taxBps)/100}% fee)` }); return }
-      setStatus({ type: 'info', msg: 'Approving USDC…' })
-      const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
-      await waitForTx(wallet.provider, approveTx.hash, 180000)
-      setStatus({ type: 'info', msg: 'Funding room…' })
-      const fundTx = await contract.fundRoom(id, ARC_GAS)
-      await waitForTx(wallet.provider, fundTx.hash, 180000)
-      setStatus({ type: 'ok', msg: 'Funded!' })
-      loadRoom()
+      const restore = await fixSignerNonce(signer)
+      try {
+        const contract = getContract(signer)
+        // Fetch dynamic tax from contract — never hardcode
+        const taxBps = await contract.FUND_TAX_BPS()
+        const feeWei = (priceWei * taxBps) / 10000n
+        const exactNeeded = priceWei + feeWei
+        const usdc = getUsdc(signer)
+        const bal = await usdc.balanceOf(wallet.address)
+        if (bal < exactNeeded) { setStatus({ type: 'err', msg: `Insufficient USDC. Need ${ethers.formatUnits(exactNeeded, 6)} USDC (incl. ${Number(taxBps)/100}% fee)` }); return }
+        setStatus({ type: 'info', msg: 'Approving USDC\u2026' })
+        const approveTx = await usdc.approve(CONTRACT_ADDRESS, exactNeeded, ARC_GAS_APPROVE)
+        await waitForTx(wallet.provider, approveTx.hash, 180000)
+        setStatus({ type: 'info', msg: 'Funding room\u2026' })
+        const fundTx = await contract.fundRoom(id, ARC_GAS)
+        await waitForTx(wallet.provider, fundTx.hash, 180000)
+        setStatus({ type: 'ok', msg: 'Funded!' })
+        loadRoom()
+      } finally {
+        restore()
+      }
     } catch (e) {
       setStatus({ type: 'err', msg: e.reason || e.message })
     } finally {
