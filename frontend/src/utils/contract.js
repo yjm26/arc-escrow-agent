@@ -16,12 +16,12 @@ export const ARC_GAS_APPROVE = {
 
 /// Poll for tx receipt — dual RPC: direct Arc RPC + wallet provider fallback
 /// Arc Testnet RPC nodes sometimes lag; checking both improves reliability
-export async function waitForTx(walletProvider, txHash, timeoutMs = 180000) {
+export async function waitForTx(walletProvider, txHash, timeoutMs = 120000) {
   const rpcProvider = new ethers.JsonRpcProvider("https://rpc.testnet.arc.network", 5042002)
   const start = Date.now()
 
   // Give tx a moment to propagate to RPC nodes before polling
-  await new Promise(r => setTimeout(r, 2500))
+  await new Promise(r => setTimeout(r, 800))
 
   while (Date.now() - start < timeoutMs) {
     // 1) Direct Arc RPC
@@ -38,7 +38,7 @@ export async function waitForTx(walletProvider, txHash, timeoutMs = 180000) {
       } catch { /* swallow */ }
     }
 
-    await new Promise(r => setTimeout(r, 1500))
+    await new Promise(r => setTimeout(r, 900))
   }
   throw new Error(`TX ${txHash} not confirmed within ${timeoutMs/1000}s. Check https://testnet.arcscan.app/tx/${txHash}`)
 }

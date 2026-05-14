@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import OfferModal from './OfferModal'
 import OffersPanel from './OffersPanel'
 import ReputationBadge from './ReputationBadge'
+import { DEAL_TYPES } from '../utils/contract'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
@@ -69,7 +70,7 @@ export default function Market({ wallet }) {
   const [showOffers, setShowOffers] = useState(false)
   const [expandedListing, setExpandedListing] = useState(null)
   const [form, setForm] = useState({
-    role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5,
+    role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, dealType: 0,
     socials: { twitter: '', telegram: '', discord: '' },
   })
 
@@ -118,12 +119,13 @@ export default function Market({ wallet }) {
           price: form.price,
           collateral: form.collateral || '0',
           deliveryDays: Number(form.deliveryDays) || 5,
+          dealType: Number(form.dealType) || 0,
           creator: wallet.address,
           socials: Object.keys(socials).length > 0 ? socials : undefined,
         }),
       })
       if (!res.ok) throw new Error('Failed to post')
-      setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, socials: { twitter: '', telegram: '', discord: '' } })
+      setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, dealType: 0, socials: { twitter: '', telegram: '', discord: '' } })
       setTouched({ title: false, price: false })
       setShowForm(false)
       fetchListings()
@@ -304,6 +306,28 @@ export default function Market({ wallet }) {
               )}
             </div>
 
+            {/* Deal Type */}
+            <div className="mb-4">
+              <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-1.5">Deal Type</label>
+              <div className="grid grid-cols-3 gap-2">
+                {DEAL_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setForm({ ...form, dealType: t.id })}
+                    className={`rounded border text-left px-3 py-2 transition text-[12px] ${
+                      Number(form.dealType) === t.id
+                        ? 'bg-[#0a2540] dark:bg-white text-white dark:text-[#0c0f1a] border-[#0a2540] dark:border-white font-medium'
+                        : 'bg-white dark:bg-[#1a1d2e] text-stripe-body dark:text-gray-400 border-zinc-200 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20'
+                    }`}
+                  >
+                    <div className="font-medium">{t.label}</div>
+                    <div className="text-[10px] opacity-70 leading-tight mt-0.5">{t.confirmWindow}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Social contacts */}
             <div className="mb-4">
               <label className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500 block mb-2">Contact (optional)</label>
@@ -479,6 +503,15 @@ function ListingCard({ listing, wallet, onOpenDeal, onDelete, onExpand }) {
         </h3>
 
         {/* Price row */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className={`inline-flex items-center text-[10px] font-medium px-2 py-[2px] rounded border font-mono uppercase tracking-[1px] ${
+            Number(listing.dealType) === 0 ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-100 dark:border-indigo-500/20' :
+            Number(listing.dealType) === 1 ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-100 dark:border-purple-500/20' :
+            'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-100 dark:border-sky-500/20'
+          }`}>
+            {DEAL_TYPES.find(t => t.id === Number(listing.dealType))?.label || 'Instant'}
+          </span>
+        </div>
         <div className="flex items-baseline gap-2 mb-3 pb-3 border-b border-stripe-border/60 dark:border-white/5">
           <span className="text-[26px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-none font-mono">
             {listing.price}
@@ -622,6 +655,18 @@ function ListingDetailModal({ listing, wallet, onClose, onOpenDeal, onDelete }) 
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
             Delivery within <span className="font-semibold text-zinc-900 dark:text-white font-mono">{listing.deliveryDays || 5} days</span>
+          </div>
+
+          {/* Deal type */}
+          <div className="flex items-center gap-2 text-[13px] text-stripe-body dark:text-gray-400">
+            <span className={`inline-flex items-center text-[10px] font-medium px-2 py-[2px] rounded border font-mono uppercase tracking-[1px] ${
+              Number(listing.dealType) === 0 ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-100 dark:border-indigo-500/20' :
+              Number(listing.dealType) === 1 ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-100 dark:border-purple-500/20' :
+              'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-100 dark:border-sky-500/20'
+            }`}>
+              {DEAL_TYPES.find(t => t.id === Number(listing.dealType))?.label || 'Instant'}
+            </span>
+            <span className="text-[12px] opacity-70">{DEAL_TYPES.find(t => t.id === Number(listing.dealType))?.desc}</span>
           </div>
 
           {/* Creator + reputation */}

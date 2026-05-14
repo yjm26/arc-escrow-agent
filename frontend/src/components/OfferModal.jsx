@@ -22,7 +22,7 @@ export default function OfferModal({ listing, wallet, API_URL, onClose, onSubmit
       if (isAccepting) {
         // Same price — skip offer, go straight to create room
         const counterparty = listing.creator
-        navigate(`/create?item=${encodeURIComponent(listing.title)}&price=${listing.price}&collateral=${collateral}&creatorIsSeller=${creatorIsSeller}&counterparty=${counterparty}&listingId=${listing.id}&deliveryDays=${listing.deliveryDays || 5}`)
+        navigate(`/create?item=${encodeURIComponent(listing.title)}&price=${listing.price}&collateral=${collateral}&creatorIsSeller=${creatorIsSeller}&counterparty=${counterparty}&listingId=${listing.id}&deliveryDays=${listing.deliveryDays || 5}&dealType=${listing.dealType || 0}`)
         return
       }
       // Different price — create counter offer

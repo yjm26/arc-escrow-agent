@@ -12,7 +12,7 @@ export default function CreateRoom({ wallet }) {
   const [collateral, setCollateral] = useState(searchParams.get('collateral') || '')
   const [noCollateral, setNoCollateral] = useState(searchParams.get('collateral') === '0')
   const [deliveryDays, setDeliveryDays] = useState(Number(searchParams.get('deliveryDays')) || 5)
-  const [dealType, setDealType] = useState(0) // 0=Instant, 1=EventBased, 2=Service
+  const [dealType, setDealType] = useState(Number(searchParams.get('dealType')) || 0) // 0=Instant, 1=EventBased, 2=Service
   const counterparty = searchParams.get('counterparty') || ''
   const fromMarket = !!searchParams.get('listingId') || !!searchParams.get('item')
   const [creatorIsSeller, setCreatorIsSeller] = useState(searchParams.get('creatorIsSeller') !== 'false')

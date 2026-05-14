@@ -103,6 +103,7 @@ const server = http.createServer(async (req, res) => {
         price: body.price,
         collateral: body.collateral || '0',
         deliveryDays: body.deliveryDays || 5,
+        dealType: body.dealType || 0,
         creator: body.creator,
         socials: body.socials || undefined,
         createdAt: Date.now(),
