@@ -94,65 +94,59 @@ export default function CreateRoom({ wallet }) {
 
       setResult({ roomId, inviteLink, joinCode })
       setStep('')
+      setLoading(false)
 
-          // Mark listing as taken + notify listing creator (if from market)
+      // === Background: notify backend (non-blocking, 8s timeout each) ===
       const listingId = searchParams.get('listingId')
-      if (listingId) {
-        try {
-          await fetch(`${API_URL}/api/listings/${listingId}/taken`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId, creator: wallet.address }),
-          })
-        } catch (e) { console.error('Mark taken:', e) }
-        // Notify listing creator
-        if (counterparty) {
-          try {
-            await fetch(`${API_URL}/api/notifications`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: counterparty,
-                from: wallet.address,
-                message: `Someone opened a deal for "${item}" — Room #${roomId}`,
-                listingId,
-              }),
-            })
-          } catch (e) { console.error('Notify:', e) }
-        }
+      const bgFetch = (url, opts) => {
+        const ctrl = new AbortController()
+        const t = setTimeout(() => ctrl.abort(), 8000)
+        return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t))
       }
 
-      // Auto-post join code to backend so counterparty can auto-join
-      if (counterparty) {
-        try {
-          const resp = await fetch(`${API_URL}/api/room-codes`, {
+      if (listingId) {
+        bgFetch(`${API_URL}/api/listings/${listingId}/taken`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId, creator: wallet.address }),
+        }).catch(e => console.error('Mark taken:', e))
+
+        if (counterparty) {
+          bgFetch(`${API_URL}/api/notifications`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              roomId,
-              joinCode,
-              creator: wallet.address,
-              counterparty,
-              item,
-              price,
-              listingId: searchParams.get('listingId'),
+              to: counterparty,
+              from: wallet.address,
+              message: `Someone opened a deal for "${item}" — Room #${roomId}`,
+              listingId,
             }),
-          })
-          const respData = await resp.json()
-          if (!resp.ok) {
-            setError('Warning: Room created but seller notification failed: ' + (respData.error || resp.status))
-          }
-        } catch (e) { 
-          console.error('Failed to post room code:', e)
-          setError('Warning: Room created but seller notification failed: ' + e.message)
+          }).catch(e => console.error('Notify:', e))
         }
+      }
+
+      if (counterparty) {
+        bgFetch(`${API_URL}/api/room-codes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomId,
+            joinCode,
+            creator: wallet.address,
+            counterparty,
+            item,
+            price,
+            listingId: searchParams.get('listingId'),
+          }),
+        }).catch(e => console.error('Post room code:', e))
       }
     } catch (err) {
       console.error(err)
       setError(err.reason || err.message || 'Transaction failed')
       setStep('')
     } finally {
-      setLoading(false)
+      // loading already cleared above on success; catch/finally handles error path
+      if (!result) setLoading(false)
     }
   }
 
