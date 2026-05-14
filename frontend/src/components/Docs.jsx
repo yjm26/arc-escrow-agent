@@ -400,13 +400,13 @@ function Overview() {
 
       <H2>Smart Contract</H2>
       <P>
-        BondRoomV21 is deployed on Arc Testnet. The source code is on GitHub and the contract is verified 
+        BondRoomV22 is deployed on Arc Testnet. The source code is on GitHub and the contract is verified 
         on the block explorer.
       </P>
       <div className="flex flex-col gap-2 mb-4">
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500">Address</span>
-          <Code>0x7630A99188C5B4199c8ABd06b9462A6eC502AC2C</Code>
+          <Code>0xADf4c67c0D8b2900fA045B1BDbA5d54c803688E5</Code>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] uppercase tracking-[2px] text-stripe-body dark:text-gray-500">Network</span>

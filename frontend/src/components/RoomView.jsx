@@ -410,6 +410,7 @@ export default function RoomView({ wallet }) {
     doAction((c) => c.arbiterResolve(id, buyer, ARC_GAS), 'Resolving…', 'Refunded to buyer (+ collateral)')
   }
   const handleArbSplit = () => doAction((c) => c.arbiterSplit(id, ARC_GAS), 'Splitting…', '50/50 split')
+  const handleEscalate = () => doAction((c) => c.escalateNoResponse(id, ARC_GAS), 'Escalating…', 'Escalated! Arbiter will review delivery proof.')
 
   const copyInvite = () => {
     navigator.clipboard.writeText(window.location.href)
@@ -419,7 +420,7 @@ export default function RoomView({ wallet }) {
 
   const canExpire = room && (
     (room.state === 'Created' && (Date.now() / 1000 - room.createdAt) > 86400) ||
-    (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 86400)
+    (room.state === 'Joined' && (Date.now() / 1000 - room.joinedAt) > 1800)
   )
   const canBuyerRefund = room?.state === 'Funded' && room?.deliveryDeadline && (Date.now() / 1000) > room.deliveryDeadline
   const canEscalate = room?.state === 'Delivered' && room.confirmDeadline && (Date.now() / 1000) > room.confirmDeadline
@@ -430,6 +431,8 @@ export default function RoomView({ wallet }) {
   const mutualCancelReady = mutualCancelStatus.creatorApproved && mutualCancelStatus.counterpartyApproved
 
   const role = isCreator ? (room?.creatorIsSeller ? 'seller' : 'buyer') : isCounter ? (room?.creatorIsSeller ? 'buyer' : 'seller') : null
+  const isSeller = role === 'seller'
+  const isBuyer = role === 'buyer'
   const guide = room && STATE_GUIDES[room.state] ? (STATE_GUIDES[room.state][role || 'both'] || STATE_GUIDES[room.state].both) : []
 
   if (loading) return (

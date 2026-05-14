@@ -115,11 +115,11 @@ export default function App() {
         </div>
         <div className="text-[12px] font-light text-stripe-body dark:text-gray-500">on Arc Testnet</div>
         <div className="flex items-center justify-center gap-4 mt-3">
-          <a href="https://testnet.arcscan.app/address/0x7630A99188C5B4199c8ABd06b9462A6eC502AC2C" target="_blank" rel="noopener" className="text-[11px] text-stripe-body dark:text-gray-500 hover:text-stripe-navy dark:hover:text-white transition">Contract</a>
+          <a href="https://testnet.arcscan.app/address/0xADf4c67c0D8b2900fA045B1BDbA5d54c803688E5" target="_blank" rel="noopener" className="text-[11px] text-stripe-body dark:text-gray-500 hover:text-stripe-navy dark:hover:text-white transition">Contract</a>
           <span className="text-stripe-border dark:text-white/10">·</span>
           <a href="https://github.com/yjm26/arc-escrow-agent" target="_blank" rel="noopener" className="text-[11px] text-stripe-body dark:text-gray-500 hover:text-stripe-navy dark:hover:text-white transition">GitHub</a>
         </div>
-        <div className="font-mono text-[10px] text-gray-400 dark:text-gray-600 mt-2">0x7630A99188C5B4199c8ABd06b9462A6eC502AC2C</div>
+        <div className="font-mono text-[10px] text-gray-400 dark:text-gray-600 mt-2">0xADf4c67c0D8b2900fA045B1BDbA5d54c803688E5</div>
       </footer>
     </BrowserRouter>
   )
