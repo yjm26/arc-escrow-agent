@@ -5,7 +5,9 @@ import { getContract, getUsdc, ensureArcChain, ARC_GAS, ARC_GAS_APPROVE, STATE_N
 import { fetchReputation, getReputationBadge, getCollateralBadge } from '../utils/reputation'
 import RoomHistory from './room/RoomHistory'
 import ActionPanel from './room/ActionPanel'
+import Skeleton from './Skeleton'
 import { useToast } from '../hooks/useToast'
+import { useSmartPolling } from '../hooks/useSmartPolling'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -220,13 +222,12 @@ export default function RoomView({ wallet }) {
 
   useEffect(() => { loadRoom(); loadEvidence() }, [id, wallet])
 
-  useEffect(() => {
-    if (!wallet) return
-    // Stop polling once room reaches a terminal state
-    if (['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room?.state)) return
-    const interval = setInterval(() => { loadRoom(); loadEvidence() }, 10000)
-    return () => clearInterval(interval)
-  }, [id, wallet, room?.state])
+  const isTerminal = ['Released', 'Refunded', 'Expired', 'Cancelled'].includes(room?.state)
+  useSmartPolling(
+    async () => { await loadRoom(); await loadEvidence() },
+    [id, wallet?.address],
+    { interval: 10000, enabled: !!wallet && !isTerminal }
+  )
 
   useEffect(() => {
     if (!room) return
@@ -264,30 +265,51 @@ export default function RoomView({ wallet }) {
   async function doAction(fn, label, successMsg) {
     setStatus({ type: 'info', msg: label })
     addToast(label, 'info')
-    try {
-      const signer = await wallet.provider.getSigner()
-      await ensureArcChain(signer)
-      const contract = getContract(signer)
-      const tx = await fn(contract)
-      setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
-      addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
-      const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
-      if (receipt.status === 0) {
-        setStatus({ type: 'err', msg: 'TX reverted on-chain' })
-        addToast('Transaction reverted on-chain', 'err')
+
+    const RETRIES = 2
+    for (let attempt = 0; attempt <= RETRIES; attempt++) {
+      try {
+        const signer = await wallet.provider.getSigner()
+        await ensureArcChain(signer)
+        const contract = getContract(signer)
+        const tx = await fn(contract)
+        setStatus({ type: 'info', msg: `TX sent: ${tx.hash.slice(0, 10)}\u2026 \u2014 waiting for confirmation\u2026` })
+        addToast(`TX sent ${tx.hash.slice(0, 14)}...`, 'info')
+        const receipt = await waitForTx(wallet.provider, tx.hash, 120000)
+        if (receipt.status === 0) {
+          setStatus({ type: 'err', msg: 'TX reverted on-chain' })
+          addToast('Transaction reverted on-chain', 'err')
+          return false
+        }
+        setStatus({ type: 'ok', msg: successMsg })
+        addToast(successMsg, 'ok')
+        loadRoom()
+        loadEvidence()
+        return true
+      } catch (err) {
+        const msg = err.reason || err.message || String(err)
+        // User rejection = don't retry
+        if (msg.includes('denied') || msg.includes('User rejected') || msg.includes('revert') || msg.includes('execution reverted')) {
+          setStatus({ type: '', msg: '' })
+          if (!msg.includes('denied') && !msg.includes('User rejected')) {
+            addToast(msg.slice(0, 120), 'err')
+          }
+          return false
+        }
+        // Network/RPC error = retry with backoff
+        if (attempt < RETRIES) {
+          const delay = 1000 * Math.pow(2, attempt)
+          addToast(`Retrying in ${delay/1000}s\u2026 (${attempt + 1}/${RETRIES})`, 'info')
+          await new Promise(r => setTimeout(r, delay))
+          continue
+        }
+        console.error('TX failed:', err)
+        setStatus({ type: 'err', msg: msg.slice(0, 100) })
+        addToast(msg.slice(0, 120), 'err')
         return false
       }
-      setStatus({ type: 'ok', msg: successMsg })
-      addToast(successMsg, 'ok')
-      loadRoom()
-      loadEvidence()
-      return true
-    } catch (err) {
-      console.error('TX failed:', err)
-      setStatus({ type: 'err', msg: err.reason || err.message })
-      addToast(err.reason || err.message, 'err')
-      return false
     }
+    return false
   }
 
   const handleJoin = async () => {
@@ -449,8 +471,26 @@ export default function RoomView({ wallet }) {
   if (loading) return (
     <section className="pt-28 pb-32 px-4 sm:px-6 min-h-screen">
       <div className="max-w-5xl mx-auto">
-        <div className="card-3d p-8 text-center">
-          <div className="text-stripe-body dark:text-gray-400 text-[14px]">Loading room…</div>
+        <div className="card-3d p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Skeleton className="w-16 h-6" />
+            <Skeleton className="w-32 h-6" />
+            <div className="ml-auto"><Skeleton className="w-20 h-8" /></div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-3 space-y-6">
+              <Skeleton className="w-3/4 h-8" />
+              <Skeleton lines={4} />
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-20" />
+                <Skeleton className="h-20" />
+              </div>
+            </div>
+            <div className="lg:col-span-2 space-y-4">
+              <Skeleton className="h-24" />
+              <Skeleton className="h-40" />
+            </div>
+          </div>
         </div>
       </div>
     </section>
