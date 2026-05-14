@@ -1,110 +1,62 @@
-# BOND — Roadmap & Future Plans
+# BOND Escrow Roadmap
 
-## Current State (Hackathon MVP)
-- ✅ Smart contract V11 — collateral at creation, arbiter disputes
-- ✅ React frontend — Create, Room View, Market, Docs
-- ✅ JSON backend — shared listings (port 3001)
-- ✅ Docs site — /docs with collateral, disputes, timers, FAQ
-- ✅ Market — expandable listings, social contacts, category filter
+## Phase 1 \u2705 Complete
+- Global Toast notification system (context + container)
+- RoomView ActionPanel consolidation (all actions extracted)
+- Live countdown timer fix (clean format, exact match styling)
+- Offers deduplication (shared `useOffers` hook)
 
-## Architecture for Production
+## Phase 2 \u2705 Complete
+- Smart polling with visibility awareness + exponential backoff
+- TX retry logic (2 retries, 1s/2s backoff, skip on user rejection)
+- Skeleton loading states for RoomView
+- Better ErrorBoundary (reload + retry, stack trace preview)
 
-```
-FRONTEND                    API LAYER                   DATA LAYER
-Next.js (SSR)          Express / Hono              PostgreSQL + Prisma
-React + Tailwind       REST + WebSocket            Redis (cache/pubsub)
-ethers.js v6           SIWE auth                   IPFS (proofs/images)
-                       Rate limiting               Push (TG/email)
+## Phase 3 \u2705 Complete
+- Arbiter Dashboard (`/arbiter`)
+  - Backend disputes storage (POST/GET/PUT endpoints)
+  - RoomView auto-registers dispute to backend on openDispute TX
+  - Arbiter-only Navbar link (red, conditional on `isAdmin`)
+  - List open disputes with room details, parties, reason, evidence
+  - Smart polling for live updates
+  - Mark resolved tracking (backend-only, no contract change)
 
-BLOCKCHAIN LAYER
-Arc Testnet → Mainnet
-BondRoom Contract (V11+)
-Event Indexer (Subgraph)
-```
+## Phase 4 \uD83D\uDD32 Multi-Arbiter System (Contract V2)
+> **Note:** Requires contract redeploy. Current contract has single fixed arbiter.
 
-## Phase 2 — Post-Hackathon
+### Contract Changes
+- `arbiterRegistry` \u2014 mapping of registered arbiters with stake
+- `takeCase(uint256 roomId)` \u2014 any registered arbiter can claim an open dispute
+- `assignedArbiter[roomId]` \u2014 tracks who took each case
+- `resolveAsArbiter(...)` \u2014 only assigned arbiter can resolve
+- Arbiter staking / bond mechanism (prevents ghosting after taking case)
+- Arbiter reputation scoring (win rate, speed, fairness)
 
-### 2.1 Database Migration
-- PostgreSQL + Prisma ORM
-- Tables: users, listings, orders, reviews, disputes
-- Migrate from JSON file to proper DB
+### Frontend Changes
+- Arbiter registration flow (stake USDC to become arbiter)
+- `/arbiter` dashboard shows "Open Cases" (unclaimed) + "My Cases" (claimed)
+- "Take Case" button on open disputes (TX to contract)
+- Arbiter leaderboard / reputation display
+- Case assignment history
 
-### 2.2 Auth — SIWE (Sign-In with Ethereum)
-- Wallet connects → sign message → backend verify → JWT
-- No email/password. Wallet = identity
-- npm: siwe, @auth/core
+### Backend Changes
+- Arbiter registry sync from chain events
+- Case assignment notifications
+- Arbiter performance analytics
 
-### 2.3 Event Indexer
-- Listen on-chain events → sync to DB
-- RoomCreated → create order record
-- RoomFunded → update order status
-- RoomReleased → complete order, update reputation
-- RoomDisputed → create dispute record
-- Options: The Graph subgraph, or custom listener with ethers.js
+## Phase 5 \uD83D\uDD32 Notifications & UX Polish
+- Push/web notifications for state changes
+- Email/Discord webhook for arbiter alerts
+- Mobile-responsive refinements
+- PWA support (offline skeleton, add to home screen)
 
-### 2.4 Reputation System
-- After each completed deal, buyer rates seller (1-5 stars)
-- Track: deals_completed, avg_rating, disputes_lost
-- Display on listings and profiles
+## Phase 6 \uD83D\uDD32 Advanced Features
+- Batch operations (create multiple rooms, bulk fund)
+- Dispute mediation chat (encrypted between parties + arbiter)
+- Auto-escalation timer (seller can auto-escalate after confirm window)
+- Partial release (arbiter can split funds arbitrarily, not just 50/50)
+- Appeal mechanism (loser can appeal to higher arbiter with larger stake)
 
-### 2.5 Real-time Updates
-- WebSocket or Server-Sent Events
-- New listing → broadcast to browsers
-- Room status change → notify parties
-- Use Redis pub/sub for multi-server
+---
 
-### 2.6 Image/Proof Upload
-- IPFS for delivery proof images
-- Pinata or web3.storage for pinning
-- Upload on markDelivered → store hash on-chain
-
-## Phase 3 — Mainnet Launch
-
-### 3.1 Security
-- Smart contract audit (manual + Slither/Mythril)
-- Penetration testing on API
-- Rate limiting, input sanitization
-- CORS lockdown
-
-### 3.2 Notifications
-- Telegram bot — deal updates, dispute alerts
-- Email notifications via Resend/SendGrid
-- In-app notification center
-
-### 3.3 Mobile
-- Responsive polish (already mostly there)
-- PWA support (install as app)
-- WalletConnect v2 for mobile wallets
-
-### 3.4 Marketing
-- Landing page with demo video
-- Twitter/X presence
-- Discord community
-- Hackathon submission + demo
-
-## Tech Stack Summary
-
-| Layer | Tech | Why |
-|-------|------|-----|
-| Frontend | Next.js 14 | SSR, SEO, API routes |
-| Auth | SIWE | Wallet-native |
-| DB | PostgreSQL + Prisma | Type-safe, relational |
-| Cache | Redis | Session, rate limit, pub/sub |
-| Real-time | WebSocket | Live updates |
-| Indexer | Custom / Subgraph | On-chain sync |
-| Storage | IPFS / S3 | Proofs, images |
-| Notify | Telegram Bot + Email | Deal updates |
-| Deploy | Vercel + Railway | Auto-scale |
-| Monitor | Sentry + Grafana | Error tracking |
-
-## Key Files
-- contracts/BondRoomV11.sol — current deployed contract
-- backend/server.js — JSON API server
-- frontend/src/components/Market.jsx — marketplace UI
-- frontend/src/components/RoomView.jsx — escrow room UI
-- frontend/src/components/Docs.jsx — documentation
-
-## Deployed
-- Contract: 0xb9C68647bC0441A4b5c2ef939282C3B278874a80 (Arc Testnet)
-- Backend: http://localhost:3001
-- Frontend: http://localhost:5173
+*Last updated: after Phase 3 commit*

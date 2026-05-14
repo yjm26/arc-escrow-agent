@@ -7,6 +7,7 @@ const DATA_FILE = path.join(__dirname, 'listings.json')
 const NOTIF_FILE = path.join(__dirname, 'notifications.json')
 const OFFERS_FILE = path.join(__dirname, 'offers.json')
 const ROOM_CODES_FILE = path.join(__dirname, 'room_codes.json')
+const DISPUTES_FILE = path.join(__dirname, 'disputes.json')
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -346,6 +347,59 @@ const server = http.createServer(async (req, res) => {
       const codes = readJSON(ROOM_CODES_FILE, [])
       const pending = codes.filter(c => c.counterparty === wallet.toLowerCase())
       return json(res, pending)
+    }
+
+    // ── DISPUTES ──
+
+    // POST /api/disputes — log a new dispute
+    if (pathname === '/api/disputes' && req.method === 'POST') {
+      const body = await parseBody(req)
+      if (!body.roomId) return json(res, { error: 'roomId required' }, 400)
+      const disputes = readJSON(DISPUTES_FILE, [])
+      // Avoid duplicates
+      if (!disputes.find(d => d.roomId === body.roomId)) {
+        disputes.unshift({
+          roomId: body.roomId,
+          item: body.item || '',
+          price: body.price || '',
+          collateral: body.collateral || '0',
+          creator: (body.creator || '').toLowerCase(),
+          counterparty: (body.counterparty || '').toLowerCase(),
+          disputedBy: (body.disputedBy || '').toLowerCase(),
+          reason: body.reason || '',
+          evidenceRef: body.evidenceRef || '',
+          status: 'open',
+          resolvedAt: null,
+          resolution: null,
+          createdAt: Date.now(),
+        })
+        writeJSON(DISPUTES_FILE, disputes)
+      }
+      return json(res, { ok: true }, 201)
+    }
+
+    // GET /api/disputes — list open disputes (or all)
+    if (pathname === '/api/disputes' && req.method === 'GET') {
+      const status = url.searchParams.get('status') || 'open'
+      let disputes = readJSON(DISPUTES_FILE, [])
+      if (status === 'open') disputes = disputes.filter(d => d.status === 'open')
+      if (status === 'resolved') disputes = disputes.filter(d => d.status === 'resolved')
+      return json(res, disputes)
+    }
+
+    // PUT /api/disputes/:roomId/resolve — mark resolved
+    if (pathname.match(/^\/api\/disputes\/\d+\/resolve$/) && req.method === 'PUT') {
+      const roomId = pathname.split('/')[3]
+      const body = await parseBody(req)
+      const disputes = readJSON(DISPUTES_FILE, [])
+      const d = disputes.find(x => x.roomId === roomId)
+      if (!d) return json(res, { error: 'Dispute not found' }, 404)
+      d.status = 'resolved'
+      d.resolvedAt = Date.now()
+      d.resolution = body.resolution || 'unknown'
+      d.resolvedBy = (body.resolvedBy || '').toLowerCase()
+      writeJSON(DISPUTES_FILE, disputes)
+      return json(res, d)
     }
 
     // ── HEALTH ──

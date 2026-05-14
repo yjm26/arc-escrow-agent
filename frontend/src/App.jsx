@@ -13,6 +13,7 @@ import CreateRoom from './components/CreateRoom'
 import Market from './components/Market'
 import Offers from './components/Offers'
 import Docs from './components/Docs'
+import ArbiterDashboard from './components/ArbiterDashboard'
 import ToastContainer from './components/ToastContainer'
 import { ToastProvider } from './contexts/ToastContext'
 import { reconnectWallet } from './lib/wallet'
@@ -102,6 +103,7 @@ export default function App() {
         <Route path="/docs/:section?" element={<Docs />} />
         <Route path="/market" element={<Market wallet={wallet} />} />
         <Route path="/offers" element={<Offers wallet={wallet} />} />
+        <Route path="/arbiter" element={<ArbiterDashboard wallet={wallet} />} />
       </Routes>
       </ErrorBoundary>
       <div className="max-w-[600px] mx-auto px-6 mb-16">

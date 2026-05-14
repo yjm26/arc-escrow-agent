@@ -48,6 +48,12 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
         <Link to="/docs" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Docs</Link>
         <Link to="/market" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Market</Link>
 
+        {isAdmin && (
+          <Link to="/arbiter" className="text-[14px] font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors">
+            Arbiter
+          </Link>
+        )}
+
         <ThemeToggle />
 
         {wallet ? (
@@ -104,6 +110,9 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
             <Link to="/#how" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>How it works</Link>
             <Link to="/docs" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Docs</Link>
             <Link to="/market" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Market</Link>
+            {isAdmin && (
+              <Link to="/arbiter" className="block text-[14px] font-medium text-red-600 dark:text-red-400" onClick={() => setMobileOpen(false)}>Arbiter</Link>
+            )}
             <div onClick={() => setMobileOpen(false)}><ThemeToggle /></div>
             {wallet ? (
               <>

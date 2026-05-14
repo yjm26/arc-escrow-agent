@@ -395,6 +395,26 @@ export default function RoomView({ wallet }) {
     } catch (err) {
       console.error('Evidence POST failed:', err)
     }
+    // Register dispute for arbiter dashboard
+    try {
+      await fetch(`${API_URL}/api/disputes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: id,
+          item: room?.item || '',
+          price: room?.price || '',
+          collateral: room?.collateralAmount || '0',
+          creator: room?.creator || '',
+          counterparty: room?.counterparty || '',
+          disputedBy: wallet.address,
+          reason: disputeReason.trim(),
+          evidenceRef: evidenceRef.trim() || '',
+        }),
+      })
+    } catch (err) {
+      console.error('Dispute register POST failed:', err)
+    }
     setShowDisputeForm(false)
     setDisputeReason('')
     setEvidenceDesc('')
