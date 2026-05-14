@@ -26,10 +26,10 @@ const CATEGORY_STYLES = {
 }
 
 const SOCIAL_OPTIONS = [
-  { key: 'telegram', label: 'Telegram', icon: '✈️', placeholder: '@username', validate: (v) => v.startsWith('@') || 'Must start with @' },
-  { key: 'discord', label: 'Discord', icon: '🎮', placeholder: 'username', validate: (v) => v.length >= 2 || 'Too short' },
-  { key: 'twitter', label: 'Twitter / X', icon: '𝕏', placeholder: '@username', validate: (v) => v.startsWith('@') || 'Must start with @' },
-  { key: 'whatsapp', label: 'WhatsApp', icon: '📱', placeholder: '+628xxx', validate: (v) => /^\+\d{8,}$/.test(v) || 'Must start with + and country code' },
+  { key: 'telegram', label: 'Telegram', icon: '✈️', placeholder: '@username', validate: (v) => v.startsWith('@') ? null : 'Must start with @' },
+  { key: 'discord', label: 'Discord', icon: '🎮', placeholder: 'username', validate: (v) => v.length >= 2 ? null : 'Too short' },
+  { key: 'twitter', label: 'Twitter / X', icon: '𝕏', placeholder: '@username', validate: (v) => v.startsWith('@') ? null : 'Must start with @' },
+  { key: 'whatsapp', label: 'WhatsApp', icon: '📱', placeholder: '+628xxx', validate: (v) => /^\+\d{8,}$/.test(v) ? null : 'Must start with + and country code' },
   { key: 'other', label: 'Other', icon: '🔗', placeholder: 'Link or @handle', validate: () => null },
 ]
 
