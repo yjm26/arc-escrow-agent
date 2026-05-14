@@ -9,12 +9,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-produc
 export default function RoomsPage({ wallet }) {
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('active')
   const [pendingRooms, setPendingRooms] = useState([])
   const [joinError, setJoinError] = useState('')
 
   const FILTERS = [
-    { key: 'all', label: 'All' },
     { key: 'active', label: 'Active' },
     { key: 'completed', label: 'Completed' },
     { key: 'closed', label: 'Closed' },
@@ -227,9 +226,7 @@ export default function RoomsPage({ wallet }) {
         )}
 
         {(() => {
-          const filtered = filter === 'all'
-            ? rooms
-            : rooms.filter(r => FILTER_MAP[filter]?.includes(r.state))
+          const filtered = rooms.filter(r => FILTER_MAP[filter]?.includes(r.state))
 
           return filtered.length === 0 ? (
           <div className="card-3d p-8 text-center">
