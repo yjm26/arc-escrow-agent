@@ -1,29 +1,133 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState, useRef } from 'react'
+
+function useCountUp(target, duration = 1200, delay = 0) {
+  const [val, setVal] = useState('0')
+  const hasRun = useRef(false)
+
+  useEffect(() => {
+    if (hasRun.current) return
+    const start = performance.now() + delay
+    const numeric = parseFloat(target.replace(/[^0-9.]/g, '')) || 0
+    const prefix = target.match(/^[^0-9.]*/)?.[0] || ''
+    const suffix = target.match(/[^0-9.]*$/)?.[0] || ''
+    const isInt = !target.includes('.')
+
+    let raf
+    const tick = (now) => {
+      if (now < start) { raf = requestAnimationFrame(tick); return }
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const current = numeric * eased
+      const formatted = isInt
+        ? Math.floor(current).toLocaleString()
+        : current.toFixed(numeric < 1 ? 2 : 1)
+      setVal(prefix + formatted + suffix)
+      if (progress < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    hasRun.current = true
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration, delay])
+
+  return val
+}
+
+/* ── 3D floating escrow wireframe icons ── */
+const LockIcon = ({ className }) => (
+  <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="0.8" className={className}>
+    <rect x="12" y="28" width="40" height="32" rx="3" />
+    <path d="M20 28V18a12 12 0 0 1 24 0v10" />
+    <circle cx="32" cy="44" r="4" />
+    <line x1="32" y1="48" x2="32" y2="52" />
+  </svg>
+)
+const ShieldIcon = ({ className }) => (
+  <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="0.8" className={className}>
+    <path d="M8 12c0 24 12 40 24 40s24-16 24-40L32 4 8 12z" />
+    <path d="M20 28c4 8 8 12 12 12s8-4 12-12" />
+  </svg>
+)
+const ChainIcon = ({ className }) => (
+  <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="0.8" className={className}>
+    <ellipse cx="22" cy="22" rx="10" ry="14" transform="rotate(-45 22 22)" />
+    <ellipse cx="42" cy="42" rx="10" ry="14" transform="rotate(-45 42 42)" />
+    <line x1="28" y1="28" x2="36" y2="36" />
+  </svg>
+)
+const HandshakeIcon = ({ className }) => (
+  <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="0.8" className={className}>
+    <path d="M8 36l8-8 8 8 8-8 8 8 8-8" />
+    <path d="M16 28v-8c0-6 6-10 12-10h8c6 0 12 4 12 10v8" />
+    <path d="M12 36h40v8a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4v-8z" />
+  </svg>
+)
 
 export default function Hero({ wallet, onConnect }) {
+  const stats = [
+    { val: '$0.01', label: 'Per tx', delay: 900 },
+    { val: '1%', label: 'Fee only', delay: 1050 },
+    { val: '<1s', label: 'Finality', delay: 1200 },
+    { val: '0', label: 'Middleman', delay: 1350 },
+  ]
+
   return (
     <section className="relative pt-28 pb-20 px-4 sm:px-6 overflow-hidden">
-      {/* Fine dot-grid background */}
+      {/* ─── 3D Background Layer ─── */}
       <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        {/* Perspective floor grid — trading floor vibe */}
+        <div className="absolute bottom-0 left-0 right-0 h-[70%] perspective-grid opacity-[0.07] dark:opacity-[0.12]">
+          <div className="perspective-grid-inner w-full h-[200%] relative">
+            <div className="absolute inset-0 animate-grid-move">
+              {/* Horizontal lines moving down */}
+              {Array.from({ length: 20 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 right-0 h-px bg-current"
+                  style={{ top: `${i * 60}px` }}
+                />
+              ))}
+            </div>
+            {/* Vertical perspective lines */}
+            {[-40, -20, 0, 20, 40, 60, 80, 100, 120].map((pct, i) => (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0 w-px bg-current"
+                style={{ left: `${pct}%` }}
+              />
+            ))}
+            {/* Horizon line */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-current opacity-40" />
+          </div>
+        </div>
+
+        {/* Floating escrow wireframes — very subtle */}
+        <div className="absolute inset-0 text-stripe-navy dark:text-white">
+          <LockIcon    className="absolute top-[18%] left-[8%]  w-16 h-16 opacity-[0.06] dark:opacity-[0.10] float-3d-1" />
+          <ShieldIcon  className="absolute top-[12%] right-[12%] w-20 h-20 opacity-[0.05] dark:opacity-[0.09] float-3d-2" />
+          <ChainIcon   className="absolute top-[55%] left-[6%]  w-14 h-14 opacity-[0.05] dark:opacity-[0.08] float-3d-3" />
+          <HandshakeIcon className="absolute top-[48%] right-[8%] w-16 h-16 opacity-[0.04] dark:opacity-[0.07] float-3d-1" style={{ animationDelay: '-5s' }} />
+          <LockIcon    className="absolute top-[8%]  left-[45%] w-10 h-10 opacity-[0.04] dark:opacity-[0.06] float-3d-2" style={{ animationDelay: '-8s' }} />
+          <ChainIcon   className="absolute top-[65%] right-[25%] w-12 h-12 opacity-[0.04] dark:opacity-[0.06] float-3d-3" style={{ animationDelay: '-3s' }} />
+        </div>
+
+        {/* Fine dot-grid overlay (kept but subdued) */}
         <svg
-          className="absolute w-full h-full opacity-[0.18] dark:opacity-[0.26]"
+          className="absolute w-full h-full opacity-[0.10] dark:opacity-[0.18]"
           xmlns="http://www.w3.org/2000/svg"
           preserveAspectRatio="xMidYMid slice"
         >
           <defs>
             <pattern id="dot-grid" width="60" height="60" patternUnits="userSpaceOnUse">
-              {/* Vertical lines */}
               <line x1="0" y1="0" x2="0" y2="60" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
               <line x1="30" y1="0" x2="30" y2="60" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
-              {/* Horizontal lines */}
               <line x1="0" y1="0" x2="60" y2="0" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
               <line x1="0" y1="30" x2="60" y2="30" stroke="currentColor" strokeWidth="0.6" opacity="0.35" />
-              {/* Dots at intersections */}
               <circle cx="0" cy="0" r="1.2" fill="currentColor" opacity="0.5" />
               <circle cx="30" cy="0" r="1.2" fill="currentColor" opacity="0.5" />
               <circle cx="0" cy="30" r="1.2" fill="currentColor" opacity="0.5" />
               <circle cx="30" cy="30" r="1.5" fill="currentColor" opacity="0.55" />
-              {/* Offset secondary dots */}
               <circle cx="15" cy="15" r="0.8" fill="currentColor" opacity="0.3" />
               <circle cx="45" cy="15" r="0.8" fill="currentColor" opacity="0.3" />
               <circle cx="15" cy="45" r="0.8" fill="currentColor" opacity="0.3" />
@@ -33,17 +137,14 @@ export default function Hero({ wallet, onConnect }) {
           <rect width="100%" height="100%" fill="url(#dot-grid)" />
         </svg>
 
-        {/* Large faded focal dot cluster */}
+        {/* Large faded focal dot cluster — slow pulse */}
         <svg
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-[0.10] dark:opacity-[0.16]"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] animate-slow-pulse"
           viewBox="0 0 300 300"
         >
-          {/* Concentric rings */}
           <circle cx="150" cy="150" r="40" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.35" />
           <circle cx="150" cy="150" r="70" fill="none" stroke="currentColor" strokeWidth="0.6" opacity="0.25" />
           <circle cx="150" cy="150" r="100" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.18" />
-
-          {/* Radial dash lines */}
           <line x1="150" y1="150" x2="150" y2="50" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
           <line x1="150" y1="150" x2="220" y2="80" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
           <line x1="150" y1="150" x2="250" y2="150" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
@@ -52,8 +153,6 @@ export default function Hero({ wallet, onConnect }) {
           <line x1="150" y1="150" x2="80" y2="220" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
           <line x1="150" y1="150" x2="50" y2="150" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
           <line x1="150" y1="150" x2="80" y2="80" stroke="currentColor" strokeWidth="0.7" opacity="0.3" strokeDasharray="3 2" />
-
-          {/* Outer dots */}
           <circle cx="150" cy="50" r="2" fill="currentColor" opacity="0.35" />
           <circle cx="250" cy="150" r="2" fill="currentColor" opacity="0.35" />
           <circle cx="150" cy="250" r="2" fill="currentColor" opacity="0.35" />
@@ -68,28 +167,43 @@ export default function Hero({ wallet, onConnect }) {
       <div className="relative z-10 max-w-[1100px] mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
         {/* Left — Text */}
         <div className="flex-1 text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white dark:bg-white/5 border border-stripe-border dark:border-white/10 rounded-md text-[12px] font-medium text-stripe-body dark:text-gray-400 mb-8">
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white dark:bg-white/5 border border-stripe-border dark:border-white/10 rounded-md text-[12px] font-medium text-stripe-body dark:text-gray-400 mb-8 animate-slide-in-left"
+            style={{ animationDelay: '0.15s' }}
+          >
             <span className="w-1.5 h-1.5 bg-stripe-success rounded-full animate-pulse" />
             Live on Arc Testnet
           </div>
 
           <h1
-            className="text-[clamp(48px,7vw,80px)] font-light leading-[1.02] mb-5 text-stripe-navy dark:text-white"
-            style={{ letterSpacing: '-1.6px', fontFeatureSettings: '"ss01"' }}
+            className="text-[clamp(48px,7vw,80px)] font-light leading-[1.02] mb-5 text-stripe-navy dark:text-white animate-fade-in-up"
+            style={{ letterSpacing: '-1.6px', fontFeatureSettings: '"ss01"', animationDelay: '0.3s' }}
           >
             Trust,<br />automated.
           </h1>
 
-          <p className="text-[17px] font-light text-stripe-body dark:text-gray-400 leading-[1.5] mb-10 max-w-[400px] mx-auto lg:mx-0">
+          <p
+            className="text-[17px] font-light text-stripe-body dark:text-gray-400 leading-[1.5] mb-10 max-w-[400px] mx-auto lg:mx-0 animate-fade-in-up"
+            style={{ animationDelay: '0.45s' }}
+          >
             Trustless escrow for strangers. No middleman, no trust needed. Just a smart contract on Arc.
           </p>
 
-          <div className="flex gap-3 justify-center lg:justify-start">
-            <Link to="/market" className="btn-primary flex items-center gap-2 px-7 py-3 text-[15px]">
-              Browse Market
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div
+            className="flex gap-3 justify-center lg:justify-start animate-fade-in-up"
+            style={{ animationDelay: '0.6s' }}
+          >
+            <Link
+              to="/market"
+              className="btn-primary flex items-center gap-2 px-7 py-3 text-[15px] relative overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Browse Market
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 7H13M13 7L7 1M13 7L7 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+              <span className="absolute inset-0 animate-shimmer pointer-events-none" />
             </Link>
             {!wallet && (
               <button onClick={onConnect} className="btn-ghost px-5 py-3 text-[15px]">Connect Wallet</button>
@@ -98,23 +212,18 @@ export default function Hero({ wallet, onConnect }) {
 
           {/* Stats row */}
           <div className="flex gap-8 mt-10 justify-center lg:justify-start">
-            {[
-              { val: '$0.01', label: 'Per tx' },
-              { val: '1%', label: 'Fee only' },
-              { val: '<1s', label: 'Finality' },
-              { val: '0', label: 'Middleman' },
-            ].map(s => (
-              <div key={s.label} className="text-center lg:text-left">
-                <div className="text-[20px] font-semibold text-stripe-navy dark:text-white font-mono leading-none tracking-tight">{s.val}</div>
-                <div className="text-[10px] text-stripe-body dark:text-gray-500 uppercase tracking-wider mt-1">{s.label}</div>
-              </div>
+            {stats.map((s) => (
+              <StatItem key={s.label} val={s.val} label={s.label} delay={s.delay} />
             ))}
           </div>
         </div>
 
         {/* Right — Preview Card */}
-        <div className="flex-1 max-w-[480px] w-full">
-          <div className="card-3d overflow-hidden">
+        <div
+          className="flex-1 max-w-[480px] w-full animate-fade-in-up"
+          style={{ animationDelay: '0.7s' }}
+        >
+          <div className="card-3d overflow-hidden animate-float-soft">
             {/* Browser chrome */}
             <div className="flex items-center gap-2 px-5 py-3 bg-stripe-surface dark:bg-white/5 border-b border-stripe-border dark:border-white/10">
               <div className="w-2.5 h-2.5 rounded-full bg-red-300/80" />
@@ -188,5 +297,18 @@ export default function Hero({ wallet, onConnect }) {
         </div>
       </div>
     </section>
+  )
+}
+
+function StatItem({ val, label, delay }) {
+  const count = useCountUp(val, 1000, delay)
+  return (
+    <div
+      className="text-center lg:text-left animate-count-pop"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="text-[20px] font-semibold text-stripe-navy dark:text-white font-mono leading-none tracking-tight">{count}</div>
+      <div className="text-[10px] text-stripe-body dark:text-gray-500 uppercase tracking-wider mt-1">{label}</div>
+    </div>
   )
 }

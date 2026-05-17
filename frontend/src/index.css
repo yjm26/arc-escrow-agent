@@ -7,6 +7,7 @@
     font-feature-settings: "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -185,5 +186,114 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* ─── Subtle entrance animations ─── */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes floatSoft {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-5px); }
+  }
+  @keyframes shimmerSweep {
+    0%   { background-position: -160% center; }
+    100% { background-position: 160% center; }
+  }
+  @keyframes countPop {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slowPulse {
+    0%, 100% { opacity: 0.10; }
+    50%      { opacity: 0.16; }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-slide-in-left {
+    animation: slideInLeft 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-float-soft {
+    animation: floatSoft 6s ease-in-out infinite;
+  }
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmerSweep 4s ease-in-out infinite;
+  }
+  .animate-count-pop {
+    animation: countPop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .animate-slow-pulse {
+    animation: slowPulse 8s ease-in-out infinite;
+  }
+
+  /* ─── Page transition ─── */
+  .page-fade-enter {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  .page-fade-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .page-fade-exit {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .page-fade-exit-active {
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  /* ─── 3D Perspective Grid ─── */
+  .perspective-grid {
+    perspective: 1200px;
+    perspective-origin: 50% 0%;
+  }
+  .perspective-grid-inner {
+    transform: rotateX(60deg);
+    transform-origin: center top;
+  }
+  @keyframes gridMove {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(60px); }
+  }
+  .animate-grid-move {
+    animation: gridMove 12s linear infinite;
+  }
+
+  /* ─── Floating escrow wireframes ─── */
+  @keyframes float3d-1 {
+    0%, 100% { transform: translateY(0) rotateY(0deg) rotateX(0deg); }
+    33%      { transform: translateY(-12px) rotateY(8deg) rotateX(3deg); }
+    66%      { transform: translateY(6px) rotateY(-4deg) rotateX(-2deg); }
+  }
+  @keyframes float3d-2 {
+    0%, 100% { transform: translateY(0) rotateY(0deg) rotateX(0deg); }
+    50%      { transform: translateY(-16px) rotateY(-10deg) rotateX(5deg); }
+  }
+  @keyframes float3d-3 {
+    0%, 100% { transform: translateY(0) rotateY(0deg); }
+    25%      { transform: translateY(-8px) rotateY(6deg) rotateX(-3deg); }
+    75%      { transform: translateY(10px) rotateY(-8deg) rotateX(4deg); }
+  }
+  .float-3d-1 {
+    animation: float3d-1 14s ease-in-out infinite;
+  }
+  .float-3d-2 {
+    animation: float3d-2 18s ease-in-out infinite;
+  }
+  .float-3d-3 {
+    animation: float3d-3 16s ease-in-out infinite;
   }
 }
