@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { getContract, CONTRACT_ADDRESS } from '../utils/contract'
 import NotificationBell from './NotificationBell'
 import ThemeToggle from './ThemeToggle'
 
 export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) {
+  const navigate = useNavigate()
   const [showWalletMenu, setShowWalletMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -30,6 +31,21 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
     setMobileOpen(false)
   }, [typeof window !== 'undefined' ? window.location.pathname : ''])
 
+  const scrollToHow = (e) => {
+    e.preventDefault()
+    const isHome = window.location.pathname === '/' || window.location.pathname === ''
+    if (!isHome) {
+      navigate('/')
+      setTimeout(() => {
+        const el = document.getElementById('how')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 350)
+    } else {
+      const el = document.getElementById('how')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-10 py-4 bg-[#faf9f7]/95 dark:bg-[#0c0f1a]/95 backdrop-blur-xl border-b border-stripe-border dark:border-white/10">
       <Link to="/" className="flex items-center gap-2.5">
@@ -44,7 +60,7 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
       </button>
       <div className="hidden md:flex items-center gap-7">
-        <Link to="/#how" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">How it works</Link>
+        <a href="#how" onClick={scrollToHow} className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer">How it works</a>
         <Link to="/docs" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Docs</Link>
         <Link to="/market" className="text-[14px] font-medium text-stripe-body hover:text-stripe-navy dark:text-gray-400 dark:hover:text-white transition-colors">Market</Link>
 
@@ -107,7 +123,7 @@ export default function Navbar({ onConnect, wallet, connecting, onDisconnect }) 
         <>
           <div className="fixed inset-0 z-30" onClick={() => setMobileOpen(false)} />
           <div className="md:hidden fixed top-[60px] left-0 right-0 bg-[#faf9f7] dark:bg-[#0c0f1a] border-b border-stripe-border dark:border-white/10 p-6 space-y-4 z-40">
-            <Link to="/#how" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>How it works</Link>
+            <a href="#how" onClick={(e) => { scrollToHow(e); setMobileOpen(false) }} className="block text-[14px] font-medium text-stripe-body dark:text-gray-400 cursor-pointer">How it works</a>
             <Link to="/docs" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Docs</Link>
             <Link to="/market" className="block text-[14px] font-medium text-stripe-body dark:text-gray-400" onClick={() => setMobileOpen(false)}>Market</Link>
             {isAdmin && (

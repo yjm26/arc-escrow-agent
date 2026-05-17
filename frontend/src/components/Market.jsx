@@ -431,10 +431,24 @@ export default function Market({ wallet }) {
           </div>
         </div>
 
-        {/* Loading */}
+        {/* Skeleton loading */}
         {loading && (
-          <div className="card-3d p-8 text-center">
-            <div className="text-stripe-body dark:text-gray-400 text-[14px]">Loading listings…</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="border border-stripe-border dark:border-white/10 rounded-[10px] overflow-hidden p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="skeleton-shimmer w-16 h-[18px]" />
+                  <div className="skeleton-shimmer w-12 h-[14px] ml-auto" />
+                </div>
+                <div className="skeleton-shimmer w-full h-5 mb-4" />
+                <div className="skeleton-shimmer w-20 h-7 mb-4" />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="skeleton-shimmer w-5 h-5 rounded-full" />
+                  <div className="skeleton-shimmer w-24 h-3" />
+                </div>
+                <div className="skeleton-shimmer w-full h-9 rounded-md" />
+              </div>
+            ))}
           </div>
         )}
 
@@ -506,7 +520,7 @@ function ListingCard({ listing, wallet, onOpenDeal, onDelete, onExpand }) {
   return (
     <div
       onClick={onExpand}
-      className="listing-card relative rounded-[10px] border border-stripe-border dark:border-white/10 overflow-hidden transition-all duration-200 hover:shadow-stripe-md cursor-pointer"
+      className="listing-card listing-card-enter relative rounded-[10px] border border-stripe-border dark:border-white/10 overflow-hidden transition-all duration-200 hover:shadow-stripe-md cursor-pointer"
       data-role={listing.role}
       style={{
         background: isBuyerListing

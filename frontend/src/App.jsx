@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { createAppKit } from '@reown/appkit/react'
 import { useAppKit, useAppKitAccount, useAppKitProvider, useDisconnect } from '@reown/appkit/react'
 import { EthersAdapter } from '@reown/appkit-adapter-ethers'
@@ -26,6 +26,15 @@ const ARC_TESTNET = {
   rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } },
   blockExplorers: { default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' } },
   testnet: true,
+}
+
+function PageTransition({ children }) {
+  const { pathname } = useLocation()
+  return (
+    <main key={pathname} className="animate-page-enter">
+      {children}
+    </main>
+  )
 }
 
 createAppKit({
@@ -95,6 +104,7 @@ export default function App() {
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Navbar onConnect={handleConnect} onDisconnect={handleDisconnect} wallet={wallet} connecting={connecting} />
       <ErrorBoundary>
+      <PageTransition>
       <Routes>
         <Route path="/" element={<><Hero wallet={wallet} onConnect={handleConnect} /><HowItWorks /></>} />
         <Route path="/create" element={<CreateRoom wallet={wallet} />} />
@@ -105,6 +115,7 @@ export default function App() {
         <Route path="/offers" element={<Offers wallet={wallet} />} />
         <Route path="/arbiter" element={<ArbiterDashboard wallet={wallet} />} />
       </Routes>
+      </PageTransition>
       </ErrorBoundary>
       <div className="max-w-[600px] mx-auto px-6 mb-16">
         <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg px-5 py-3 text-center text-[13px] text-amber-800 dark:text-amber-400 font-medium">
