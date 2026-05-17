@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../hooks/useToast'
+import { authFetch, apiGet, API_URL } from '../lib/api'
 import OfferModal from './OfferModal'
 import OffersPanel from './OffersPanel'
 import ReputationBadge from './ReputationBadge'
 import { DEAL_TYPES } from '../utils/contract'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
 const CATEGORIES = ['All', 'NFT', 'Wallet', 'Account', 'Service', 'Other']
 
@@ -114,9 +113,8 @@ export default function Market({ wallet }) {
     if (validation) { setFormError(`Contact: ${validation}`); return }
     const socials = { [form.contactMethod]: handle }
     try {
-      const res = await fetch(`${API_URL}/api/listings`, {
+      await authFetch('/api/listings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: form.role,
           title: form.title.trim(),
@@ -126,11 +124,9 @@ export default function Market({ wallet }) {
           collateral: form.collateral || '0',
           deliveryDays: Number(form.deliveryDays) || 5,
           dealType: Number(form.dealType) || 0,
-          creator: wallet.address,
           socials,
         }),
-      })
-      if (!res.ok) throw new Error('Failed to post')
+      }, wallet)
       setForm({ role: 'seller', title: '', description: '', category: 'NFT', price: '', collateral: '', deliveryDays: 5, dealType: 0, contactMethod: 'telegram', contactHandle: '' })
       setTouched({ title: false, price: false })
       setShowForm(false)
@@ -150,16 +146,11 @@ export default function Market({ wallet }) {
   const handleDelete = async (id) => {
     setDeleteError('')
     try {
-      const res = await fetch(`${API_URL}/api/listings/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creator: wallet?.address }),
-      })
-      if (!res.ok) throw new Error('Delete failed')
+      await authFetch(`/api/listings/${id}`, { method: 'DELETE' }, wallet)
       fetchListings()
     } catch (err) {
       console.error(err)
-      setDeleteError('Failed to delete listing. Try again.')
+      setDeleteError(err.message || 'Failed to delete listing. Try again.')
     }
   }
 
@@ -490,7 +481,6 @@ export default function Market({ wallet }) {
           <OfferModal
             listing={offerTarget}
             wallet={wallet}
-            API_URL={API_URL}
             onClose={() => setOfferTarget(null)}
             onSubmitted={() => { setOfferTarget(null); fetchListings() }}
           />
@@ -656,19 +646,17 @@ function ListingDetailModal({ listing, wallet, API_URL, onClose, onOpenDeal, onD
       // Try to get join code — first by roomId, then by creator address fallback
       let joinCode = null
       try {
-        const codeRes = await fetch(`${API_URL}/api/room-codes?roomId=${roomId}`)
-        const data = await codeRes.json()
+        const data = await authFetch(`/api/room-codes?roomId=${roomId}`, { method: 'GET' }, wallet)
         joinCode = data?.[0]?.joinCode
       } catch (e) { console.error('room-codes by roomId failed:', e) }
 
       // Fallback: fetch from creator's stored codes
       if (!joinCode && fresh?.creator) {
         try {
-          const fallbackRes = await fetch(`${API_URL}/api/room-codes/${fresh.creator}`)
-          const fallbackData = await fallbackRes.json()
+          const fallbackData = await authFetch('/api/room-codes', { method: 'GET' }, wallet)
           const match = fallbackData.find(rc => String(rc.roomId) === String(roomId))
           joinCode = match?.joinCode
-        } catch (e) { console.error('room-codes by creator failed:', e) }
+        } catch (e) { console.error('room-codes fallback failed:', e) }
       }
 
       if (joinCode) {

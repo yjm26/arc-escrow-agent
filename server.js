@@ -1,6 +1,7 @@
 const http = require('http')
 const fs = require('fs')
 const path = require('path')
+const { ethers } = require('ethers')
 
 const PORT = process.env.PORT || 3001
 const DATA_FILE = path.join(__dirname, 'listings.json')
@@ -8,10 +9,71 @@ const NOTIF_FILE = path.join(__dirname, 'notifications.json')
 const OFFERS_FILE = path.join(__dirname, 'offers.json')
 const ROOM_CODES_FILE = path.join(__dirname, 'room_codes.json')
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+// ═══════════════════════════════════════
+//  Auth: nonce-based wallet verification
+// ═══════════════════════════════════════
+
+const nonces = new Map() // address -> { nonce, expires }
+const NONCE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function getNonce(address) {
+  const a = address.toLowerCase()
+  const existing = nonces.get(a)
+  if (existing && existing.expires > Date.now()) return existing
+  const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36)
+  const entry = { nonce, expires: Date.now() + NONCE_TTL }
+  nonces.set(a, entry)
+  return entry
+}
+
+/**
+ * Verify wallet ownership via signed SIWE-like message.
+ * Returns the verified address on success, null on failure.
+ */
+async function verifySignature({ address, signature, nonce }) {
+  try {
+    const msg = `bond.arc.network wants you to sign in with your Ethereum account:\n${address}\n\nNonce: ${nonce}`
+    const verified = ethers.verifyMessage(msg, signature)
+    return verified.toLowerCase() === address.toLowerCase() ? address.toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
+// ═══════════════════════════════════════
+//  Input sanitization (XSS prevention)
+// ═══════════════════════════════════════
+
+function sanitize(str, maxLen = 500) {
+  if (typeof str !== 'string') return ''
+  return str
+    .slice(0, maxLen)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .trim()
+}
+
+// ═══════════════════════════════════════
+//  CORS
+// ═══════════════════════════════════════
+
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://bond.yjm26.xyz',
+]
+
+function corsHeaders(origin) {
+  const o = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': o,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin',
+  }
 }
 
 // ═══════════════════════════════════════
@@ -53,9 +115,17 @@ function parseBody(req) {
   })
 }
 
-function json(res, data, status = 200) {
-  res.writeHead(status, { 'Content-Type': 'application/json', ...CORS })
+function json(res, data, status = 200, origin = '*') {
+  res.writeHead(status, { 'Content-Type': 'application/json', ...corsHeaders(origin) })
   res.end(JSON.stringify(data))
+}
+
+function parseAuth(req) {
+  return {
+    wallet: req.headers['x-wallet-address'] || '',
+    signature: req.headers['x-signature'] || '',
+    nonce: req.headers['x-nonce'] || '',
+  }
 }
 
 // ═══════════════════════════════════════
@@ -63,8 +133,10 @@ function json(res, data, status = 200) {
 // ═══════════════════════════════════════
 
 const server = http.createServer(async (req, res) => {
+  const origin = req.headers.origin || '*'
+
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, CORS)
+    res.writeHead(204, corsHeaders(origin))
     return res.end()
   }
 
@@ -72,6 +144,25 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname
 
   try {
+    // ── AUTH ──
+
+    // GET /api/auth/nonce?address=0x...
+    if (pathname === '/api/auth/nonce' && req.method === 'GET') {
+      const address = url.searchParams.get('address')
+      if (!address || !ethers.isAddress(address)) return json(res, { error: 'Valid address required' }, 400, origin)
+      const entry = getNonce(address)
+      return json(res, { nonce: entry.nonce }, 200, origin)
+    }
+
+    // POST /api/auth/verify
+    if (pathname === '/api/auth/verify' && req.method === 'POST') {
+      const body = await parseBody(req)
+      if (!body.address || !body.signature || !body.nonce) return json(res, { error: 'address, signature, nonce required' }, 400, origin)
+      const verified = await verifySignature(body)
+      if (!verified) return json(res, { error: 'Signature verification failed' }, 401, origin)
+      return json(res, { ok: true, address: verified }, 200, origin)
+    }
+
     // ── LISTINGS ──
 
     // GET /api/listings
@@ -85,59 +176,81 @@ const server = http.createServer(async (req, res) => {
       if (q) listings = listings.filter(l =>
         l.title.toLowerCase().includes(q) || l.description?.toLowerCase().includes(q)
       )
-      return json(res, listings)
+      return json(res, listings, 200, origin)
     }
 
-    // POST /api/listings
+    // POST /api/listings — requires auth
     if (pathname === '/api/listings' && req.method === 'POST') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const body = await parseBody(req)
-      if (!body.title || !body.price || !body.creator) return json(res, { error: 'title, price, creator required' }, 400)
+      if (!body.title || !body.price) return json(res, { error: 'title, price required' }, 400, origin)
+
       const listings = readJSON(DATA_FILE, [])
       const newListing = {
         id: Date.now(),
         role: body.role || 'seller',
-        title: body.title,
-        description: body.description || '',
-        category: body.category || 'Other',
+        title: sanitize(body.title, 200),
+        description: sanitize(body.description || '', 2000),
+        category: sanitize(body.category || 'Other', 50),
         price: body.price,
         collateral: body.collateral || '0',
-        creator: body.creator,
-        socials: body.socials || undefined,
+        creator: verified, // ← use verified address, not client input
+        socials: body.socials ? {
+          twitter: sanitize(body.socials.twitter || '', 100) || undefined,
+          telegram: sanitize(body.socials.telegram || '', 100) || undefined,
+          discord: sanitize(body.socials.discord || '', 100) || undefined,
+        } : undefined,
         createdAt: Date.now(),
       }
       listings.unshift(newListing)
       writeJSON(DATA_FILE, listings)
-      return json(res, newListing, 201)
+      return json(res, newListing, 201, origin)
     }
 
-    // DELETE /api/listings/:id
+    // DELETE /api/listings/:id — requires auth, only creator can delete
     if (pathname.startsWith('/api/listings/') && req.method === 'DELETE') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const id = parseInt(pathname.split('/')[3])
-      const body = await parseBody(req).catch(() => ({}))
       const listings = readJSON(DATA_FILE, [])
       const idx = listings.findIndex(l => l.id === id)
-      if (idx === -1) return json(res, { error: 'Not found' }, 404)
-      if (body.creator && listings[idx].creator.toLowerCase() !== body.creator.toLowerCase()) {
-        return json(res, { error: 'Not your listing' }, 403)
+      if (idx === -1) return json(res, { error: 'Not found' }, 404, origin)
+      if (listings[idx].creator.toLowerCase() !== verified) {
+        return json(res, { error: 'Not your listing' }, 403, origin)
       }
       listings.splice(idx, 1)
       writeJSON(DATA_FILE, listings)
-      return json(res, { ok: true })
+      return json(res, { ok: true }, 200, origin)
     }
 
     // PUT /api/listings/:id/taken — mark listing as taken
     if (pathname.startsWith('/api/listings/') && pathname.endsWith('/taken') && req.method === 'PUT') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const id = parseInt(pathname.split('/')[3])
       const body = await parseBody(req)
       const listings = readJSON(DATA_FILE, [])
       const listing = listings.find(l => l.id === id)
-      if (!listing) return json(res, { error: 'Not found' }, 404)
+      if (!listing) return json(res, { error: 'Not found' }, 404, origin)
+      if (listing.creator.toLowerCase() !== verified) {
+        return json(res, { error: 'Not your listing' }, 403, origin)
+      }
       listing.taken = true
-      listing.takenBy = body.creator || ''
+      listing.takenBy = verified
       listing.takenRoomId = body.roomId || ''
       listing.takenAt = Date.now()
       writeJSON(DATA_FILE, listings)
-      return json(res, listing)
+      return json(res, listing, 200, origin)
     }
 
     // ── NOTIFICATIONS ──
@@ -145,60 +258,77 @@ const server = http.createServer(async (req, res) => {
     // GET /api/notifications/:wallet
     if (pathname.startsWith('/api/notifications/') && req.method === 'GET') {
       const wallet = pathname.split('/')[3]?.toLowerCase()
-      if (!wallet) return json(res, { error: 'wallet required' }, 400)
+      if (!wallet) return json(res, { error: 'wallet required' }, 400, origin)
       const notifs = readJSON(NOTIF_FILE, {})
       const userNotifs = notifs[wallet] || []
-      return json(res, userNotifs)
+      return json(res, userNotifs, 200, origin)
     }
 
     // POST /api/notifications
     if (pathname === '/api/notifications' && req.method === 'POST') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const body = await parseBody(req)
-      if (!body.to || !body.message) return json(res, { error: 'to, message required' }, 400)
+      if (!body.to || !body.message) return json(res, { error: 'to, message required' }, 400, origin)
       const notifs = readJSON(NOTIF_FILE, {})
       const to = body.to.toLowerCase()
       if (!notifs[to]) notifs[to] = []
       notifs[to].unshift({
         id: Date.now(),
-        message: body.message,
+        message: sanitize(body.message, 500),
         listingId: body.listingId || null,
-        from: body.from || null,
+        from: verified, // verified sender
         read: false,
         createdAt: Date.now(),
       })
       writeJSON(NOTIF_FILE, notifs)
-      return json(res, { ok: true }, 201)
+      return json(res, { ok: true }, 201, origin)
     }
 
     // POST /api/notifications/:wallet/read — mark all as read
     if (pathname.startsWith('/api/notifications/') && pathname.endsWith('/read') && req.method === 'POST') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const wallet = pathname.split('/')[3]?.toLowerCase()
-      if (!wallet) return json(res, { error: 'wallet required' }, 400)
+      if (!wallet) return json(res, { error: 'wallet required' }, 400, origin)
+      if (wallet !== verified) return json(res, { error: 'Not your notifications' }, 403, origin)
       const notifs = readJSON(NOTIF_FILE, {})
       if (notifs[wallet]) {
         notifs[wallet] = notifs[wallet].map(n => ({ ...n, read: true }))
         writeJSON(NOTIF_FILE, notifs)
       }
-      return json(res, { ok: true })
+      return json(res, { ok: true }, 200, origin)
     }
 
     // ── OFFERS ──
 
-    // POST /api/offers — make an offer
+    // POST /api/offers — requires auth
     if (pathname === '/api/offers' && req.method === 'POST') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const body = await parseBody(req)
-      if (!body.listingId || !body.offererWallet) return json(res, { error: 'listingId, offererWallet required' }, 400)
+      if (!body.listingId) return json(res, { error: 'listingId required' }, 400, origin)
+
       const offers = readJSON(OFFERS_FILE, [])
       const newOffer = {
         id: Date.now(),
         listingId: body.listingId,
-        listingTitle: body.listingTitle || '',
+        listingTitle: sanitize(body.listingTitle || '', 200),
         listingRole: body.listingRole || 'seller',
         listingCreator: (body.listingCreator || '').toLowerCase(),
-        offererWallet: body.offererWallet.toLowerCase(),
+        offererWallet: verified, // ← use verified address
         offerPrice: body.offerPrice || '0',
         collateral: body.collateral || '0',
-        message: body.message || '',
+        message: sanitize(body.message || '', 1000),
         status: 'pending',
         counterPrice: null,
         counterMessage: null,
@@ -221,7 +351,7 @@ const server = http.createServer(async (req, res) => {
         createdAt: Date.now(),
       })
       writeJSON(NOTIF_FILE, notifs)
-      return json(res, newOffer, 201)
+      return json(res, newOffer, 201, origin)
     }
 
     // GET /api/offers — get offers for a wallet (both as creator and offerer)
@@ -231,15 +361,21 @@ const server = http.createServer(async (req, res) => {
       let offers = readJSON(OFFERS_FILE, [])
       if (wallet) offers = offers.filter(o => o.listingCreator === wallet || o.offererWallet === wallet)
       if (listingId) offers = offers.filter(o => o.listingId == listingId)
-      return json(res, offers)
+      return json(res, offers, 200, origin)
     }
 
-    // PUT /api/offers/:id/accept
+    // PUT /api/offers/:id/accept — creator only
     if (pathname.match(/^\/api\/offers\/\d+\/accept$/) && req.method === 'PUT') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const id = parseInt(pathname.split('/')[3])
       const offers = readJSON(OFFERS_FILE, [])
       const offer = offers.find(o => o.id === id)
-      if (!offer) return json(res, { error: 'Offer not found' }, 404)
+      if (!offer) return json(res, { error: 'Offer not found' }, 404, origin)
+      if (offer.listingCreator !== verified) return json(res, { error: 'Not your offer' }, 403, origin)
       offer.status = 'accepted'
       writeJSON(OFFERS_FILE, offers)
       // notify offerer
@@ -257,18 +393,23 @@ const server = http.createServer(async (req, res) => {
         createdAt: Date.now(),
       })
       writeJSON(NOTIF_FILE, notifs)
-      return json(res, offer)
+      return json(res, offer, 200, origin)
     }
 
-    // PUT /api/offers/:id/decline
+    // PUT /api/offers/:id/decline — creator only
     if (pathname.match(/^\/api\/offers\/\d+\/decline$/) && req.method === 'PUT') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const id = parseInt(pathname.split('/')[3])
       const offers = readJSON(OFFERS_FILE, [])
       const offer = offers.find(o => o.id === id)
-      if (!offer) return json(res, { error: 'Offer not found' }, 404)
+      if (!offer) return json(res, { error: 'Offer not found' }, 404, origin)
+      if (offer.listingCreator !== verified) return json(res, { error: 'Not your offer' }, 403, origin)
       offer.status = 'declined'
       writeJSON(OFFERS_FILE, offers)
-      // notify offerer
       const notifs = readJSON(NOTIF_FILE, {})
       const to = offer.offererWallet
       if (!notifs[to]) notifs[to] = []
@@ -281,21 +422,26 @@ const server = http.createServer(async (req, res) => {
         createdAt: Date.now(),
       })
       writeJSON(NOTIF_FILE, notifs)
-      return json(res, offer)
+      return json(res, offer, 200, origin)
     }
 
-    // PUT /api/offers/:id/counter
+    // PUT /api/offers/:id/counter — creator only
     if (pathname.match(/^\/api\/offers\/\d+\/counter$/) && req.method === 'PUT') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const id = parseInt(pathname.split('/')[3])
       const body = await parseBody(req)
       const offers = readJSON(OFFERS_FILE, [])
       const offer = offers.find(o => o.id === id)
-      if (!offer) return json(res, { error: 'Offer not found' }, 404)
+      if (!offer) return json(res, { error: 'Offer not found' }, 404, origin)
+      if (offer.listingCreator !== verified) return json(res, { error: 'Not your offer' }, 403, origin)
       offer.status = 'countered'
       offer.counterPrice = body.counterPrice || offer.offerPrice
-      offer.counterMessage = body.counterMessage || ''
+      offer.counterMessage = sanitize(body.counterMessage || '', 500)
       writeJSON(OFFERS_FILE, offers)
-      // notify offerer
       const notifs = readJSON(NOTIF_FILE, {})
       const to = offer.offererWallet
       if (!notifs[to]) notifs[to] = []
@@ -310,53 +456,67 @@ const server = http.createServer(async (req, res) => {
         createdAt: Date.now(),
       })
       writeJSON(NOTIF_FILE, notifs)
-      return json(res, offer)
+      return json(res, offer, 200, origin)
     }
 
     // ── ROOM CODES (for auto-join) ──
 
-    // POST /api/room-codes — store join code after room creation
+    // POST /api/room-codes — requires auth
     if (pathname === '/api/room-codes' && req.method === 'POST') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const body = await parseBody(req)
-      if (!body.roomId || !body.joinCode || !body.creator || !body.counterparty) {
-        return json(res, { error: 'Missing fields' }, 400)
+      if (!body.roomId || !body.joinCode || !body.counterparty) {
+        return json(res, { error: 'Missing fields' }, 400, origin)
       }
       const codes = readJSON(ROOM_CODES_FILE, [])
-      // Don't duplicate
       if (!codes.find(c => c.roomId === body.roomId)) {
         codes.push({
           roomId: body.roomId,
-          joinCode: body.joinCode,
-          creator: body.creator.toLowerCase(),
+          joinCode: sanitize(body.joinCode, 100),
+          creator: verified, // verified address
           counterparty: body.counterparty.toLowerCase(),
           listingId: body.listingId || null,
-          item: body.item || '',
+          item: sanitize(body.item || '', 200),
           price: body.price || '',
           createdAt: Date.now(),
         })
         writeJSON(ROOM_CODES_FILE, codes)
       }
-      return json(res, { ok: true })
+      return json(res, { ok: true }, 200, origin)
     }
 
-    // GET /api/room-codes?wallet=0x... OR /api/room-codes/:wallet — get pending rooms
-    if ((pathname === '/api/room-codes' || pathname.startsWith('/api/room-codes/')) && req.method === 'GET') {
-      const wallet = url.searchParams.get('wallet') || pathname.split('/')[3]
-      if (!wallet) return json(res, [])
+    // GET /api/room-codes?wallet=0x... — requires auth, only own codes
+    if (pathname === '/api/room-codes' && req.method === 'GET') {
+      const auth = parseAuth(req)
+      if (!auth.wallet || !auth.signature || !auth.nonce) return json(res, { error: 'Wallet authentication required' }, 401, origin)
+      const verified = await verifySignature(auth)
+      if (!verified) return json(res, { error: 'Invalid signature' }, 401, origin)
+
       const codes = readJSON(ROOM_CODES_FILE, [])
-      const pending = codes.filter(c => c.counterparty === wallet.toLowerCase())
-      return json(res, pending)
+      // If roomId query param: return code if user is involved
+      const roomId = url.searchParams.get('roomId')
+      if (roomId) {
+        const code = codes.find(c => c.roomId === roomId && (c.creator === verified || c.counterparty === verified))
+        return json(res, code ? [code] : [], 200, origin)
+      }
+      // Otherwise: return all pending codes for this wallet
+      const pending = codes.filter(c => c.counterparty === verified)
+      return json(res, pending, 200, origin)
     }
 
-    // ── HEALTH ──
+    // ── HEALTH (no leak) ──
 
     if (pathname === '/api/health' && req.method === 'GET') {
-      return json(res, { status: 'ok', listings: readJSON(DATA_FILE, []).length, offers: readJSON(OFFERS_FILE, []).length })
+      return json(res, { status: 'ok' }, 200, origin)
     }
 
-    json(res, { error: 'Not found' }, 404)
+    json(res, { error: 'Not found' }, 404, origin)
   } catch (err) {
-    json(res, { error: err.message }, 500)
+    json(res, { error: err.message }, 500, origin)
   }
 })
 

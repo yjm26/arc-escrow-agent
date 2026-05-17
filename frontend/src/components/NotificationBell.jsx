@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
+import { authFetch, API_URL } from '../lib/api'
 
 export default function NotificationBell({ wallet }) {
   const [notifs, setNotifs] = useState([])
@@ -26,7 +25,7 @@ export default function NotificationBell({ wallet }) {
   async function markAllRead() {
     if (!wallet) return
     try {
-      await fetch(`${API_URL}/api/notifications/${wallet.address.toLowerCase()}/read`, { method: 'POST' })
+      await authFetch(`/api/notifications/${wallet.address.toLowerCase()}/read`, { method: 'POST' }, wallet)
       fetchNotifs()
     } catch {}
   }

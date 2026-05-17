@@ -8,6 +8,7 @@ import ActionPanel from './room/ActionPanel'
 import Skeleton from './Skeleton'
 import { useToast } from '../hooks/useToast'
 import { useSmartPolling } from '../hooks/useSmartPolling'
+import { authFetch, API_URL } from '../lib/api'
 
 const STATE_BADGE = {
   Created: 'text-blue-700 bg-blue-50 border-blue-200',
@@ -104,7 +105,6 @@ const STATE_GUIDES = {
 }
 
 const TREASURY = '0xB8b4e8E7Ad2651d36b8E0D24B5EF1ae06EE2cC4a'
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
 
 function formatAddress(addr) {
   if (!addr || addr === '0x0000000000000000000000000000000000000000') return '—'
@@ -144,16 +144,15 @@ export default function RoomView({ wallet }) {
 
   useEffect(() => {
     // Fetch invite link with joinCode from backend (for creator to share)
-    if (!id) return
-    fetch(`${API_URL}/api/room-codes?roomId=${id}`)
-      .then(r => r.json())
+    if (!id || !wallet) return
+    authFetch(`/api/room-codes?roomId=${id}`, { method: 'GET' }, wallet)
       .then(codes => {
         const code = codes?.[0]?.joinCode
         if (code) setInviteLink(`${window.location.origin}/room/${id}?code=${code}`)
         else setInviteLink(window.location.href)
       })
       .catch(() => setInviteLink(window.location.href))
-  }, [id])
+  }, [id, wallet])
 
   async function loadRoom() {
     try {
@@ -246,8 +245,7 @@ export default function RoomView({ wallet }) {
     if (isCreatorAddr || isCounterAddr) return // already participant
     if (room.state !== 'Created') return // can only join in Created state
     if (!wallet) return
-    fetch(`${API_URL}/api/room-codes?roomId=${id}`)
-      .then(r => r.json())
+    authFetch(`/api/room-codes?roomId=${id}`, { method: 'GET' }, wallet)
       .then(data => {
         const code = data?.[0]?.joinCode
         if (code) setJoinCodeInput(code)

@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, STATE_NAMES, CONTRACT_ADDRESS, ARC_GAS, ARC_GAS_APPROVE, ensureArcChain, waitForTx , parseRoom} from '../utils/contract'
 import { STATE_BADGE, formatAddress } from '../utils/constants'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
+import { authFetch, API_URL } from '../lib/api'
 
 export default function RoomsPage({ wallet }) {
   const [rooms, setRooms] = useState([])
@@ -38,8 +37,7 @@ export default function RoomsPage({ wallet }) {
   async function fetchPendingRooms() {
     if (!wallet) return
     try {
-      const res = await fetch(`${API_URL}/api/room-codes/${wallet.address}`)
-      const data = await res.json()
+      const data = await authFetch('/api/room-codes', { method: 'GET' }, wallet)
       // Filter out rooms we've already joined (check on-chain)
       // and discard codes older than 24h (stale / likely expired)
       const DAY = 24 * 60 * 60 * 1000

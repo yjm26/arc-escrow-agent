@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { ethers } from 'ethers'
 import { getContract, getUsdc, waitForTx, ARC_GAS, ARC_GAS_APPROVE, generateJoinCode, hashJoinCode, createInviteLink, CONTRACT_ADDRESS, ensureArcChain, fixSignerNonce } from '../utils/contract'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://arc-escrow-agent-production.up.railway.app'
+import { authFetch, API_URL } from '../lib/api'
 
 export default function CreateRoom({ wallet }) {
   const [searchParams] = useSearchParams()
@@ -129,43 +128,38 @@ export default function CreateRoom({ wallet }) {
           const ctrl = new AbortController()
           const t = setTimeout(() => ctrl.abort(), 15000)
 
-          if (listingId) {
-            await fetch(`${API_URL}/api/listings/${listingId}/taken`, {
+        if (listingId) {
+            await authFetch(`/api/listings/${listingId}/taken`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
               signal: ctrl.signal,
-              body: JSON.stringify({ roomId, creator: wallet.address }),
-            })
+              body: JSON.stringify({ roomId }),
+            }, wallet)
             if (counterparty) {
-              await fetch(`${API_URL}/api/notifications`, {
+              await authFetch('/api/notifications', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 signal: ctrl.signal,
                 body: JSON.stringify({
                   to: counterparty,
-                  from: wallet.address,
-                  message: `Someone opened a deal for "${item}" \u2014 Room #${roomId}`,
+                  message: `Someone opened a deal for "${item}" — Room #${roomId}`,
                   listingId,
                 }),
-              })
+              }, wallet)
             }
           }
 
           if (counterparty) {
-            await fetch(`${API_URL}/api/room-codes`, {
+            await authFetch('/api/room-codes', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
               signal: ctrl.signal,
               body: JSON.stringify({
                 roomId,
                 joinCode,
-                creator: wallet.address,
                 counterparty,
                 item,
                 price,
                 listingId: searchParams.get('listingId'),
               }),
-            })
+            }, wallet)
           }
           clearTimeout(t)
         } catch (e) {

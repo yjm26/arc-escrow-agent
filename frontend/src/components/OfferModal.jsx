@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { authFetch } from '../lib/api'
 
-export default function OfferModal({ listing, wallet, API_URL, onClose, onSubmitted }) {
+export default function OfferModal({ listing, wallet, onClose, onSubmitted }) {
   const navigate = useNavigate()
   const [price, setPrice] = useState(listing.price)
   const [message, setMessage] = useState('')
@@ -27,21 +28,19 @@ export default function OfferModal({ listing, wallet, API_URL, onClose, onSubmit
         return
       }
       // Different price — create counter offer
-      await fetch(`${API_URL}/api/offers`, {
+      await authFetch('/api/offers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listingId: listing.id,
           listingTitle: listing.title,
           listingRole: listing.role,
           listingCreator: listing.creator,
-          offererWallet: wallet.address,
           offerPrice: price,
           collateral: listing.collateral || '0',
           message,
           type: 'counter',
         }),
-      })
+      }, wallet)
       onSubmitted()
     } catch (err) {
       console.error(err)

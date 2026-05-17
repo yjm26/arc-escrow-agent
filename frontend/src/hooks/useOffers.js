@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { authFetch } from '../lib/api'
 
 function timeAgo(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -57,25 +58,24 @@ export function useOffers(wallet, API_URL, navigate, opts = {}) {
 
   async function accept(offerId) {
     try {
-      await fetch(`${API_URL}/api/offers/${offerId}/accept`, { method: 'PUT' })
+      await authFetch(`/api/offers/${offerId}/accept`, { method: 'PUT' }, wallet)
       await fetchOffers()
     } catch (err) { console.error(err) }
   }
 
   async function decline(offerId) {
     try {
-      await fetch(`${API_URL}/api/offers/${offerId}/decline`, { method: 'PUT' })
+      await authFetch(`/api/offers/${offerId}/decline`, { method: 'PUT' }, wallet)
       await fetchOffers()
     } catch (err) { console.error(err) }
   }
 
   async function submitCounter(offerId) {
     try {
-      await fetch(`${API_URL}/api/offers/${offerId}/counter`, {
+      await authFetch(`/api/offers/${offerId}/counter`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ counterPrice, counterMessage: counterMsg }),
-      })
+      }, wallet)
       setCounterTarget(null)
       setCounterPrice('')
       setCounterMsg('')

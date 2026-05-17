@@ -17,6 +17,7 @@ import ArbiterDashboard from './components/ArbiterDashboard'
 import ToastContainer from './components/ToastContainer'
 import { ToastProvider } from './contexts/ToastContext'
 import { reconnectWallet } from './lib/wallet'
+import { resetAuthCache } from './lib/api'
 
 const ARC_TESTNET = {
   id: 5042002,
@@ -77,6 +78,7 @@ export default function App() {
       try {
         const w = await reconnectWallet(walletProvider)
         if (!cancelled) {
+          w.walletProvider = walletProvider // raw provider for SIWE signing
           setWallet(w)
           localStorage.setItem('bond_wallet_connected', '1')
         }
@@ -96,6 +98,7 @@ export default function App() {
     manualDisconnect.current = true
     setWallet(null)
     localStorage.removeItem('bond_wallet_connected')
+    resetAuthCache()
     try { await disconnect() } catch (e) { console.error('Disconnect failed:', e) }
   }, [disconnect])
 
